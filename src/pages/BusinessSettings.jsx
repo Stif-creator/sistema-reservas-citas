@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useAuth } from '../context/AuthContext'
+import WeeklyHoursEditor, { hasInvalidWeeklyHoursSlot } from '../components/WeeklyHoursEditor'
 
 const PHONE_REGEX = /^\+?\d{8,}$/
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -31,6 +32,12 @@ function BusinessSettings() {
   const [success, setSuccess] = useState('')
   const [saving, setSaving] = useState(false)
 
+  // --- Sección: horario de atención ---
+  const [weeklyHours, setWeeklyHours] = useState({})
+  const [hoursError, setHoursError] = useState('')
+  const [hoursSuccess, setHoursSuccess] = useState('')
+  const [hoursSaving, setHoursSaving] = useState(false)
+
   useEffect(() => {
     async function fetchBusiness() {
       if (!businessId) return
@@ -50,6 +57,7 @@ function BusinessSettings() {
         setCity(data.location?.city ?? '')
         setStateRegion(data.location?.stateRegion ?? '')
         setCountryCode(data.location?.countryCode ?? '')
+        setWeeklyHours(data.weeklyHours ?? {})
       }
       setLoadingBusiness(false)
     }
@@ -125,6 +133,31 @@ function BusinessSettings() {
       setError('No se pudieron guardar los cambios. Intenta de nuevo.')
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleHoursSubmit(e) {
+    e.preventDefault()
+    setHoursError('')
+    setHoursSuccess('')
+
+    if (hasInvalidWeeklyHoursSlot(weeklyHours)) {
+      setHoursError('Revisa las franjas marcadas en rojo: la hora de fin debe ser mayor a la de inicio.')
+      return
+    }
+
+    setHoursSaving(true)
+    try {
+      await updateDoc(doc(db, 'businesses', businessId), {
+        weeklyHours,
+        updatedAt: serverTimestamp(),
+      })
+      setHoursSuccess('Horario guardado.')
+    } catch (err) {
+      console.error('Error al guardar el horario del negocio', err)
+      setHoursError('No se pudo guardar el horario. Intenta de nuevo.')
+    } finally {
+      setHoursSaving(false)
     }
   }
 
@@ -289,6 +322,18 @@ function BusinessSettings() {
 
         <button type="submit" disabled={saving}>
           {saving ? 'Guardando...' : 'Guardar cambios'}
+        </button>
+      </form>
+
+      <h3>Horario de atención</h3>
+      <form onSubmit={handleHoursSubmit}>
+        <WeeklyHoursEditor value={weeklyHours} onChange={setWeeklyHours} />
+
+        {hoursError && <p style={{ color: 'red' }}>{hoursError}</p>}
+        {hoursSuccess && <p style={{ color: 'green' }}>{hoursSuccess}</p>}
+
+        <button type="submit" disabled={hoursSaving}>
+          {hoursSaving ? 'Guardando...' : 'Guardar horario'}
         </button>
       </form>
     </div>

@@ -13,8 +13,13 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useAuth } from '../context/AuthContext'
+import WeeklyHoursEditor, { hasInvalidWeeklyHoursSlot } from '../components/WeeklyHoursEditor'
 
 const PHONE_REGEX = /^\+?\d{8,}$/
+
+function todayDateString() {
+  return new Date().toISOString().slice(0, 10)
+}
 
 function Professionals() {
   const { membership } = useAuth()
@@ -49,6 +54,14 @@ function Professionals() {
   const [svcAssignError, setSvcAssignError] = useState('')
   const [svcAssignSuccess, setSvcAssignSuccess] = useState('')
   const [svcAssignSaving, setSvcAssignSaving] = useState(false)
+
+  // --- Sección C: horario semanal ---
+  const [weeklyHours, setWeeklyHours] = useState({})
+  const [scheduleValidFrom, setScheduleValidFrom] = useState(todayDateString())
+  const [scheduleValidUntil, setScheduleValidUntil] = useState('')
+  const [hoursError, setHoursError] = useState('')
+  const [hoursSuccess, setHoursSuccess] = useState('')
+  const [hoursSaving, setHoursSaving] = useState(false)
 
   useEffect(() => {
     if (!businessId) return
@@ -114,6 +127,12 @@ function Professionals() {
     setSelectedServiceIds(new Set(prof.serviceIds ?? []))
     setSvcAssignError('')
     setSvcAssignSuccess('')
+
+    setWeeklyHours(prof.weeklyHours ?? {})
+    setScheduleValidFrom(prof.scheduleValidFrom ?? todayDateString())
+    setScheduleValidUntil(prof.scheduleValidUntil ?? '')
+    setHoursError('')
+    setHoursSuccess('')
   }
 
   function closeEditor() {
@@ -171,6 +190,35 @@ function Professionals() {
       setProfileError('No se pudo guardar el perfil. Intenta de nuevo.')
     } finally {
       setProfileSaving(false)
+    }
+  }
+
+  // ---------- Sección C: horario semanal ----------
+
+  async function handleHoursSubmit(e) {
+    e.preventDefault()
+    setHoursError('')
+    setHoursSuccess('')
+
+    if (hasInvalidWeeklyHoursSlot(weeklyHours)) {
+      setHoursError('Revisa las franjas marcadas en rojo: la hora de fin debe ser mayor a la de inicio.')
+      return
+    }
+
+    setHoursSaving(true)
+    try {
+      await updateDoc(doc(db, 'professionals', editingId), {
+        weeklyHours,
+        scheduleValidFrom: scheduleValidFrom || null,
+        scheduleValidUntil: scheduleValidUntil || null,
+        updatedAt: serverTimestamp(),
+      })
+      setHoursSuccess('Horario guardado.')
+    } catch (err) {
+      console.error('Error al guardar el horario del profesional', err)
+      setHoursError('No se pudo guardar el horario. Intenta de nuevo.')
+    } finally {
+      setHoursSaving(false)
     }
   }
 
@@ -361,6 +409,38 @@ function Professionals() {
 
             <button type="submit" disabled={svcAssignSaving || services.length === 0}>
               {svcAssignSaving ? 'Guardando...' : 'Guardar servicios'}
+            </button>
+          </form>
+
+          <h4>Horario semanal</h4>
+          <form onSubmit={handleHoursSubmit}>
+            <div>
+              <label htmlFor="scheduleValidFrom">Vigente desde</label>
+              <input
+                id="scheduleValidFrom"
+                type="date"
+                value={scheduleValidFrom}
+                onChange={(e) => setScheduleValidFrom(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="scheduleValidUntil">Vigente hasta (opcional)</label>
+              <input
+                id="scheduleValidUntil"
+                type="date"
+                value={scheduleValidUntil}
+                onChange={(e) => setScheduleValidUntil(e.target.value)}
+              />
+            </div>
+
+            <WeeklyHoursEditor value={weeklyHours} onChange={setWeeklyHours} />
+
+            {hoursError && <p style={{ color: 'red' }}>{hoursError}</p>}
+            {hoursSuccess && <p style={{ color: 'green' }}>{hoursSuccess}</p>}
+
+            <button type="submit" disabled={hoursSaving}>
+              {hoursSaving ? 'Guardando...' : 'Guardar horario'}
             </button>
           </form>
         </div>
