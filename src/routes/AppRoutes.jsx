@@ -6,6 +6,7 @@ import Dashboard from '../pages/Dashboard'
 import BusinessSettings from '../pages/BusinessSettings'
 import Services from '../pages/Services'
 import Professionals from '../pages/Professionals'
+import ScheduleBlocks from '../pages/ScheduleBlocks'
 import ProtectedRoute from '../components/ProtectedRoute'
 import AdminLayout from '../components/AdminLayout'
 
@@ -50,6 +51,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute allowedRoles={['admin']}>
               <Professionals />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/bloqueos"
+          element={
+            <ProtectedRoute allowedRoles={['admin', 'professional']}>
+              <ScheduleBlocks />
             </ProtectedRoute>
           }
         />

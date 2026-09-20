@@ -7,6 +7,7 @@ import {
   Bell,
   Calendar,
   CalendarCheck,
+  CalendarX,
   ChevronDown,
   LayoutDashboard,
   LogOut,
@@ -27,10 +28,14 @@ const COMING_SOON_LINKS = [
   { label: 'Calendario', icon: Calendar },
 ]
 
+// Cada link declara qué roles pueden verlo: Bloqueos es el único de esta
+// sección visible también para profesionales, el resto sigue siendo
+// exclusivo de admin.
 const BUSINESS_LINKS = [
-  { to: '/servicios', label: 'Servicios', icon: Scissors },
-  { to: '/profesionales', label: 'Profesionales', icon: Users },
-  { to: '/negocio', label: 'Configuración', icon: Settings },
+  { to: '/servicios', label: 'Servicios', icon: Scissors, roles: ['admin'] },
+  { to: '/profesionales', label: 'Profesionales', icon: Users, roles: ['admin'] },
+  { to: '/bloqueos', label: 'Bloqueos', icon: CalendarX, roles: ['admin', 'professional'] },
+  { to: '/negocio', label: 'Configuración', icon: Settings, roles: ['admin'] },
 ]
 
 const navLinkClasses = ({ isActive }) =>
@@ -55,8 +60,8 @@ function AdminLayout() {
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const userMenuRef = useRef(null)
 
-  const isAdmin = membership?.role === 'admin'
   const userName = userDoc ? `${userDoc.firstName} ${userDoc.lastName}` : ''
+  const visibleBusinessLinks = BUSINESS_LINKS.filter((link) => link.roles.includes(membership?.role))
 
   useEffect(() => {
     async function fetchBusinessName() {
@@ -126,11 +131,11 @@ function AdminLayout() {
           </div>
         </div>
 
-        {isAdmin && (
+        {visibleBusinessLinks.length > 0 && (
           <div>
             <p className="px-3 pb-2 text-xs font-semibold uppercase tracking-wide text-muted">Negocio</p>
             <div className="space-y-1">
-              {BUSINESS_LINKS.map((link) => (
+              {visibleBusinessLinks.map((link) => (
                 <NavLink key={link.to} to={link.to} className={navLinkClasses}>
                   <link.icon size={18} />
                   {link.label}
