@@ -13,6 +13,13 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useAuth } from '../context/AuthContext'
+import Card from '../components/ui/Card'
+import PageHeader from '../components/ui/PageHeader'
+import Field, { fieldControlClasses } from '../components/ui/Field'
+import Button from '../components/ui/Button'
+import Alert from '../components/ui/Alert'
+import Badge from '../components/ui/Badge'
+import { Pencil } from 'lucide-react'
 
 function Services() {
   const { membership } = useAuth()
@@ -341,285 +348,319 @@ function Services() {
   }
 
   return (
-    <div>
-      <h2>Categorías</h2>
+    <div className="space-y-6">
+      <PageHeader title="Servicios" description="Organiza tus categorías y los servicios que ofreces." />
 
-      {categoriesListError && (
-        <p style={{ color: 'red' }}>Error al cargar categorías: {categoriesListError}</p>
-      )}
+      <Card title="Categorías">
+        {categoriesListError && <Alert tone="error">Error al cargar categorías: {categoriesListError}</Alert>}
 
-      {categoriesLoading ? (
-        <p>Cargando categorías...</p>
-      ) : categories.length === 0 ? (
-        <p>Todavía no hay categorías.</p>
-      ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>Nombre</th>
-              <th>Descripción</th>
-              <th>Estado</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {categories.map((cat) => (
-              <tr key={cat.id}>
-                <td>{cat.name}</td>
-                <td>{cat.description}</td>
-                <td>{cat.isActive ? 'Activa' : 'Inactiva'}</td>
-                <td>
-                  <button type="button" onClick={() => loadCategoryForEdit(cat)}>
-                    Editar
-                  </button>{' '}
-                  <button type="button" onClick={() => toggleCategoryActive(cat)}>
-                    {cat.isActive ? 'Desactivar' : 'Activar'}
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-
-      <h3>{catEditingId ? 'Editar categoría' : 'Nueva categoría'}</h3>
-      <form onSubmit={handleCategorySubmit} noValidate>
-        <div>
-          <label htmlFor="catName">Nombre</label>
-          <input
-            id="catName"
-            value={catName}
-            onChange={(e) => {
-              setCatName(e.target.value)
-              clearCatFieldError('name')
-            }}
-          />
-          {catFieldErrors.name && <p style={{ color: 'red' }}>{catFieldErrors.name}</p>}
-        </div>
-
-        <div>
-          <label htmlFor="catDescription">Descripción</label>
-          <textarea
-            id="catDescription"
-            value={catDescription}
-            onChange={(e) => setCatDescription(e.target.value)}
-          />
-        </div>
-
-        {catError && <p style={{ color: 'red' }}>{catError}</p>}
-        {catSuccess && <p style={{ color: 'green' }}>{catSuccess}</p>}
-
-        <button type="submit" disabled={catSaving}>
-          {catSaving ? 'Guardando...' : catEditingId ? 'Guardar cambios' : 'Crear categoría'}
-        </button>{' '}
-        {catEditingId && (
-          <button type="button" onClick={resetCategoryForm}>
-            Cancelar edición
-          </button>
+        {categoriesLoading ? (
+          <p className="text-sm text-muted">Cargando categorías...</p>
+        ) : categories.length === 0 ? (
+          <p className="text-sm text-muted">Todavía no hay categorías.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-border text-xs font-semibold uppercase tracking-wide text-muted">
+                  <th className="py-2 pr-4">Nombre</th>
+                  <th className="py-2 pr-4">Descripción</th>
+                  <th className="py-2 pr-4">Estado</th>
+                  <th className="py-2 pr-4">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {categories.map((cat) => (
+                  <tr key={cat.id}>
+                    <td className="py-2.5 pr-4 font-medium text-ink">{cat.name}</td>
+                    <td className="py-2.5 pr-4 text-muted">{cat.description || '—'}</td>
+                    <td className="py-2.5 pr-4">
+                      <Badge tone={cat.isActive ? 'success' : 'neutral'}>
+                        {cat.isActive ? 'Activa' : 'Inactiva'}
+                      </Badge>
+                    </td>
+                    <td className="py-2.5 pr-4">
+                      <div className="flex items-center gap-2">
+                        <Button variant="ghost" className="px-2 py-1" onClick={() => loadCategoryForEdit(cat)}>
+                          Editar
+                        </Button>
+                        <Button variant="ghost" className="px-2 py-1" onClick={() => toggleCategoryActive(cat)}>
+                          {cat.isActive ? 'Desactivar' : 'Activar'}
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
-      </form>
 
-      <hr />
+        <form onSubmit={handleCategorySubmit} noValidate className="mt-6 space-y-4 border-t border-border pt-6">
+          <h4 className="text-sm font-semibold text-ink">
+            {catEditingId ? 'Editar categoría' : 'Nueva categoría'}
+          </h4>
 
-      <h2>Servicios</h2>
-
-      {servicesListError && (
-        <p style={{ color: 'red' }}>Error al cargar servicios: {servicesListError}</p>
-      )}
-
-      {servicesLoading ? (
-        <p>Cargando servicios...</p>
-      ) : services.length === 0 ? (
-        <p>Todavía no hay servicios.</p>
-      ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>Nombre</th>
-              <th>Categoría</th>
-              <th>Precio</th>
-              <th>Duración</th>
-              <th>Estado</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {services.map((svc) => (
-              <tr key={svc.id}>
-                <td>{svc.name}</td>
-                <td>{categories.find((c) => c.id === svc.categoryId)?.name ?? '—'}</td>
-                <td>
-                  {svc.price} {svc.currencyCode}
-                </td>
-                <td>{svc.durationMinutes} min</td>
-                <td>{svc.isActive ? 'Activo' : 'Inactivo'}</td>
-                <td>
-                  <button type="button" onClick={() => loadServiceForEdit(svc)}>
-                    Editar
-                  </button>{' '}
-                  <button type="button" onClick={() => toggleServiceActive(svc)}>
-                    {svc.isActive ? 'Desactivar' : 'Activar'}
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-
-      <h3>{svcEditingId ? 'Editar servicio' : 'Nuevo servicio'}</h3>
-
-      {activeCategories.length === 0 ? (
-        <p>Crea una categoría primero.</p>
-      ) : (
-        <form onSubmit={handleServiceSubmit} noValidate>
-          <div>
-            <label htmlFor="svcName">Nombre</label>
-            <input
-              id="svcName"
-              value={svcName}
-              onChange={(e) => {
-                setSvcName(e.target.value)
-                clearSvcFieldError('name')
-              }}
-            />
-            {svcFieldErrors.name && <p style={{ color: 'red' }}>{svcFieldErrors.name}</p>}
-          </div>
-
-          <div>
-            <label htmlFor="svcDescription">Descripción</label>
-            <textarea
-              id="svcDescription"
-              value={svcDescription}
-              onChange={(e) => setSvcDescription(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <label htmlFor="svcCategoryId">Categoría</label>
-            <select
-              id="svcCategoryId"
-              value={svcCategoryId}
-              onChange={(e) => {
-                setSvcCategoryId(e.target.value)
-                clearSvcFieldError('categoryId')
-              }}
-            >
-              <option value="" disabled>
-                Selecciona una categoría
-              </option>
-              {categoryOptions.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
-            {svcFieldErrors.categoryId && <p style={{ color: 'red' }}>{svcFieldErrors.categoryId}</p>}
-          </div>
-
-          <div>
-            <label htmlFor="svcPrice">Precio ({currencyCode || 'moneda del negocio'})</label>
-            <input
-              id="svcPrice"
-              type="number"
-              min="0"
-              step="0.01"
-              value={svcPrice}
-              onChange={(e) => {
-                setSvcPrice(e.target.value)
-                clearSvcFieldError('price')
-              }}
-            />
-            {svcFieldErrors.price && <p style={{ color: 'red' }}>{svcFieldErrors.price}</p>}
-          </div>
-
-          <div>
-            <label htmlFor="svcDuration">Duración (minutos)</label>
-            <input
-              id="svcDuration"
-              type="number"
-              min="1"
-              step="1"
-              value={svcDuration}
-              onChange={(e) => {
-                setSvcDuration(e.target.value)
-                clearSvcFieldError('durationMinutes')
-              }}
-            />
-            {svcFieldErrors.durationMinutes && (
-              <p style={{ color: 'red' }}>{svcFieldErrors.durationMinutes}</p>
-            )}
-          </div>
-
-          {/* bufferBeforeMinutes: minutos que se bloquean en la agenda
-              ANTES de que empiece la cita (ej. preparar el espacio o el
-              material). bufferAfterMinutes: minutos que se bloquean
-              DESPUÉS de que termina (ej. limpieza, dejar salir al
-              cliente). Ninguno de los dos forma parte de durationMinutes
-              ni se cobra: son márgenes internos. Los usaremos recién
-              cuando construyamos el cálculo de disponibilidad/horarios
-              en una fase futura; por ahora solo se guardan. */}
-          <div>
-            <label htmlFor="svcBufferBefore">Margen antes (minutos)</label>
-            <input
-              id="svcBufferBefore"
-              type="number"
-              min="0"
-              step="1"
-              value={svcBufferBefore}
-              onChange={(e) => {
-                setSvcBufferBefore(e.target.value)
-                clearSvcFieldError('bufferBeforeMinutes')
-              }}
-            />
-            {svcFieldErrors.bufferBeforeMinutes && (
-              <p style={{ color: 'red' }}>{svcFieldErrors.bufferBeforeMinutes}</p>
-            )}
-          </div>
-
-          <div>
-            <label htmlFor="svcBufferAfter">Margen después (minutos)</label>
-            <input
-              id="svcBufferAfter"
-              type="number"
-              min="0"
-              step="1"
-              value={svcBufferAfter}
-              onChange={(e) => {
-                setSvcBufferAfter(e.target.value)
-                clearSvcFieldError('bufferAfterMinutes')
-              }}
-            />
-            {svcFieldErrors.bufferAfterMinutes && (
-              <p style={{ color: 'red' }}>{svcFieldErrors.bufferAfterMinutes}</p>
-            )}
-          </div>
-
-          <div>
-            <label htmlFor="svcImageUrl">URL de la imagen</label>
-            <input id="svcImageUrl" value={svcImageUrl} onChange={(e) => setSvcImageUrl(e.target.value)} />
-            {svcImageUrl && (
-              <img
-                src={svcImageUrl}
-                alt="Vista previa del servicio"
-                style={{ maxWidth: 150, display: 'block', marginTop: 8 }}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Nombre" htmlFor="catName" error={catFieldErrors.name}>
+              <input
+                id="catName"
+                value={catName}
+                onChange={(e) => {
+                  setCatName(e.target.value)
+                  clearCatFieldError('name')
+                }}
+                className={fieldControlClasses(Boolean(catFieldErrors.name))}
               />
-            )}
+            </Field>
+
+            <Field label="Descripción" htmlFor="catDescription">
+              <input
+                id="catDescription"
+                value={catDescription}
+                onChange={(e) => setCatDescription(e.target.value)}
+                className={fieldControlClasses(false)}
+              />
+            </Field>
           </div>
 
-          {svcError && <p style={{ color: 'red' }}>{svcError}</p>}
-          {svcSuccess && <p style={{ color: 'green' }}>{svcSuccess}</p>}
+          {catError && <Alert tone="error">{catError}</Alert>}
+          {catSuccess && <Alert tone="success">{catSuccess}</Alert>}
 
-          <button type="submit" disabled={svcSaving}>
-            {svcSaving ? 'Guardando...' : svcEditingId ? 'Guardar cambios' : 'Crear servicio'}
-          </button>{' '}
-          {svcEditingId && (
-            <button type="button" onClick={resetServiceForm}>
-              Cancelar edición
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            <Button type="submit" disabled={catSaving}>
+              {catSaving ? 'Guardando...' : catEditingId ? 'Guardar cambios' : 'Crear categoría'}
+            </Button>
+            {catEditingId && (
+              <Button type="button" variant="secondary" onClick={resetCategoryForm}>
+                Cancelar edición
+              </Button>
+            )}
+          </div>
         </form>
-      )}
+      </Card>
+
+      <Card title="Servicios">
+        {servicesListError && <Alert tone="error">Error al cargar servicios: {servicesListError}</Alert>}
+
+        {servicesLoading ? (
+          <p className="text-sm text-muted">Cargando servicios...</p>
+        ) : services.length === 0 ? (
+          <p className="text-sm text-muted">Todavía no hay servicios.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-border text-xs font-semibold uppercase tracking-wide text-muted">
+                  <th className="py-2 pr-4">Nombre</th>
+                  <th className="py-2 pr-4">Categoría</th>
+                  <th className="py-2 pr-4">Precio</th>
+                  <th className="py-2 pr-4">Duración</th>
+                  <th className="py-2 pr-4">Estado</th>
+                  <th className="py-2 pr-4">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {services.map((svc) => (
+                  <tr key={svc.id}>
+                    <td className="py-2.5 pr-4 font-medium text-ink">{svc.name}</td>
+                    <td className="py-2.5 pr-4 text-muted">
+                      {categories.find((c) => c.id === svc.categoryId)?.name ?? '—'}
+                    </td>
+                    <td className="py-2.5 pr-4 text-ink">
+                      {svc.price} {svc.currencyCode}
+                    </td>
+                    <td className="py-2.5 pr-4 text-muted">{svc.durationMinutes} min</td>
+                    <td className="py-2.5 pr-4">
+                      <Badge tone={svc.isActive ? 'success' : 'neutral'}>
+                        {svc.isActive ? 'Activo' : 'Inactivo'}
+                      </Badge>
+                    </td>
+                    <td className="py-2.5 pr-4">
+                      <div className="flex items-center gap-2">
+                        <Button variant="ghost" className="px-2 py-1" onClick={() => loadServiceForEdit(svc)}>
+                          <Pencil size={14} />
+                          Editar
+                        </Button>
+                        <Button variant="ghost" className="px-2 py-1" onClick={() => toggleServiceActive(svc)}>
+                          {svc.isActive ? 'Desactivar' : 'Activar'}
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <div className="mt-6 border-t border-border pt-6">
+          <h4 className="mb-4 text-sm font-semibold text-ink">
+            {svcEditingId ? 'Editar servicio' : 'Nuevo servicio'}
+          </h4>
+
+          {activeCategories.length === 0 ? (
+            <p className="text-sm text-muted">Crea una categoría primero.</p>
+          ) : (
+            <form onSubmit={handleServiceSubmit} noValidate className="space-y-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field label="Nombre" htmlFor="svcName" error={svcFieldErrors.name}>
+                  <input
+                    id="svcName"
+                    value={svcName}
+                    onChange={(e) => {
+                      setSvcName(e.target.value)
+                      clearSvcFieldError('name')
+                    }}
+                    className={fieldControlClasses(Boolean(svcFieldErrors.name))}
+                  />
+                </Field>
+
+                <Field label="Categoría" htmlFor="svcCategoryId" error={svcFieldErrors.categoryId}>
+                  <select
+                    id="svcCategoryId"
+                    value={svcCategoryId}
+                    onChange={(e) => {
+                      setSvcCategoryId(e.target.value)
+                      clearSvcFieldError('categoryId')
+                    }}
+                    className={fieldControlClasses(Boolean(svcFieldErrors.categoryId))}
+                  >
+                    <option value="" disabled>
+                      Selecciona una categoría
+                    </option>
+                    {categoryOptions.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
+
+              <Field label="Descripción" htmlFor="svcDescription">
+                <textarea
+                  id="svcDescription"
+                  rows={2}
+                  value={svcDescription}
+                  onChange={(e) => setSvcDescription(e.target.value)}
+                  className={fieldControlClasses(false)}
+                />
+              </Field>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field label={`Precio (${currencyCode || 'moneda del negocio'})`} htmlFor="svcPrice" error={svcFieldErrors.price}>
+                  <input
+                    id="svcPrice"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={svcPrice}
+                    onChange={(e) => {
+                      setSvcPrice(e.target.value)
+                      clearSvcFieldError('price')
+                    }}
+                    className={fieldControlClasses(Boolean(svcFieldErrors.price))}
+                  />
+                </Field>
+
+                <Field label="Duración (minutos)" htmlFor="svcDuration" error={svcFieldErrors.durationMinutes}>
+                  <input
+                    id="svcDuration"
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={svcDuration}
+                    onChange={(e) => {
+                      setSvcDuration(e.target.value)
+                      clearSvcFieldError('durationMinutes')
+                    }}
+                    className={fieldControlClasses(Boolean(svcFieldErrors.durationMinutes))}
+                  />
+                </Field>
+              </div>
+
+              {/* bufferBeforeMinutes: minutos que se bloquean en la agenda
+                  ANTES de que empiece la cita (ej. preparar el espacio o el
+                  material). bufferAfterMinutes: minutos que se bloquean
+                  DESPUÉS de que termina (ej. limpieza, dejar salir al
+                  cliente). Ninguno de los dos forma parte de durationMinutes
+                  ni se cobra: son márgenes internos. Los usaremos recién
+                  cuando construyamos el cálculo de disponibilidad/horarios
+                  en una fase futura; por ahora solo se guardan. */}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field
+                  label="Margen antes (minutos)"
+                  htmlFor="svcBufferBefore"
+                  error={svcFieldErrors.bufferBeforeMinutes}
+                >
+                  <input
+                    id="svcBufferBefore"
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={svcBufferBefore}
+                    onChange={(e) => {
+                      setSvcBufferBefore(e.target.value)
+                      clearSvcFieldError('bufferBeforeMinutes')
+                    }}
+                    className={fieldControlClasses(Boolean(svcFieldErrors.bufferBeforeMinutes))}
+                  />
+                </Field>
+
+                <Field
+                  label="Margen después (minutos)"
+                  htmlFor="svcBufferAfter"
+                  error={svcFieldErrors.bufferAfterMinutes}
+                >
+                  <input
+                    id="svcBufferAfter"
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={svcBufferAfter}
+                    onChange={(e) => {
+                      setSvcBufferAfter(e.target.value)
+                      clearSvcFieldError('bufferAfterMinutes')
+                    }}
+                    className={fieldControlClasses(Boolean(svcFieldErrors.bufferAfterMinutes))}
+                  />
+                </Field>
+              </div>
+
+              <Field label="URL de la imagen" htmlFor="svcImageUrl">
+                <input
+                  id="svcImageUrl"
+                  value={svcImageUrl}
+                  onChange={(e) => setSvcImageUrl(e.target.value)}
+                  className={fieldControlClasses(false)}
+                />
+                {svcImageUrl && (
+                  <img
+                    src={svcImageUrl}
+                    alt="Vista previa del servicio"
+                    className="mt-2 h-16 w-16 rounded-lg border border-border object-cover"
+                  />
+                )}
+              </Field>
+
+              {svcError && <Alert tone="error">{svcError}</Alert>}
+              {svcSuccess && <Alert tone="success">{svcSuccess}</Alert>}
+
+              <div className="flex items-center gap-2">
+                <Button type="submit" disabled={svcSaving}>
+                  {svcSaving ? 'Guardando...' : svcEditingId ? 'Guardar cambios' : 'Crear servicio'}
+                </Button>
+                {svcEditingId && (
+                  <Button type="button" variant="secondary" onClick={resetServiceForm}>
+                    Cancelar edición
+                  </Button>
+                )}
+              </div>
+            </form>
+          )}
+        </div>
+      </Card>
     </div>
   )
 }

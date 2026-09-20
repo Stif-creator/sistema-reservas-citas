@@ -1,3 +1,5 @@
+import { Plus, Trash2 } from 'lucide-react'
+
 // weeklyHours: { "1": [{ start: "HH:MM", end: "HH:MM" }, ...], ..., "7": [...] }
 // Llaves ISO: 1 = Lunes ... 7 = Domingo.
 export const DAYS = [
@@ -37,50 +39,67 @@ function WeeklyHoursEditor({ value, onChange }) {
     })
   }
 
+  const timeInputClasses = (invalid) =>
+    `rounded-lg border bg-white px-2.5 py-1.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-primary/30 ${
+      invalid ? 'border-error focus:border-error' : 'border-border focus:border-primary'
+    }`
+
   return (
-    <div>
+    <div className="divide-y divide-border">
       {DAYS.map((day) => {
         const daySlots = value[day.key] ?? []
         return (
-          <div key={day.key} style={{ marginBottom: 12 }}>
-            <strong>{day.label}</strong>
-            {daySlots.length === 0 ? (
-              <p style={{ margin: '4px 0', color: '#666' }}>Cerrado</p>
-            ) : (
-              <ul style={{ listStyle: 'none', padding: 0, margin: '4px 0' }}>
-                {daySlots.map((slot, index) => {
+          <div key={day.key} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-start sm:gap-4">
+            <p className="w-24 shrink-0 pt-1.5 text-sm font-medium text-ink">{day.label}</p>
+
+            <div className="flex-1 space-y-2">
+              {daySlots.length === 0 ? (
+                <p className="pt-1.5 text-sm text-muted">Cerrado</p>
+              ) : (
+                daySlots.map((slot, index) => {
                   const invalid = isSlotInvalid(slot)
                   return (
-                    <li key={index} style={{ marginBottom: 4 }}>
+                    <div key={index} className="flex flex-wrap items-center gap-2">
                       <input
                         type="time"
                         value={slot.start}
                         onChange={(e) => updateSlot(day.key, index, 'start', e.target.value)}
-                        style={invalid ? { borderColor: 'red' } : undefined}
-                      />{' '}
-                      a{' '}
+                        className={timeInputClasses(invalid)}
+                      />
+                      <span className="text-sm text-muted">a</span>
                       <input
                         type="time"
                         value={slot.end}
                         onChange={(e) => updateSlot(day.key, index, 'end', e.target.value)}
-                        style={invalid ? { borderColor: 'red' } : undefined}
-                      />{' '}
-                      <button type="button" onClick={() => removeSlot(day.key, index)}>
-                        Eliminar franja
+                        className={timeInputClasses(invalid)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeSlot(day.key, index)}
+                        className="rounded-lg p-1.5 text-muted hover:bg-red-50 hover:text-error"
+                        aria-label="Eliminar franja"
+                      >
+                        <Trash2 size={16} />
                       </button>
                       {invalid && (
-                        <span style={{ color: 'red', marginLeft: 8 }}>
+                        <span className="text-sm text-error">
                           La hora de fin debe ser mayor que la de inicio.
                         </span>
                       )}
-                    </li>
+                    </div>
                   )
-                })}
-              </ul>
-            )}
-            <button type="button" onClick={() => addSlot(day.key)}>
-              + Agregar franja
-            </button>
+                })
+              )}
+
+              <button
+                type="button"
+                onClick={() => addSlot(day.key)}
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary-hover"
+              >
+                <Plus size={16} />
+                Agregar franja
+              </button>
+            </div>
           </div>
         )
       })}

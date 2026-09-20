@@ -3,6 +3,11 @@ import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useAuth } from '../context/AuthContext'
 import WeeklyHoursEditor, { hasInvalidWeeklyHoursSlot } from '../components/WeeklyHoursEditor'
+import Card from '../components/ui/Card'
+import PageHeader from '../components/ui/PageHeader'
+import Field, { fieldControlClasses } from '../components/ui/Field'
+import Button from '../components/ui/Button'
+import Alert from '../components/ui/Alert'
 
 const PHONE_REGEX = /^\+?\d{8,}$/
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -162,179 +167,202 @@ function BusinessSettings() {
   }
 
   if (loadingBusiness) {
-    return <p>Cargando configuración del negocio...</p>
+    return <p className="text-sm text-muted">Cargando configuración del negocio...</p>
   }
 
   return (
-    <div>
-      <h2>Configuración del negocio</h2>
-      <form onSubmit={handleSubmit} noValidate>
-        <fieldset>
-          <legend>Datos generales</legend>
+    <div className="max-w-3xl space-y-6">
+      <PageHeader title="Configuración" description="Datos generales, imágenes, contacto y ubicación de tu negocio." />
 
-          <div>
-            <label htmlFor="name">Nombre</label>
-            <input
-              id="name"
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value)
-                clearFieldError('name')
-              }}
-            />
-            {fieldErrors.name && <p style={{ color: 'red' }}>{fieldErrors.name}</p>}
-          </div>
-
-          <div>
-            <label htmlFor="description">Descripción</label>
-            <textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </div>
-        </fieldset>
-
-        <fieldset>
-          <legend>Imágenes</legend>
-
-          <div>
-            <label htmlFor="logoUrl">URL del logo</label>
-            <input id="logoUrl" value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} />
-            {logoUrl && (
-              <img
-                src={logoUrl}
-                alt="Vista previa del logo"
-                style={{ maxWidth: 150, display: 'block', marginTop: 8 }}
+      <form onSubmit={handleSubmit} noValidate className="space-y-6">
+        <Card title="Datos generales">
+          <div className="space-y-4">
+            <Field label="Nombre" htmlFor="name" error={fieldErrors.name}>
+              <input
+                id="name"
+                value={name}
+                onChange={(e) => {
+                  setName(e.target.value)
+                  clearFieldError('name')
+                }}
+                className={fieldControlClasses(Boolean(fieldErrors.name))}
               />
-            )}
-          </div>
+            </Field>
 
-          <div>
-            <label htmlFor="coverUrl">URL de la portada</label>
-            <input id="coverUrl" value={coverUrl} onChange={(e) => setCoverUrl(e.target.value)} />
-            {coverUrl && (
-              <img
-                src={coverUrl}
-                alt="Vista previa de la portada"
-                style={{ maxWidth: 300, display: 'block', marginTop: 8 }}
+            <Field label="Descripción" htmlFor="description">
+              <textarea
+                id="description"
+                rows={3}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className={fieldControlClasses(false)}
               />
-            )}
+            </Field>
           </div>
-        </fieldset>
+        </Card>
 
-        <fieldset>
-          <legend>Colores</legend>
+        <Card title="Imágenes">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="URL del logo" htmlFor="logoUrl">
+              <input
+                id="logoUrl"
+                value={logoUrl}
+                onChange={(e) => setLogoUrl(e.target.value)}
+                className={fieldControlClasses(false)}
+              />
+              {logoUrl && (
+                <img
+                  src={logoUrl}
+                  alt="Vista previa del logo"
+                  className="mt-2 h-16 w-16 rounded-lg border border-border object-cover"
+                />
+              )}
+            </Field>
 
-          <div>
-            <label htmlFor="primaryColor">Color primario</label>
-            <input
-              id="primaryColor"
-              type="color"
-              value={primaryColor}
-              onChange={(e) => setPrimaryColor(e.target.value)}
-            />
+            <Field label="URL de la portada" htmlFor="coverUrl">
+              <input
+                id="coverUrl"
+                value={coverUrl}
+                onChange={(e) => setCoverUrl(e.target.value)}
+                className={fieldControlClasses(false)}
+              />
+              {coverUrl && (
+                <img
+                  src={coverUrl}
+                  alt="Vista previa de la portada"
+                  className="mt-2 h-24 w-full rounded-lg border border-border object-cover"
+                />
+              )}
+            </Field>
           </div>
+        </Card>
 
-          <div>
-            <label htmlFor="secondaryColor">Color secundario</label>
-            <input
-              id="secondaryColor"
-              type="color"
-              value={secondaryColor}
-              onChange={(e) => setSecondaryColor(e.target.value)}
-            />
+        <Card title="Colores">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Color primario" htmlFor="primaryColor">
+              <input
+                id="primaryColor"
+                type="color"
+                value={primaryColor}
+                onChange={(e) => setPrimaryColor(e.target.value)}
+                className="h-10 w-16 cursor-pointer rounded-lg border border-border bg-white p-1"
+              />
+            </Field>
+
+            <Field label="Color secundario" htmlFor="secondaryColor">
+              <input
+                id="secondaryColor"
+                type="color"
+                value={secondaryColor}
+                onChange={(e) => setSecondaryColor(e.target.value)}
+                className="h-10 w-16 cursor-pointer rounded-lg border border-border bg-white p-1"
+              />
+            </Field>
           </div>
-        </fieldset>
+        </Card>
 
-        <fieldset>
-          <legend>Contacto</legend>
+        <Card title="Contacto">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Teléfono" htmlFor="contactPhone" error={fieldErrors.contactPhone}>
+              <input
+                id="contactPhone"
+                value={contactPhone}
+                onChange={(e) => {
+                  setContactPhone(e.target.value)
+                  clearFieldError('contactPhone')
+                }}
+                className={fieldControlClasses(Boolean(fieldErrors.contactPhone))}
+              />
+            </Field>
 
-          <div>
-            <label htmlFor="contactPhone">Teléfono</label>
-            <input
-              id="contactPhone"
-              value={contactPhone}
-              onChange={(e) => {
-                setContactPhone(e.target.value)
-                clearFieldError('contactPhone')
-              }}
-            />
-            {fieldErrors.contactPhone && <p style={{ color: 'red' }}>{fieldErrors.contactPhone}</p>}
+            <Field label="WhatsApp" htmlFor="contactWhatsapp" error={fieldErrors.contactWhatsapp}>
+              <input
+                id="contactWhatsapp"
+                value={contactWhatsapp}
+                onChange={(e) => {
+                  setContactWhatsapp(e.target.value)
+                  clearFieldError('contactWhatsapp')
+                }}
+                className={fieldControlClasses(Boolean(fieldErrors.contactWhatsapp))}
+              />
+            </Field>
+
+            <Field label="Email" htmlFor="contactEmail" error={fieldErrors.contactEmail}>
+              <input
+                id="contactEmail"
+                type="email"
+                value={contactEmail}
+                onChange={(e) => {
+                  setContactEmail(e.target.value)
+                  clearFieldError('contactEmail')
+                }}
+                className={fieldControlClasses(Boolean(fieldErrors.contactEmail))}
+              />
+            </Field>
           </div>
+        </Card>
 
-          <div>
-            <label htmlFor="contactWhatsapp">WhatsApp</label>
-            <input
-              id="contactWhatsapp"
-              value={contactWhatsapp}
-              onChange={(e) => {
-                setContactWhatsapp(e.target.value)
-                clearFieldError('contactWhatsapp')
-              }}
-            />
-            {fieldErrors.contactWhatsapp && (
-              <p style={{ color: 'red' }}>{fieldErrors.contactWhatsapp}</p>
-            )}
+        <Card title="Ubicación">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Dirección" htmlFor="addressLine">
+              <input
+                id="addressLine"
+                value={addressLine}
+                onChange={(e) => setAddressLine(e.target.value)}
+                className={fieldControlClasses(false)}
+              />
+            </Field>
+
+            <Field label="Ciudad" htmlFor="city">
+              <input
+                id="city"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                className={fieldControlClasses(false)}
+              />
+            </Field>
+
+            <Field label="Departamento / Región" htmlFor="stateRegion">
+              <input
+                id="stateRegion"
+                value={stateRegion}
+                onChange={(e) => setStateRegion(e.target.value)}
+                className={fieldControlClasses(false)}
+              />
+            </Field>
+
+            <Field label="Código de país" htmlFor="countryCode">
+              <input
+                id="countryCode"
+                value={countryCode}
+                onChange={(e) => setCountryCode(e.target.value)}
+                className={fieldControlClasses(false)}
+              />
+            </Field>
           </div>
+        </Card>
 
-          <div>
-            <label htmlFor="contactEmail">Email</label>
-            <input
-              id="contactEmail"
-              type="email"
-              value={contactEmail}
-              onChange={(e) => {
-                setContactEmail(e.target.value)
-                clearFieldError('contactEmail')
-              }}
-            />
-            {fieldErrors.contactEmail && <p style={{ color: 'red' }}>{fieldErrors.contactEmail}</p>}
-          </div>
-        </fieldset>
+        {error && <Alert tone="error">{error}</Alert>}
+        {success && <Alert tone="success">{success}</Alert>}
 
-        <fieldset>
-          <legend>Ubicación</legend>
-
-          <div>
-            <label htmlFor="addressLine">Dirección</label>
-            <input id="addressLine" value={addressLine} onChange={(e) => setAddressLine(e.target.value)} />
-          </div>
-
-          <div>
-            <label htmlFor="city">Ciudad</label>
-            <input id="city" value={city} onChange={(e) => setCity(e.target.value)} />
-          </div>
-
-          <div>
-            <label htmlFor="stateRegion">Departamento / Región</label>
-            <input id="stateRegion" value={stateRegion} onChange={(e) => setStateRegion(e.target.value)} />
-          </div>
-
-          <div>
-            <label htmlFor="countryCode">Código de país</label>
-            <input id="countryCode" value={countryCode} onChange={(e) => setCountryCode(e.target.value)} />
-          </div>
-        </fieldset>
-
-        {error && <p style={{ color: 'red' }}>{error}</p>}
-        {success && <p style={{ color: 'green' }}>{success}</p>}
-
-        <button type="submit" disabled={saving}>
+        <Button type="submit" disabled={saving}>
           {saving ? 'Guardando...' : 'Guardar cambios'}
-        </button>
+        </Button>
       </form>
 
-      <h3>Horario de atención</h3>
       <form onSubmit={handleHoursSubmit}>
-        <WeeklyHoursEditor value={weeklyHours} onChange={setWeeklyHours} />
+        <Card title="Horario de atención" description="Define las franjas en las que tu negocio atiende cada día.">
+          <WeeklyHoursEditor value={weeklyHours} onChange={setWeeklyHours} />
 
-        {hoursError && <p style={{ color: 'red' }}>{hoursError}</p>}
-        {hoursSuccess && <p style={{ color: 'green' }}>{hoursSuccess}</p>}
+          <div className="mt-4 space-y-3">
+            {hoursError && <Alert tone="error">{hoursError}</Alert>}
+            {hoursSuccess && <Alert tone="success">{hoursSuccess}</Alert>}
 
-        <button type="submit" disabled={hoursSaving}>
-          {hoursSaving ? 'Guardando...' : 'Guardar horario'}
-        </button>
+            <Button type="submit" disabled={hoursSaving}>
+              {hoursSaving ? 'Guardando...' : 'Guardar horario'}
+            </Button>
+          </div>
+        </Card>
       </form>
     </div>
   )

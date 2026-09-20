@@ -15,29 +15,44 @@ function AppRoutes() {
       <Route path="/" element={<Home />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+
+      {/* Layout compartido (sidebar + header) para cualquier usuario
+          autenticado. El layout en sí no restringe rol: cada página
+          exclusiva de administrador sigue envuelta en su propio
+          ProtectedRoute con allowedRoles, exactamente como antes, solo
+          que ahora anidado dentro del layout en vez de reemplazarlo. */}
       <Route
-        path="/dashboard"
         element={
           <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
-        }
-      />
-
-      {/* Rutas exclusivas de administrador: comparten un mismo
-          ProtectedRoute + AdminLayout (ruta padre sin path propio, solo
-          reparte <Outlet/>). Cada fase nueva solo agrega un <Route>
-          hijo aquí, sin duplicar el wrapper. */}
-      <Route
-        element={
-          <ProtectedRoute allowedRoles={['admin']}>
             <AdminLayout />
           </ProtectedRoute>
         }
       >
-        <Route path="/negocio" element={<BusinessSettings />} />
-        <Route path="/servicios" element={<Services />} />
-        <Route path="/profesionales" element={<Professionals />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route
+          path="/negocio"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <BusinessSettings />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/servicios"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <Services />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profesionales"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <Professionals />
+            </ProtectedRoute>
+          }
+        />
       </Route>
     </Routes>
   )

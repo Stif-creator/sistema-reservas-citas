@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   arrayRemove,
   arrayUnion,
@@ -14,11 +14,112 @@ import {
 import { db } from '../firebase/config'
 import { useAuth } from '../context/AuthContext'
 import WeeklyHoursEditor, { hasInvalidWeeklyHoursSlot } from '../components/WeeklyHoursEditor'
+import Card from '../components/ui/Card'
+import PageHeader from '../components/ui/PageHeader'
+import Field, { fieldControlClasses } from '../components/ui/Field'
+import Button from '../components/ui/Button'
+import Alert from '../components/ui/Alert'
+import Badge from '../components/ui/Badge'
+import { MoreVertical, User, X } from 'lucide-react'
 
 const PHONE_REGEX = /^\+?\d{8,}$/
 
 function todayDateString() {
   return new Date().toISOString().slice(0, 10)
+}
+
+function initialsFor(text) {
+  return (text || '')
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((word) => word[0]?.toUpperCase())
+    .join('')
+}
+
+function ProfessionalCard({ professional, onEdit, onToggleActive }) {
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef(null)
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const bioSnippet =
+    professional.bio && professional.bio.length > 60
+      ? `${professional.bio.slice(0, 60)}…`
+      : professional.bio
+
+  return (
+    <Card className="relative">
+      <div className="flex items-start gap-3">
+        {professional.photo?.url ? (
+          <img
+            src={professional.photo.url}
+            alt={professional.displayName}
+            className="h-12 w-12 shrink-0 rounded-full object-cover"
+          />
+        ) : (
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-sm font-semibold text-primary">
+            {initialsFor(professional.displayName) || <User size={18} />}
+          </div>
+        )}
+
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold text-ink">{professional.displayName}</p>
+          {professional.jobTitle && <p className="truncate text-xs text-muted">{professional.jobTitle}</p>}
+        </div>
+
+        <div className="relative shrink-0" ref={menuRef}>
+          <button
+            type="button"
+            onClick={() => setMenuOpen((open) => !open)}
+            className="rounded-lg p-1.5 text-muted hover:bg-slate-100 hover:text-ink"
+            aria-label="Más acciones"
+          >
+            <MoreVertical size={18} />
+          </button>
+          {menuOpen && (
+            <div className="absolute right-0 top-full z-10 mt-1 w-40 rounded-lg border border-border bg-surface py-1 shadow-card">
+              <button
+                type="button"
+                onClick={() => {
+                  onToggleActive(professional)
+                  setMenuOpen(false)
+                }}
+                className="block w-full px-3 py-2 text-left text-sm text-ink hover:bg-slate-50"
+              >
+                {professional.isActive ? 'Desactivar' : 'Activar'}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-3">
+        <Badge tone={professional.isActive ? 'success' : 'neutral'}>
+          {professional.isActive ? 'Activo' : 'Inactivo'}
+        </Badge>
+      </div>
+
+      {bioSnippet && <p className="mt-3 text-sm text-muted">{bioSnippet}</p>}
+
+      <p className="mt-3 text-xs text-muted">
+        {professional.serviceIds?.length ?? 0} servicio{professional.serviceIds?.length === 1 ? '' : 's'} asignado
+        {professional.serviceIds?.length === 1 ? '' : 's'}
+      </p>
+
+      <Button variant="secondary" className="mt-4 w-full" onClick={() => onEdit(professional)}>
+        Editar
+      </Button>
+    </Card>
+  )
 }
 
 function Professionals() {
@@ -280,170 +381,218 @@ function Professionals() {
 
   return (
     <div>
-      <h2>Profesionales</h2>
+      <PageHeader
+        title="Profesionales"
+        description="Los profesionales se registran ellos mismos; aquí solo administras su perfil, servicios y horario."
+      />
 
       {professionalsListError && (
-        <p style={{ color: 'red' }}>Error al cargar profesionales: {professionalsListError}</p>
+        <div className="mb-4">
+          <Alert tone="error">Error al cargar profesionales: {professionalsListError}</Alert>
+        </div>
       )}
-      {actionError && <p style={{ color: 'red' }}>{actionError}</p>}
+      {actionError && (
+        <div className="mb-4">
+          <Alert tone="error">{actionError}</Alert>
+        </div>
+      )}
 
       {professionalsLoading ? (
-        <p>Cargando profesionales...</p>
+        <p className="text-sm text-muted">Cargando profesionales...</p>
       ) : professionals.length === 0 ? (
-        <p>Todavía no hay profesionales registrados en este negocio.</p>
+        <p className="text-sm text-muted">Todavía no hay profesionales registrados en este negocio.</p>
       ) : (
-        <table>
-          <thead>
-            <tr>
-              <th>Nombre</th>
-              <th>Puesto</th>
-              <th>Servicios asignados</th>
-              <th>Estado</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {professionals.map((prof) => (
-              <tr key={prof.id}>
-                <td>{prof.displayName}</td>
-                <td>{prof.jobTitle || '—'}</td>
-                <td>{prof.serviceIds?.length ?? 0}</td>
-                <td>{prof.isActive ? 'Activo' : 'Inactivo'}</td>
-                <td>
-                  <button type="button" onClick={() => loadProfessionalForEdit(prof)}>
-                    Editar
-                  </button>{' '}
-                  <button type="button" onClick={() => toggleProfessionalActive(prof)}>
-                    {prof.isActive ? 'Desactivar' : 'Activar'}
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {professionals.map((prof) => (
+            <ProfessionalCard
+              key={prof.id}
+              professional={prof}
+              onEdit={loadProfessionalForEdit}
+              onToggleActive={toggleProfessionalActive}
+            />
+          ))}
+        </div>
       )}
 
       {editingProfessional && (
-        <div style={{ border: '1px solid #ccc', padding: 16, marginTop: 24 }}>
-          <h3>
-            Editando a {editingProfessional.displayName} ({editingProfessional.email})
-          </h3>
-          <button type="button" onClick={closeEditor}>
-            Cerrar
-          </button>
+        <>
+          <button
+            type="button"
+            aria-label="Cerrar panel"
+            onClick={closeEditor}
+            className="fixed inset-0 z-40 bg-ink/30"
+          />
 
-          <h4>Datos del perfil</h4>
-          <form onSubmit={handleProfileSubmit} noValidate>
-            <div>
-              <label htmlFor="jobTitle">Puesto</label>
-              <input id="jobTitle" value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} />
+          <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col overflow-y-auto border-l border-border bg-surface shadow-xl">
+            <div className="flex items-center justify-between border-b border-border px-6 py-4">
+              <div className="min-w-0">
+                <h3 className="truncate text-base font-semibold text-ink">{editingProfessional.displayName}</h3>
+                <p className="truncate text-sm text-muted">{editingProfessional.email}</p>
+              </div>
+              <button
+                type="button"
+                onClick={closeEditor}
+                className="shrink-0 rounded-lg p-2 text-muted hover:bg-slate-100"
+                aria-label="Cerrar"
+              >
+                <X size={18} />
+              </button>
             </div>
 
-            <div>
-              <label htmlFor="bio">Biografía</label>
-              <textarea id="bio" value={bio} onChange={(e) => setBio(e.target.value)} />
-            </div>
+            <div className="flex-1 space-y-8 px-6 py-6">
+              <section>
+                <h4 className="mb-4 text-sm font-semibold text-ink">Datos del perfil</h4>
+                <form onSubmit={handleProfileSubmit} noValidate className="space-y-4">
+                  <Field label="Puesto" htmlFor="jobTitle">
+                    <input
+                      id="jobTitle"
+                      value={jobTitle}
+                      onChange={(e) => setJobTitle(e.target.value)}
+                      className={fieldControlClasses(false)}
+                    />
+                  </Field>
 
-            <div>
-              <label htmlFor="phone">Teléfono</label>
-              <input
-                id="phone"
-                value={phone}
-                onChange={(e) => {
-                  setPhone(e.target.value)
-                  clearProfileFieldError('phone')
-                }}
-              />
-              {profileFieldErrors.phone && <p style={{ color: 'red' }}>{profileFieldErrors.phone}</p>}
-            </div>
+                  <Field label="Biografía" htmlFor="bio">
+                    <textarea
+                      id="bio"
+                      rows={3}
+                      value={bio}
+                      onChange={(e) => setBio(e.target.value)}
+                      className={fieldControlClasses(false)}
+                    />
+                  </Field>
 
-            <div>
-              <label htmlFor="photoUrl">URL de la foto</label>
-              <input id="photoUrl" value={photoUrl} onChange={(e) => setPhotoUrl(e.target.value)} />
-              {photoUrl && (
-                <img
-                  src={photoUrl}
-                  alt="Vista previa de la foto"
-                  style={{ maxWidth: 150, display: 'block', marginTop: 8 }}
-                />
-              )}
-            </div>
+                  <Field label="Teléfono" htmlFor="phone" error={profileFieldErrors.phone}>
+                    <input
+                      id="phone"
+                      value={phone}
+                      onChange={(e) => {
+                        setPhone(e.target.value)
+                        clearProfileFieldError('phone')
+                      }}
+                      className={fieldControlClasses(Boolean(profileFieldErrors.phone))}
+                    />
+                  </Field>
 
-            {profileError && <p style={{ color: 'red' }}>{profileError}</p>}
-            {profileSuccess && <p style={{ color: 'green' }}>{profileSuccess}</p>}
+                  <Field label="URL de la foto" htmlFor="photoUrl">
+                    <input
+                      id="photoUrl"
+                      value={photoUrl}
+                      onChange={(e) => setPhotoUrl(e.target.value)}
+                      className={fieldControlClasses(false)}
+                    />
+                    {photoUrl && (
+                      <img
+                        src={photoUrl}
+                        alt="Vista previa de la foto"
+                        className="mt-2 h-16 w-16 rounded-full border border-border object-cover"
+                      />
+                    )}
+                  </Field>
 
-            <button type="submit" disabled={profileSaving}>
-              {profileSaving ? 'Guardando...' : 'Guardar perfil'}
-            </button>
-          </form>
+                  <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5">
+                    <span className="text-sm text-ink">Profesional activo</span>
+                    <button
+                      type="button"
+                      onClick={() => toggleProfessionalActive(editingProfessional)}
+                      aria-pressed={editingProfessional.isActive}
+                      aria-label="Alternar profesional activo"
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                        editingProfessional.isActive ? 'bg-primary' : 'bg-slate-300'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          editingProfessional.isActive ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                  </div>
 
-          <h4>Servicios asignados</h4>
-          {servicesListError && (
-            <p style={{ color: 'red' }}>Error al cargar servicios: {servicesListError}</p>
-          )}
-          <form onSubmit={handleServicesSubmit}>
-            {servicesLoading ? (
-              <p>Cargando servicios...</p>
-            ) : services.length === 0 ? (
-              <p>Todavía no hay servicios creados en este negocio.</p>
-            ) : (
-              <ul style={{ listStyle: 'none', padding: 0 }}>
-                {services.map((svc) => (
-                  <li key={svc.id}>
-                    <label>
+                  {profileError && <Alert tone="error">{profileError}</Alert>}
+                  {profileSuccess && <Alert tone="success">{profileSuccess}</Alert>}
+
+                  <Button type="submit" disabled={profileSaving}>
+                    {profileSaving ? 'Guardando...' : 'Guardar perfil'}
+                  </Button>
+                </form>
+              </section>
+
+              <section className="border-t border-border pt-6">
+                <h4 className="mb-4 text-sm font-semibold text-ink">Servicios asignados</h4>
+                {servicesListError && <Alert tone="error">Error al cargar servicios: {servicesListError}</Alert>}
+                <form onSubmit={handleServicesSubmit} className="space-y-4">
+                  {servicesLoading ? (
+                    <p className="text-sm text-muted">Cargando servicios...</p>
+                  ) : services.length === 0 ? (
+                    <p className="text-sm text-muted">Todavía no hay servicios creados en este negocio.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {services.map((svc) => (
+                        <label
+                          key={svc.id}
+                          className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm hover:bg-slate-50"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedServiceIds.has(svc.id)}
+                            onChange={() => toggleServiceSelected(svc.id)}
+                            className="h-4 w-4 rounded border-border text-primary focus:ring-primary/30"
+                          />
+                          <span className="text-ink">{svc.name}</span>
+                          {!svc.isActive && <span className="text-xs text-muted">(inactivo)</span>}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+
+                  {svcAssignError && <Alert tone="error">{svcAssignError}</Alert>}
+                  {svcAssignSuccess && <Alert tone="success">{svcAssignSuccess}</Alert>}
+
+                  <Button type="submit" disabled={svcAssignSaving || services.length === 0}>
+                    {svcAssignSaving ? 'Guardando...' : 'Guardar servicios'}
+                  </Button>
+                </form>
+              </section>
+
+              <section className="border-t border-border pt-6">
+                <h4 className="mb-4 text-sm font-semibold text-ink">Horario semanal</h4>
+                <form onSubmit={handleHoursSubmit} className="space-y-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <Field label="Vigente desde" htmlFor="scheduleValidFrom">
                       <input
-                        type="checkbox"
-                        checked={selectedServiceIds.has(svc.id)}
-                        onChange={() => toggleServiceSelected(svc.id)}
-                      />{' '}
-                      {svc.name}
-                      {!svc.isActive && ' (inactivo)'}
-                    </label>
-                  </li>
-                ))}
-              </ul>
-            )}
+                        id="scheduleValidFrom"
+                        type="date"
+                        value={scheduleValidFrom}
+                        onChange={(e) => setScheduleValidFrom(e.target.value)}
+                        className={fieldControlClasses(false)}
+                      />
+                    </Field>
 
-            {svcAssignError && <p style={{ color: 'red' }}>{svcAssignError}</p>}
-            {svcAssignSuccess && <p style={{ color: 'green' }}>{svcAssignSuccess}</p>}
+                    <Field label="Vigente hasta (opcional)" htmlFor="scheduleValidUntil">
+                      <input
+                        id="scheduleValidUntil"
+                        type="date"
+                        value={scheduleValidUntil}
+                        onChange={(e) => setScheduleValidUntil(e.target.value)}
+                        className={fieldControlClasses(false)}
+                      />
+                    </Field>
+                  </div>
 
-            <button type="submit" disabled={svcAssignSaving || services.length === 0}>
-              {svcAssignSaving ? 'Guardando...' : 'Guardar servicios'}
-            </button>
-          </form>
+                  <WeeklyHoursEditor value={weeklyHours} onChange={setWeeklyHours} />
 
-          <h4>Horario semanal</h4>
-          <form onSubmit={handleHoursSubmit}>
-            <div>
-              <label htmlFor="scheduleValidFrom">Vigente desde</label>
-              <input
-                id="scheduleValidFrom"
-                type="date"
-                value={scheduleValidFrom}
-                onChange={(e) => setScheduleValidFrom(e.target.value)}
-              />
+                  {hoursError && <Alert tone="error">{hoursError}</Alert>}
+                  {hoursSuccess && <Alert tone="success">{hoursSuccess}</Alert>}
+
+                  <Button type="submit" disabled={hoursSaving}>
+                    {hoursSaving ? 'Guardando...' : 'Guardar horario'}
+                  </Button>
+                </form>
+              </section>
             </div>
-
-            <div>
-              <label htmlFor="scheduleValidUntil">Vigente hasta (opcional)</label>
-              <input
-                id="scheduleValidUntil"
-                type="date"
-                value={scheduleValidUntil}
-                onChange={(e) => setScheduleValidUntil(e.target.value)}
-              />
-            </div>
-
-            <WeeklyHoursEditor value={weeklyHours} onChange={setWeeklyHours} />
-
-            {hoursError && <p style={{ color: 'red' }}>{hoursError}</p>}
-            {hoursSuccess && <p style={{ color: 'green' }}>{hoursSuccess}</p>}
-
-            <button type="submit" disabled={hoursSaving}>
-              {hoursSaving ? 'Guardando...' : 'Guardar horario'}
-            </button>
-          </form>
-        </div>
+          </div>
+        </>
       )}
     </div>
   )
