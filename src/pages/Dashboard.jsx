@@ -10,14 +10,26 @@ import { Building2, Settings, ShieldCheck } from 'lucide-react'
 function Dashboard() {
   const { userDoc, membership } = useAuth()
   const [business, setBusiness] = useState(null)
+  const [error, setError] = useState('')
 
   useEffect(() => {
+    let active = true
     async function fetchBusiness() {
       if (!membership?.businessId) return
-      const snap = await getDoc(doc(db, 'businesses', membership.businessId))
-      setBusiness(snap.exists() ? snap.data() : null)
+      try {
+        const snap = await getDoc(doc(db, 'businesses', membership.businessId))
+        if (active) {
+          setBusiness(snap.exists() ? snap.data() : null)
+          setError(snap.exists() ? '' : 'El negocio no está disponible.')
+        }
+      } catch {
+        if (active) setError('No se pudo cargar el negocio. Recarga la página para reintentar.')
+      }
     }
     fetchBusiness()
+    return () => {
+      active = false
+    }
   }, [membership])
 
   if (!userDoc) {
@@ -26,6 +38,11 @@ function Dashboard() {
 
   return (
     <div>
+      {error && (
+        <p role="alert" className="mb-4 text-error">
+          {error}
+        </p>
+      )}
       <PageHeader
         title={`Hola, ${userDoc.firstName}`}
         description="Este es el resumen de tu cuenta y tu negocio."

@@ -1,0 +1,153 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function self(uid) { return signedIn() && request.auth.uid == uid; }
+    function userActive() {
+      return signedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'active';
+    }
+    function publicBusiness(bid) {
+      let business = get(/databases/$(database)/documents/businesses/$(bid)).data;
+      return business.status == 'active' && business.settings.publicPageEnabled == true;
+    }
+    function member(bid) {
+      return get(/databases/$(database)/documents/memberships/$(bid + '_' + request.auth.uid)).data;
+    }
+    function activeMember(bid) {
+      return userActive() && member(bid).status == 'active'
+        && get(/databases/$(database)/documents/businesses/$(bid)).data.status == 'active';
+    }
+    function admin(bid) { return activeMember(bid) && member(bid).role == 'admin'; }
+    function professional(bid) {
+      return activeMember(bid) && member(bid).role == 'professional'
+        && get(/databases/$(database)/documents/professionals/$(bid + '_' + request.auth.uid)).data.isActive == true;
+    }
+    function recent(data) { return data.createdAt > request.time - duration.value(10, 'm'); }
+    function provisioning() {
+      return signedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('onboardingComplete', true) == false;
+    }
+    function sameIdentity() {
+      return request.resource.data.businessId == resource.data.businessId
+        && request.resource.data.id == resource.data.id;
+    }
+    match /users/{uid} {
+      allow read: if self(uid);
+      allow create: if self(uid) && request.resource.data.id == uid
+        && request.resource.data.auth_uid == uid
+        && request.resource.data.globalRole == 'user'
+        && request.resource.data.onboardingComplete == false
+        && request.resource.data.status == 'active'
+        && request.resource.data.businessIds is list && request.resource.data.businessIds.size() == 1
+        && request.resource.data.createdAt == request.time;
+      allow update: if self(uid) && request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['firstName', 'lastName', 'phone', 'photoUrl', 'lastLoginAt', 'updatedAt'])
+        || (self(uid) && resource.data.get('onboardingComplete', true) == false
+          && request.resource.data.onboardingComplete == true
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['onboardingComplete'])
+          && exists(/databases/$(database)/documents/memberships/$(resource.data.businessIds[0] + '_' + uid)));
+      allow delete: if self(uid) && recent(resource.data) && provisioning();
+    }
+    // This collection contains the public business profile. Never store secrets here.
+    match /businesses/{bid} {
+      allow read: if (resource.data.status == 'active' && resource.data.settings.publicPageEnabled == true)
+        || (signedIn() && (resource.data.ownerUserId == request.auth.uid || activeMember(bid)));
+      allow create: if userActive() && request.resource.data.ownerUserId == request.auth.uid
+        && request.resource.data.id == bid && request.resource.data.status == 'active'
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.businessIds == [bid]
+        && request.resource.data.createdAt == request.time;
+      allow update: if admin(bid) && request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['name', 'description', 'logo', 'cover', 'appearance', 'contact', 'location', 'weeklyHours', 'settings', 'updatedAt']);
+      allow delete: if signedIn() && resource.data.ownerUserId == request.auth.uid && recent(resource.data) && provisioning();
+    }
+    match /memberships/{mid} {
+      allow read: if self(resource.data.userId) || admin(resource.data.businessId);
+      allow create: if userActive() && self(request.resource.data.userId)
+        && mid == request.resource.data.businessId + '_' + request.auth.uid
+        && request.resource.data.permissions == {}
+        && request.resource.data.createdAt == request.time
+        && (
+          (request.resource.data.role == 'admin' && request.resource.data.status == 'active'
+            && get(/databases/$(database)/documents/businesses/$(request.resource.data.businessId)).data.ownerUserId == request.auth.uid)
+          || (publicBusiness(request.resource.data.businessId)
+            && ((request.resource.data.role == 'client' && request.resource.data.status == 'active')
+              || (request.resource.data.role == 'professional' && request.resource.data.status == 'pending')))
+        );
+      allow update: if admin(resource.data.businessId) && resource.data.role == 'professional'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+        && request.resource.data.status in ['active', 'inactive']
+        && getAfter(/databases/$(database)/documents/professionals/$(resource.data.businessId + '_' + resource.data.userId)).data.isActive
+          == (request.resource.data.status == 'active');
+      allow delete: if self(resource.data.userId) && recent(resource.data) && provisioning();
+    }
+    match /professionals/{pid} {
+      allow read: if self(resource.data.userId) || admin(resource.data.businessId);
+      allow create: if userActive() && self(request.resource.data.userId)
+        && pid == request.resource.data.businessId + '_' + request.auth.uid
+        && request.resource.data.id == pid
+        && member(request.resource.data.businessId).role == 'professional'
+        && member(request.resource.data.businessId).status == 'pending'
+        && request.resource.data.isActive == false
+        && request.resource.data.serviceIds == []
+        && request.resource.data.createdAt == request.time;
+      allow update: if admin(resource.data.businessId) && sameIdentity()
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['jobTitle', 'bio', 'phone', 'photo', 'isActive', 'serviceIds', 'weeklyHours', 'scheduleValidFrom', 'scheduleValidUntil', 'updatedAt'])
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['isActive'])
+          || getAfter(/databases/$(database)/documents/memberships/$(resource.data.businessId + '_' + resource.data.userId)).data.status
+            == (request.resource.data.isActive ? 'active' : 'inactive'));
+      allow delete: if self(resource.data.userId) && recent(resource.data) && resource.data.isActive == false && provisioning();
+    }
+    match /clients/{cid} {
+      allow read: if self(resource.data.userId) || admin(resource.data.businessId);
+      allow create: if userActive() && self(request.resource.data.userId)
+        && cid == request.resource.data.businessId + '_' + request.auth.uid
+        && request.resource.data.id == cid && member(request.resource.data.businessId).role == 'client'
+        && member(request.resource.data.businessId).status == 'active'
+        && request.resource.data.createdAt == request.time;
+      allow delete: if self(resource.data.userId) && recent(resource.data) && provisioning();
+    }
+    match /categories/{cid} {
+      allow read: if admin(resource.data.businessId);
+      allow create: if admin(request.resource.data.businessId) && request.resource.data.id == cid;
+      allow update: if admin(resource.data.businessId) && sameIdentity();
+    }
+    match /services/{sid} {
+      allow read: if (resource.data.isActive == true && resource.data.isPublic == true && publicBusiness(resource.data.businessId))
+        || admin(resource.data.businessId);
+      allow create: if admin(request.resource.data.businessId) && request.resource.data.id == sid
+        && validService(request.resource.data);
+      allow update: if admin(resource.data.businessId) && sameIdentity() && validService(request.resource.data);
+      function validService(data) {
+        return data.name is string && data.name.size() > 0 && data.price is number && data.price > 0
+          && data.durationMinutes is int && data.durationMinutes > 0
+          && data.bufferBeforeMinutes is int && data.bufferBeforeMinutes >= 0
+          && data.bufferAfterMinutes is int && data.bufferAfterMinutes >= 0
+          && get(/databases/$(database)/documents/categories/$(data.categoryId)).data.businessId == data.businessId;
+      }
+    }
+    match /scheduleBlocks/{bid} {
+      allow read: if admin(resource.data.businessId) || (professional(resource.data.businessId)
+        && (resource.data.allProfessionals == true || resource.data.professionalId == resource.data.businessId + '_' + request.auth.uid));
+      allow create: if signedIn() && request.resource.data.id == bid
+        && request.resource.data.createdByUserId == request.auth.uid
+        && request.resource.data.startAt is timestamp && request.resource.data.endAt is timestamp
+        && request.resource.data.endAt > request.resource.data.startAt
+        && request.resource.data.title is string && request.resource.data.title.size() > 0
+        && request.resource.data.reason in ['meeting', 'vacation', 'personal', 'other']
+        && request.resource.data.createdAt == request.time
+        && (
+          (admin(request.resource.data.businessId)
+            && ((request.resource.data.allProfessionals == true && request.resource.data.professionalId == null)
+              || (request.resource.data.allProfessionals == false
+                && get(/databases/$(database)/documents/professionals/$(request.resource.data.professionalId)).data.businessId == request.resource.data.businessId
+                && get(/databases/$(database)/documents/professionals/$(request.resource.data.professionalId)).data.isActive == true)))
+          || (professional(request.resource.data.businessId) && request.resource.data.allProfessionals == false
+            && request.resource.data.professionalId == request.resource.data.businessId + '_' + request.auth.uid)
+        );
+      allow delete: if admin(resource.data.businessId) || (professional(resource.data.businessId)
+        && resource.data.createdByUserId == request.auth.uid
+        && resource.data.professionalId == resource.data.businessId + '_' + request.auth.uid
+        && resource.data.allProfessionals == false);
+    }
+  }
+}

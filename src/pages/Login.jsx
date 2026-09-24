@@ -1,91 +1,117 @@
 import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { ArrowRight } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { getAuthErrorMessage } from '../firebase/authErrors'
+import { AuthShell, usePublicBusiness } from '../components/public/PublicLayout'
+import PasswordInput from '../components/public/PasswordInput'
 
-function Login() {
+export default function Login() {
   const { login, resetPassword } = useAuth()
+  const { base } = usePublicBusiness()
   const navigate = useNavigate()
-
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [remember, setRemember] = useState(true)
+  const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-
-  async function handleSubmit(e) {
+  async function submit(e) {
     e.preventDefault()
     setError('')
     setInfo('')
-    setSubmitting(true)
+    setBusy(true)
     try {
-      await login(email, password)
+      await login(email.trim(), password, remember)
       navigate('/dashboard')
     } catch (err) {
       setError(getAuthErrorMessage(err))
     } finally {
-      setSubmitting(false)
+      setBusy(false)
     }
   }
-
-  async function handleResetPassword() {
+  async function reset() {
     setError('')
     setInfo('')
-    if (!email) {
-      setError('Ingresa tu correo para enviarte el enlace de recuperación.')
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError('Ingresa un correo válido para recuperar tu contraseña.')
       return
     }
+    setBusy(true)
     try {
-      await resetPassword(email)
-      setInfo('Te enviamos un correo para restablecer tu contraseña.')
+      await resetPassword(email.trim())
+      setInfo('Si hay una cuenta asociada, recibirás un enlace para restablecer tu contraseña.')
     } catch (err) {
       setError(getAuthErrorMessage(err))
+    } finally {
+      setBusy(false)
     }
   }
-
   return (
-    <div>
-      <h1>Login</h1>
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label htmlFor="email">Email</label>
+    <AuthShell>
+      <div className="auth-heading">
+        <span className="eyebrow">QUÉ BUENO VERTE DE NUEVO</span>
+        <h1>Inicia sesión</h1>
+        <p>Ingresa a tu cuenta para continuar.</p>
+      </div>
+      <form onSubmit={submit} className="public-form">
+        <label htmlFor="email">
+          Correo electrónico
           <input
             id="email"
             type="email"
+            autoComplete="email"
+            placeholder="tu@correo.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
           />
-        </div>
-
-        <div>
-          <label htmlFor="password">Contraseña</label>
-          <input
+        </label>
+        <label htmlFor="password">
+          Contraseña
+          <PasswordInput
             id="password"
-            type="password"
+            autoComplete="current-password"
+            placeholder="Tu contraseña"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
           />
+        </label>
+        <div className="form-options">
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={(e) => setRemember(e.target.checked)}
+            />
+            Recordarme
+          </label>
+          <button className="text-link" type="button" onClick={reset} disabled={busy}>
+            ¿Olvidaste tu contraseña?
+          </button>
         </div>
-
-        {error && <p style={{ color: 'red' }}>{error}</p>}
-        {info && <p style={{ color: 'green' }}>{info}</p>}
-
-        <button type="submit" disabled={submitting}>
-          {submitting ? 'Ingresando...' : 'Iniciar sesión'}
+        {error && (
+          <p className="public-alert" role="alert">
+            {error}
+          </p>
+        )}
+        {info && (
+          <p className="public-info" role="status">
+            {info}
+          </p>
+        )}
+        <button className="public-button full" disabled={busy}>
+          {busy ? 'Procesando…' : 'Iniciar sesión'}
+          <ArrowRight size={17} />
         </button>
       </form>
-
-      <button type="button" onClick={handleResetPassword}>
-        ¿Olvidaste tu contraseña?
-      </button>
-
-      <p>
-        ¿No tienes cuenta? <Link to="/register">Regístrate</Link>
+      <p className="auth-switch">
+        ¿No tienes una cuenta?{' '}
+        <Link className="text-link" to={`${base}/registro`}>
+          Regístrate aquí
+        </Link>
       </p>
-    </div>
+    </AuthShell>
   )
 }
-
-export default Login

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useCallback, useEffect, useRef, useState } from 'react'
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -6,6 +6,9 @@ import {
   onAuthStateChanged,
   sendPasswordResetEmail,
   deleteUser,
+  setPersistence,
+  browserLocalPersistence,
+  browserSessionPersistence,
 } from 'firebase/auth'
 import {
   doc,
@@ -15,6 +18,7 @@ import {
   getDoc,
   updateDoc,
   serverTimestamp,
+  onSnapshot,
 } from 'firebase/firestore'
 import { auth, db } from '../firebase/config'
 
@@ -34,40 +38,84 @@ export function AuthProvider({ children }) {
   const [membership, setMembership] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  // Carga (o recarga) el documento de users y el membership del negocio
-  // principal (businessIds[0]). Se usa tanto en onAuthStateChanged como
-  // justo después de un registro exitoso, para no depender de que el
-  // listener vuelva a dispararse.
-  async function loadUserData(uid) {
-    const userSnap = await getDoc(doc(db, 'users', uid))
-    const userData = userSnap.exists() ? userSnap.data() : null
-    setUserDoc(userData)
+  const [authError, setAuthError] = useState('')
+  const generation = useRef(0)
+  const provisioning = useRef(false)
 
-    if (userData?.businessIds?.length > 0) {
-      const businessId = userData.businessIds[0]
-      const membershipSnap = await getDoc(doc(db, 'memberships', `${businessId}_${uid}`))
-      setMembership(membershipSnap.exists() ? membershipSnap.data() : null)
-    } else {
-      setMembership(null)
+  const reloadProfile = useCallback(async () => {
+    const uid = auth.currentUser?.uid
+    const version = ++generation.current
+    setLoading(true)
+    setAuthError('')
+    setUserDoc(null)
+    setMembership(null)
+    try {
+      if (!uid) return
+      const userSnap = await getDoc(doc(db, 'users', uid))
+      const data = userSnap.exists() ? userSnap.data() : null
+      const businessId = data?.businessIds?.[0]
+      const memberSnap = businessId
+        ? await getDoc(doc(db, 'memberships', `${businessId}_${uid}`))
+        : null
+      if (version !== generation.current || auth.currentUser?.uid !== uid) return
+      setUserDoc(data)
+      setMembership(memberSnap?.exists() ? memberSnap.data() : null)
+      if (!data || data.onboardingComplete === false || !memberSnap?.exists())
+        setAuthError('Tu cuenta no tiene un perfil completo. Contacta al administrador.')
+    } catch (err) {
+      if (version === generation.current)
+        setAuthError('No pudimos cargar tu cuenta. Comprueba tu conexión y vuelve a intentar.')
+      console.error('Error al cargar la sesión', err)
+    } finally {
+      if (version === generation.current) setLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const sessionGeneration = generation
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      ++generation.current
       setCurrentUser(user)
-
-      if (user) {
-        await loadUserData(user.uid)
-      } else {
-        setUserDoc(null)
-        setMembership(null)
-      }
-
-      setLoading(false)
+      setUserDoc(null)
+      setMembership(null)
+      setAuthError('')
+      if (provisioning.current) return
+      void reloadProfile()
     })
+    return () => {
+      ++sessionGeneration.current
+      unsubscribe()
+    }
+  }, [reloadProfile])
 
-    return unsubscribe
-  }, [])
+  // Apply membership revocation and administrator approval without a new login.
+  const profileBusinessId = userDoc?.businessIds?.[0]
+  useEffect(() => {
+    if (!currentUser || !profileBusinessId || provisioning.current) return
+    const uid = currentUser.uid
+    const failed = () => {
+      if (auth.currentUser?.uid === uid)
+        setAuthError('No pudimos verificar el estado de tu cuenta. Vuelve a intentar.')
+    }
+    const stopUser = onSnapshot(
+      doc(db, 'users', uid),
+      (snap) => {
+        if (auth.currentUser?.uid === uid) setUserDoc(snap.exists() ? snap.data() : null)
+      },
+      failed
+    )
+    const stopMembership = onSnapshot(
+      doc(db, 'memberships', `${profileBusinessId}_${uid}`),
+      (snap) => {
+        if (auth.currentUser?.uid === uid) setMembership(snap.exists() ? snap.data() : null)
+      },
+      failed
+    )
+    return () => {
+      stopUser()
+      stopMembership()
+    }
+  }, [currentUser, profileBusinessId])
 
   async function register({
     firstName,
@@ -79,15 +127,23 @@ export function AuthProvider({ children }) {
     businessId,
     businessName,
   }) {
-    const credential = await createUserWithEmailAndPassword(auth, email, password)
+    if (!['admin', 'professional', 'client'].includes(role)) throw new Error('Rol inválido.')
+    if (role !== 'admin' && !businessId) throw new Error('Selecciona un negocio.')
+    if (role === 'admin' && !businessName?.trim()) throw new Error('Ingresa el nombre del negocio.')
+    provisioning.current = true
+    setLoading(true)
+    let credential
+    try {
+      credential = await createUserWithEmailAndPassword(auth, email.trim(), password)
+    } catch (err) {
+      provisioning.current = false
+      await reloadProfile()
+      throw err
+    }
     const uid = credential.user.uid
 
-    // Las reglas de Firestore evalúan cada escritura contra el estado de
-    // la base ANTES de la operación en curso: no pueden validar, por
-    // ejemplo, la membresía contra un documento de negocio que se está
-    // creando en la misma operación. Por eso aquí no usamos un
-    // writeBatch: escribimos un documento a la vez, en el orden exacto
-    // que las reglas necesitan, esperando cada uno antes de continuar.
+    // Provision in dependency order. A failed read after provisioning must never
+    // roll back successfully created data.
     const createdRefs = []
     let step = ''
 
@@ -115,6 +171,7 @@ export function AuthProvider({ children }) {
         phone,
         status: 'active',
         globalRole: 'user',
+        onboardingComplete: false,
         businessIds: [finalBusinessId],
         emailVerified: false,
         photoUrl: null,
@@ -131,6 +188,7 @@ export function AuthProvider({ children }) {
         await setDoc(businessRef, {
           name: businessName,
           ownerUserId: uid,
+          appearance: { primaryColor: '#1672ed', secondaryColor: '#eaf3ff' },
           status: 'active',
           settings: {
             publicPageEnabled: true,
@@ -157,7 +215,7 @@ export function AuthProvider({ children }) {
         businessId: finalBusinessId,
         role,
         permissions: {},
-        status: 'active',
+        status: role === 'professional' ? 'pending' : 'active',
         createdAt: now,
       })
       createdRefs.push(membershipRef)
@@ -172,7 +230,7 @@ export function AuthProvider({ children }) {
           displayName: `${firstName} ${lastName}`,
           email,
           phone,
-          isActive: true,
+          isActive: false,
           serviceIds: [],
           createdAt: now,
           updatedAt: now,
@@ -206,25 +264,41 @@ export function AuthProvider({ children }) {
         createdRefs.push(clientRef)
       }
 
-      await loadUserData(uid)
+      step = 'finalizar tu perfil'
+      await updateDoc(userRef, { onboardingComplete: true })
     } catch (err) {
       console.error(`Registro falló en el paso "${step}":`, err)
 
-      // Deshacemos en orden inverso solo lo que sí llegó a crearse, y
-      // luego eliminamos la cuenta de Auth: así no quedan datos
-      // huérfanos ni en Firestore ni en Authentication.
+      let cleanupFailed = false
       for (const ref of createdRefs.reverse()) {
-        await deleteDoc(ref).catch(() => {})
+        try {
+          await deleteDoc(ref)
+        } catch {
+          cleanupFailed = true
+          break
+        }
       }
-      await deleteUser(credential.user).catch(() => {})
-
+      // Preserve authentication if data cleanup failed so the account remains recoverable.
+      if (!cleanupFailed) {
+        try {
+          await deleteUser(credential.user)
+        } catch {
+          cleanupFailed = true
+        }
+      }
       throw new Error(
-        `No se pudo completar el registro (falló al ${step}). Tu cuenta no fue creada, intenta de nuevo.`
+        cleanupFailed
+          ? `El registro quedó incompleto al ${step}. Conservamos tu cuenta; contacta al administrador para recuperarla.`
+          : `No se pudo completar el registro al ${step}. Se deshicieron los cambios; puedes intentarlo de nuevo.`
       )
+    } finally {
+      provisioning.current = false
+      await reloadProfile()
     }
   }
 
-  async function login(email, password) {
+  async function login(email, password, remember = true) {
+    await setPersistence(auth, remember ? browserLocalPersistence : browserSessionPersistence)
     const credential = await signInWithEmailAndPassword(auth, email, password)
     await updateDoc(doc(db, 'users', credential.user.uid), {
       lastLoginAt: serverTimestamp(),
@@ -245,6 +319,8 @@ export function AuthProvider({ children }) {
     userDoc,
     membership,
     loading,
+    authError,
+    reloadProfile,
     register,
     login,
     logout,

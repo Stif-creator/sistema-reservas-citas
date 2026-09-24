@@ -33,8 +33,18 @@ const COMING_SOON_LINKS = [
 // exclusivo de admin.
 const BUSINESS_LINKS = [
   { to: '/servicios', label: 'Servicios', icon: Scissors, roles: ['admin'] },
-  { to: '/profesionales', label: 'Profesionales', icon: Users, roles: ['admin'] },
-  { to: '/bloqueos', label: 'Bloqueos', icon: CalendarX, roles: ['admin', 'professional'] },
+  {
+    to: '/profesionales',
+    label: 'Profesionales',
+    icon: Users,
+    roles: ['admin'],
+  },
+  {
+    to: '/bloqueos',
+    label: 'Bloqueos',
+    icon: CalendarX,
+    roles: ['admin', 'professional'],
+  },
   { to: '/negocio', label: 'Configuración', icon: Settings, roles: ['admin'] },
 ]
 
@@ -56,20 +66,32 @@ function AdminLayout() {
   const { membership, userDoc, logout } = useAuth()
   const navigate = useNavigate()
   const [businessName, setBusinessName] = useState('')
+  const [layoutError, setLayoutError] = useState('')
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const userMenuRef = useRef(null)
 
   const userName = userDoc ? `${userDoc.firstName} ${userDoc.lastName}` : ''
-  const visibleBusinessLinks = BUSINESS_LINKS.filter((link) => link.roles.includes(membership?.role))
+  const visibleBusinessLinks = BUSINESS_LINKS.filter((link) =>
+    link.roles.includes(membership?.role)
+  )
 
   useEffect(() => {
+    let active = true
     async function fetchBusinessName() {
       if (!membership?.businessId) return
-      const snap = await getDoc(doc(db, 'businesses', membership.businessId))
-      setBusinessName(snap.exists() ? snap.data().name : '')
+      try {
+        const snap = await getDoc(doc(db, 'businesses', membership.businessId))
+        if (active) setBusinessName(snap.exists() ? snap.data().name : 'Negocio no disponible')
+      } catch {
+        if (active)
+          setLayoutError('No se pudo cargar el negocio. Recarga la página para reintentar.')
+      }
     }
     fetchBusinessName()
+    return () => {
+      active = false
+    }
   }, [membership])
 
   useEffect(() => {
@@ -83,8 +105,12 @@ function AdminLayout() {
   }, [])
 
   async function handleLogout() {
-    await logout()
-    navigate('/login')
+    try {
+      await logout()
+      navigate('/login')
+    } catch {
+      setLayoutError('No se pudo cerrar la sesión. Inténtalo de nuevo.')
+    }
   }
 
   const sidebarContent = (
@@ -108,10 +134,17 @@ function AdminLayout() {
 
       <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-5">
         <div>
-          <p className="px-3 pb-2 text-xs font-semibold uppercase tracking-wide text-muted">General</p>
+          <p className="px-3 pb-2 text-xs font-semibold uppercase tracking-wide text-muted">
+            General
+          </p>
           <div className="space-y-1">
             {GENERAL_LINKS.map((link) => (
-              <NavLink key={link.to} to={link.to} className={navLinkClasses}>
+              <NavLink
+                key={link.to}
+                to={link.to}
+                className={navLinkClasses}
+                onClick={() => setMobileNavOpen(false)}
+              >
                 <link.icon size={18} />
                 {link.label}
               </NavLink>
@@ -133,10 +166,17 @@ function AdminLayout() {
 
         {visibleBusinessLinks.length > 0 && (
           <div>
-            <p className="px-3 pb-2 text-xs font-semibold uppercase tracking-wide text-muted">Negocio</p>
+            <p className="px-3 pb-2 text-xs font-semibold uppercase tracking-wide text-muted">
+              Negocio
+            </p>
             <div className="space-y-1">
               {visibleBusinessLinks.map((link) => (
-                <NavLink key={link.to} to={link.to} className={navLinkClasses}>
+                <NavLink
+                  key={link.to}
+                  to={link.to}
+                  className={navLinkClasses}
+                  onClick={() => setMobileNavOpen(false)}
+                >
                   <link.icon size={18} />
                   {link.label}
                 </NavLink>
@@ -153,7 +193,9 @@ function AdminLayout() {
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-ink">{userName || 'Cargando...'}</p>
-            <p className="truncate text-xs capitalize text-muted">{membership?.role ?? 'Sin rol'}</p>
+            <p className="truncate text-xs capitalize text-muted">
+              {membership?.role ?? 'Sin rol'}
+            </p>
           </div>
           <button
             type="button"
@@ -200,7 +242,10 @@ function AdminLayout() {
           </button>
 
           <div className="relative hidden w-full max-w-sm sm:block">
-            <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+            <Search
+              size={16}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted"
+            />
             <input
               type="text"
               placeholder="Buscar..."
@@ -236,7 +281,9 @@ function AdminLayout() {
                 <div className="absolute right-0 top-full mt-2 w-48 rounded-lg border border-border bg-surface py-1 shadow-card">
                   <div className="border-b border-border px-3 py-2">
                     <p className="truncate text-sm font-medium text-ink">{userName}</p>
-                    <p className="truncate text-xs capitalize text-muted">{membership?.role ?? 'Sin rol'}</p>
+                    <p className="truncate text-xs capitalize text-muted">
+                      {membership?.role ?? 'Sin rol'}
+                    </p>
                   </div>
                   <button
                     type="button"
@@ -253,6 +300,11 @@ function AdminLayout() {
         </header>
 
         <main className="flex-1 p-4 sm:p-6 lg:p-8">
+          {layoutError && (
+            <p role="alert" className="mb-4 text-error">
+              {layoutError}
+            </p>
+          )}
           <Outlet />
         </main>
       </div>

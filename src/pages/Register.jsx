@@ -1,282 +1,214 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { collection, getDocs, query, where } from 'firebase/firestore'
+import { ArrowRight } from 'lucide-react'
 import { db } from '../firebase/config'
 import { useAuth } from '../context/AuthContext'
 import { getAuthErrorMessage } from '../firebase/authErrors'
+import { AuthShell, usePublicBusiness } from '../components/public/PublicLayout'
+import PasswordInput from '../components/public/PasswordInput'
 
-const ROLES = [
-  { value: 'client', label: 'Cliente' },
-  { value: 'professional', label: 'Profesional' },
-  { value: 'admin', label: 'Administrador' },
-]
-
-function Register() {
+export default function Register({ owner = false }) {
   const { register } = useAuth()
+  const { business, businessId, base } = usePublicBusiness()
   const navigate = useNavigate()
-
-  const [firstName, setFirstName] = useState('')
-  const [lastName, setLastName] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [phone, setPhone] = useState('')
+  const [form, setForm] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    password: '',
+    confirm: '',
+    phone: '',
+    businessName: '',
+    businessId: '',
+  })
   const [role, setRole] = useState('client')
-  const [businessName, setBusinessName] = useState('')
-  const [businessId, setBusinessId] = useState('')
   const [businesses, setBusinesses] = useState([])
-  const [businessesLoading, setBusinessesLoading] = useState(true)
   const [error, setError] = useState('')
-  const [fieldErrors, setFieldErrors] = useState({})
-  const [submitting, setSubmitting] = useState(false)
-
+  const [listError, setListError] = useState('')
+  const [errors, setErrors] = useState({})
+  const [busy, setBusy] = useState(false)
   useEffect(() => {
-    async function fetchBusinesses() {
-      try {
-        const q = query(
-          collection(db, 'businesses'),
-          where('status', '==', 'active'),
-          where('settings.publicPageEnabled', '==', true)
-        )
-        const snap = await getDocs(q)
-        setBusinesses(snap.docs.map((d) => ({ id: d.id, name: d.data().name })))
-      } catch (err) {
-        console.error('Error al cargar negocios', err)
-      } finally {
-        setBusinessesLoading(false)
-      }
+    if (businessId || owner) return
+    let active = true
+    getDocs(
+      query(
+        collection(db, 'businesses'),
+        where('status', '==', 'active'),
+        where('settings.publicPageEnabled', '==', true)
+      )
+    )
+      .then((snap) => {
+        if (active) setBusinesses(snap.docs.map((d) => ({ id: d.id, name: d.data().name })))
+      })
+      .catch(() => {
+        if (active)
+          setListError('No pudimos cargar los negocios. Recarga la página para reintentar.')
+      })
+    return () => {
+      active = false
     }
-    fetchBusinesses()
-  }, [])
-
-  // Limpia el mensaje de error de un campo en cuanto el usuario vuelve a
-  // escribir en él (detalle de UX; las reglas solo se vuelven a evaluar
-  // por completo en el siguiente intento de envío, ver comentario en
-  // handleSubmit).
-  function clearFieldError(key) {
-    setFieldErrors((prev) => (prev[key] ? { ...prev, [key]: '' } : prev))
+  }, [businessId, owner])
+  function change(key, value) {
+    setForm((prev) => ({ ...prev, [key]: value }))
+    setErrors((prev) => ({ ...prev, [key]: '' }))
   }
-
-  function validate() {
-    const errors = {}
-    const hasLetter = /\p{L}/u
-
-    if (!firstName.trim()) {
-      errors.firstName = 'El nombre es obligatorio.'
-    } else if (!hasLetter.test(firstName)) {
-      errors.firstName = 'El nombre debe contener al menos una letra.'
-    }
-
-    if (!lastName.trim()) {
-      errors.lastName = 'El apellido es obligatorio.'
-    } else if (!hasLetter.test(lastName)) {
-      errors.lastName = 'El apellido debe contener al menos una letra.'
-    }
-
-    if (!email.trim()) {
-      errors.email = 'El email es obligatorio.'
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      errors.email = 'Ingresa un email válido.'
-    }
-
-    if (!password) {
-      errors.password = 'La contraseña es obligatoria.'
-    } else if (password.length < 6) {
-      errors.password = 'La contraseña debe tener al menos 6 caracteres.'
-    }
-
-    if (!phone.trim()) {
-      errors.phone = 'El teléfono es obligatorio.'
-    } else if (!/^\+?\d{8,}$/.test(phone.trim())) {
-      errors.phone = 'Ingresa un teléfono válido: solo dígitos (puede empezar con "+"), mínimo 8 dígitos.'
-    }
-
-    if (role === 'admin') {
-      if (!businessName.trim()) {
-        errors.businessName = 'El nombre del negocio es obligatorio.'
-      }
-    } else if (!businessId) {
-      errors.businessId = 'Selecciona un negocio.'
-    }
-
-    return errors
-  }
-
-  async function handleSubmit(e) {
+  async function submit(e) {
     e.preventDefault()
     setError('')
-
-    // Validamos solo al enviar (no en tiempo real, no deshabilitamos el
-    // botón mientras se escribe): una única función validate() que
-    // corre una vez por intento de envío es más simple de mantener que
-    // sincronizar un estado "¿es válido?" con cada tecla, y para un
-    // formulario de este tamaño no hace falta más.
-    const errors = validate()
-    setFieldErrors(errors)
-    if (Object.keys(errors).length > 0) {
-      return
-    }
-
-    setSubmitting(true)
+    const next = {}
+    for (const key of ['firstName', 'lastName'])
+      if (!/\p{L}/u.test(form[key].trim())) next[key] = 'Ingresa un nombre válido.'
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()))
+      next.email = 'Ingresa un correo válido.'
+    if (form.password.length < 6) next.password = 'Usa al menos 6 caracteres.'
+    if (form.confirm !== form.password) next.confirm = 'Las contraseñas no coinciden.'
+    if (!/^\+?\d{8,}$/.test(form.phone.trim()))
+      next.phone = 'Ingresa al menos 8 dígitos; puedes incluir + al inicio.'
+    if (owner && !form.businessName.trim()) next.businessName = 'Ingresa el nombre de tu negocio.'
+    if (!owner && !businessId && !form.businessId) next.businessId = 'Selecciona un negocio.'
+    setErrors(next)
+    if (Object.keys(next).length) return
+    setBusy(true)
     try {
       await register({
-        firstName,
-        lastName,
-        email,
-        password,
-        phone,
-        role,
-        businessId,
-        businessName,
+        ...form,
+        firstName: form.firstName.trim(),
+        lastName: form.lastName.trim(),
+        email: form.email.trim(),
+        phone: form.phone.trim(),
+        businessName: form.businessName.trim(),
+        businessId: businessId || form.businessId,
+        role: owner ? 'admin' : role,
       })
       navigate('/dashboard')
     } catch (err) {
-      // Los errores de Firebase Auth (ej. auth/email-already-in-use)
-      // traen un `.code`; los errores de rollback que arma register()
-      // en AuthContext son un Error normal con el mensaje ya listo.
       setError(err.code ? getAuthErrorMessage(err) : err.message)
     } finally {
-      setSubmitting(false)
+      setBusy(false)
     }
   }
-
-  return (
-    <div>
-      <h1>Register</h1>
-      <form onSubmit={handleSubmit} noValidate>
-        <div>
-          <label htmlFor="firstName">Nombre</label>
-          <input
-            id="firstName"
-            value={firstName}
-            onChange={(e) => {
-              setFirstName(e.target.value)
-              clearFieldError('firstName')
-            }}
-          />
-          {fieldErrors.firstName && <p style={{ color: 'red' }}>{fieldErrors.firstName}</p>}
-        </div>
-
-        <div>
-          <label htmlFor="lastName">Apellido</label>
-          <input
-            id="lastName"
-            value={lastName}
-            onChange={(e) => {
-              setLastName(e.target.value)
-              clearFieldError('lastName')
-            }}
-          />
-          {fieldErrors.lastName && <p style={{ color: 'red' }}>{fieldErrors.lastName}</p>}
-        </div>
-
-        <div>
-          <label htmlFor="email">Email</label>
-          <input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => {
-              setEmail(e.target.value)
-              clearFieldError('email')
-            }}
-          />
-          {fieldErrors.email && <p style={{ color: 'red' }}>{fieldErrors.email}</p>}
-        </div>
-
-        <div>
-          <label htmlFor="password">Contraseña</label>
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => {
-              setPassword(e.target.value)
-              clearFieldError('password')
-            }}
-          />
-          {fieldErrors.password && <p style={{ color: 'red' }}>{fieldErrors.password}</p>}
-        </div>
-
-        <div>
-          <label htmlFor="phone">Teléfono</label>
-          <input
-            id="phone"
-            value={phone}
-            onChange={(e) => {
-              setPhone(e.target.value)
-              clearFieldError('phone')
-            }}
-          />
-          {fieldErrors.phone && <p style={{ color: 'red' }}>{fieldErrors.phone}</p>}
-        </div>
-
-        <div>
-          <label htmlFor="role">Rol</label>
-          <select
-            id="role"
-            value={role}
-            onChange={(e) => {
-              setRole(e.target.value)
-              setFieldErrors((prev) => ({ ...prev, businessName: '', businessId: '' }))
-            }}
-          >
-            {ROLES.map((r) => (
-              <option key={r.value} value={r.value}>
-                {r.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {role === 'admin' ? (
-          <div>
-            <label htmlFor="businessName">Nombre del negocio</label>
-            <input
-              id="businessName"
-              value={businessName}
-              onChange={(e) => {
-                setBusinessName(e.target.value)
-                clearFieldError('businessName')
-              }}
-            />
-            {fieldErrors.businessName && <p style={{ color: 'red' }}>{fieldErrors.businessName}</p>}
-          </div>
-        ) : (
-          <div>
-            <label htmlFor="businessId">Negocio</label>
-            <select
-              id="businessId"
-              value={businessId}
-              onChange={(e) => {
-                setBusinessId(e.target.value)
-                clearFieldError('businessId')
-              }}
-            >
-              <option value="" disabled>
-                {businessesLoading ? 'Cargando negocios...' : 'Selecciona un negocio'}
-              </option>
-              {businesses.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
-            {fieldErrors.businessId && <p style={{ color: 'red' }}>{fieldErrors.businessId}</p>}
-          </div>
+  function field(key, label, type = 'text', placeholder = '', autoComplete) {
+    const props = {
+      id: key,
+      value: form[key],
+      onChange: (e) => change(key, e.target.value),
+      placeholder,
+      autoComplete,
+      'aria-invalid': !!errors[key],
+      'aria-describedby': errors[key] ? `${key}-error` : undefined,
+    }
+    return (
+      <label htmlFor={key}>
+        {label}
+        {type === 'password' ? <PasswordInput {...props} /> : <input {...props} type={type} />}
+        {errors[key] && (
+          <small id={`${key}-error`} className="field-error">
+            {errors[key]}
+          </small>
         )}
-
-        {error && <p style={{ color: 'red' }}>{error}</p>}
-
-        <button type="submit" disabled={submitting}>
-          {submitting ? 'Creando cuenta...' : 'Registrarse'}
+      </label>
+    )
+  }
+  return (
+    <AuthShell register>
+      <div className="auth-heading">
+        <span className="eyebrow">UN NUEVO COMIENZO</span>
+        <h1>{owner ? 'Crea tu negocio' : 'Crea tu cuenta'}</h1>
+        <p>
+          {owner
+            ? 'Dale a tu negocio un espacio propio.'
+            : business
+              ? `Forma parte de ${business.name}.`
+              : 'Encuentra tu negocio y comienza.'}
+        </p>
+      </div>
+      <form className="public-form" onSubmit={submit} noValidate>
+        <div className="form-grid">
+          {field('firstName', 'Nombre', 'text', 'Tu nombre', 'given-name')}
+          {field('lastName', 'Apellido', 'text', 'Tu apellido', 'family-name')}
+        </div>
+        {field('email', 'Correo electrónico', 'email', 'tu@correo.com', 'email')}
+        {field('phone', 'Teléfono', 'tel', '+59170000000', 'tel')}
+        <div className="form-grid">
+          {field('password', 'Contraseña', 'password', 'Mínimo 6 caracteres', 'new-password')}
+          {field(
+            'confirm',
+            'Confirmar contraseña',
+            'password',
+            'Repite tu contraseña',
+            'new-password'
+          )}
+        </div>
+        {owner ? (
+          field(
+            'businessName',
+            'Nombre del negocio',
+            'text',
+            'El nombre de tu negocio',
+            'organization'
+          )
+        ) : (
+          <>
+            {!businessId && (
+              <label htmlFor="businessId">
+                Negocio
+                <select
+                  id="businessId"
+                  value={form.businessId}
+                  onChange={(e) => change('businessId', e.target.value)}
+                >
+                  <option value="">Selecciona un negocio</option>
+                  {businesses.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
+                {errors.businessId && <small className="field-error">{errors.businessId}</small>}
+              </label>
+            )}
+            <label htmlFor="role">
+              Quiero registrarme como
+              <select id="role" value={role} onChange={(e) => setRole(e.target.value)}>
+                <option value="client">Cliente</option>
+                <option value="professional">Profesional (requiere aprobación)</option>
+              </select>
+            </label>
+            {role === 'professional' && (
+              <p className="form-hint">El administrador deberá aprobar tu acceso al negocio.</p>
+            )}
+          </>
+        )}
+        {listError && (
+          <p role="alert" className="public-alert">
+            {listError}
+          </p>
+        )}
+        {error && (
+          <p role="alert" className="public-alert">
+            {error}
+          </p>
+        )}
+        <button className="public-button full" disabled={busy}>
+          {busy ? 'Creando cuenta…' : owner ? 'Crear mi negocio' : 'Crear cuenta'}
+          <ArrowRight size={17} />
         </button>
       </form>
-
-      <p>
-        ¿Ya tienes cuenta? <Link to="/login">Inicia sesión</Link>
+      <p className="auth-switch">
+        ¿Ya tienes cuenta?{' '}
+        <Link className="text-link" to={`${base}/login`}>
+          Inicia sesión
+        </Link>
       </p>
-    </div>
+      {!owner && !business && (
+        <p className="public-footnote">
+          ¿Eres dueño?{' '}
+          <Link className="text-link" to="/crear-negocio">
+            Crea tu negocio
+          </Link>
+        </p>
+      )}
+    </AuthShell>
   )
 }
-
-export default Register

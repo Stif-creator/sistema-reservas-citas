@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import {
   Timestamp,
-  addDoc,
+  setDoc,
+  getDoc,
   and,
   collection,
   deleteDoc,
@@ -11,9 +12,9 @@ import {
   orderBy,
   query,
   serverTimestamp,
-  updateDoc,
   where,
 } from 'firebase/firestore'
+import { businessDate } from '../lib/hours'
 import { db } from '../firebase/config'
 import { useAuth } from '../context/AuthContext'
 import Card from '../components/ui/Card'
@@ -33,17 +34,25 @@ const REASON_OPTIONS = [
 
 const REASON_LABELS = Object.fromEntries(REASON_OPTIONS.map((opt) => [opt.value, opt.label]))
 
-const DATE_FMT = new Intl.DateTimeFormat('es-BO', { day: '2-digit', month: 'short', year: 'numeric' })
-const TIME_FMT = new Intl.DateTimeFormat('es-BO', { hour: '2-digit', minute: '2-digit' })
-
 function toDate(value) {
   return value?.toDate ? value.toDate() : new Date(value)
 }
 
-function formatRange(startAt, endAt) {
+function formatRange(startAt, endAt, timeZone) {
+  const DATE_FMT = new Intl.DateTimeFormat('es-BO', {
+    timeZone,
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  })
+  const TIME_FMT = new Intl.DateTimeFormat('es-BO', {
+    timeZone,
+    hour: '2-digit',
+    minute: '2-digit',
+  })
   const start = toDate(startAt)
   const end = toDate(endAt)
-  if (start.toDateString() === end.toDateString()) {
+  if (DATE_FMT.format(start) === DATE_FMT.format(end)) {
     return `${DATE_FMT.format(start)} · ${TIME_FMT.format(start)}–${TIME_FMT.format(end)}`
   }
   return `${DATE_FMT.format(start)} ${TIME_FMT.format(start)} – ${DATE_FMT.format(end)} ${TIME_FMT.format(end)}`
@@ -57,6 +66,29 @@ function ScheduleBlocks() {
   const myName = userDoc ? `${userDoc.firstName} ${userDoc.lastName}` : 'Ti'
 
   // --- Lista de bloqueos ---
+  const [timeZone, setTimeZone] = useState('')
+  const [zoneError, setZoneError] = useState('')
+  useEffect(() => {
+    let active = true
+    if (!businessId) return
+    getDoc(doc(db, 'businesses', businessId))
+      .then((snap) => {
+        if (!snap.exists()) throw new Error('Negocio no disponible')
+        const zone = snap.data().settings?.timezone || 'America/La_Paz'
+        new Intl.DateTimeFormat('es', { timeZone: zone }).format(new Date())
+        if (active) setTimeZone(zone)
+      })
+      .catch(() => {
+        if (active)
+          setZoneError(
+            'No se pudo cargar la zona horaria. Recarga la página antes de crear bloqueos.'
+          )
+      })
+    return () => {
+      active = false
+    }
+  }, [businessId])
+
   const [blocks, setBlocks] = useState([])
   const [blocksLoading, setBlocksLoading] = useState(true)
   const [blocksListError, setBlocksListError] = useState('')
@@ -95,7 +127,10 @@ function ScheduleBlocks() {
           collection(db, 'scheduleBlocks'),
           and(
             businessFilter,
-            or(where('allProfessionals', '==', true), where('professionalId', '==', myProfessionalId))
+            or(
+              where('allProfessionals', '==', true),
+              where('professionalId', '==', myProfessionalId)
+            )
           ),
           orderBy('startAt')
         )
@@ -121,11 +156,15 @@ function ScheduleBlocks() {
     if (!businessId || !isAdmin) return
 
     const q = query(collection(db, 'professionals'), where('businessId', '==', businessId))
-    const unsubscribe = onSnapshot(q, (snap) => {
-      const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
-      list.sort((a, b) => (a.displayName ?? '').localeCompare(b.displayName ?? ''))
-      setProfessionals(list)
-    })
+    const unsubscribe = onSnapshot(
+      q,
+      (snap) => {
+        const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+        list.sort((a, b) => (a.displayName ?? '').localeCompare(b.displayName ?? ''))
+        setProfessionals(list)
+      },
+      () => setActionError('No se pudieron cargar los profesionales. Recarga la página.')
+    )
 
     return () => unsubscribe()
   }, [businessId, isAdmin])
@@ -170,7 +209,7 @@ function ScheduleBlocks() {
     if (!endAt) {
       errors.endAt = 'Selecciona fecha y hora de fin.'
     }
-    if (startAt && endAt && new Date(endAt) <= new Date(startAt)) {
+    if (startAt && endAt && endAt <= startAt) {
       errors.endAt = 'La fecha de fin debe ser posterior a la de inicio.'
     }
     if (isAdmin && scope === 'one' && !selectedProfessionalId) {
@@ -199,6 +238,10 @@ function ScheduleBlocks() {
     setFieldErrors(errors)
     if (Object.keys(errors).length > 0) return
 
+    if (!timeZone) {
+      setFormError('La zona horaria todavía no está disponible.')
+      return
+    }
     setSaving(true)
     try {
       const isAllProfessionals = isAdmin ? scope === 'all' : false
@@ -208,18 +251,19 @@ function ScheduleBlocks() {
           : selectedProfessionalId
         : myProfessionalId
 
-      const blockRef = await addDoc(collection(db, 'scheduleBlocks'), {
+      const blockRef = doc(collection(db, 'scheduleBlocks'))
+      await setDoc(blockRef, {
+        id: blockRef.id,
         businessId,
         professionalId,
         allProfessionals: isAllProfessionals,
         title: title.trim(),
         reason,
-        startAt: Timestamp.fromDate(new Date(startAt)),
-        endAt: Timestamp.fromDate(new Date(endAt)),
+        startAt: Timestamp.fromDate(businessDate(startAt, timeZone)),
+        endAt: Timestamp.fromDate(businessDate(endAt, timeZone)),
         createdByUserId: currentUser.uid,
         createdAt: serverTimestamp(),
       })
-      await updateDoc(blockRef, { id: blockRef.id })
 
       resetForm()
       setFormSuccess('Bloqueo creado.')
@@ -238,6 +282,8 @@ function ScheduleBlocks() {
         description="Bloquea franjas de horario para todo el negocio o para un profesional específico."
       />
 
+      {zoneError && <Alert>{zoneError}</Alert>}
+      {timeZone && <p className="text-sm text-muted">Todas las horas corresponden a {timeZone}.</p>}
       <Card title="Bloqueos programados">
         {blocksListError && <Alert tone="error">Error al cargar bloqueos: {blocksListError}</Alert>}
         {actionError && <Alert tone="error">{actionError}</Alert>}
@@ -263,13 +309,25 @@ function ScheduleBlocks() {
                   <tr key={block.id}>
                     <td className="py-2.5 pr-4 font-medium text-ink">{block.title}</td>
                     <td className="py-2.5 pr-4">
-                      <Badge tone={block.allProfessionals ? 'primary' : 'neutral'}>{scopeLabel(block)}</Badge>
+                      <Badge tone={block.allProfessionals ? 'primary' : 'neutral'}>
+                        {scopeLabel(block)}
+                      </Badge>
                     </td>
-                    <td className="py-2.5 pr-4 text-muted">{REASON_LABELS[block.reason] ?? block.reason}</td>
-                    <td className="py-2.5 pr-4 text-muted">{formatRange(block.startAt, block.endAt)}</td>
+                    <td className="py-2.5 pr-4 text-muted">
+                      {REASON_LABELS[block.reason] ?? block.reason}
+                    </td>
+                    <td className="py-2.5 pr-4 text-muted">
+                      {timeZone
+                        ? formatRange(block.startAt, block.endAt, timeZone)
+                        : 'Cargando zona horaria…'}
+                    </td>
                     <td className="py-2.5 pr-4">
                       {canDelete(block) && (
-                        <Button variant="ghost" className="px-2 py-1 text-error" onClick={() => handleDelete(block)}>
+                        <Button
+                          variant="ghost"
+                          className="px-2 py-1 text-error"
+                          onClick={() => handleDelete(block)}
+                        >
                           <Trash2 size={14} />
                           Eliminar
                         </Button>
@@ -282,7 +340,11 @@ function ScheduleBlocks() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} noValidate className="mt-6 space-y-4 border-t border-border pt-6">
+        <form
+          onSubmit={handleSubmit}
+          noValidate
+          className="mt-6 space-y-4 border-t border-border pt-6"
+        >
           <h4 className="text-sm font-semibold text-ink">Nuevo bloqueo</h4>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -392,7 +454,7 @@ function ScheduleBlocks() {
           {formError && <Alert tone="error">{formError}</Alert>}
           {formSuccess && <Alert tone="success">{formSuccess}</Alert>}
 
-          <Button type="submit" disabled={saving}>
+          <Button type="submit" disabled={saving || !timeZone}>
             {saving ? 'Guardando...' : 'Crear bloqueo'}
           </Button>
         </form>

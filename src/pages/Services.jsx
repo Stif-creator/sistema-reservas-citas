@@ -115,8 +115,12 @@ function Services() {
   useEffect(() => {
     async function fetchCurrencyCode() {
       if (!businessId) return
-      const snap = await getDoc(doc(db, 'businesses', businessId))
-      setCurrencyCode(snap.exists() ? snap.data()?.settings?.currencyCode ?? '' : '')
+      try {
+        const snap = await getDoc(doc(db, 'businesses', businessId))
+        setCurrencyCode(snap.exists() ? (snap.data()?.settings?.currencyCode ?? '') : '')
+      } catch {
+        setSvcError('No se pudo cargar la moneda del negocio. Recarga la página.')
+      }
     }
     fetchCurrencyCode()
   }, [businessId])
@@ -236,7 +240,9 @@ function Services() {
     setSvcCategoryId(service.categoryId ?? '')
     setSvcPrice(service.price != null ? String(service.price) : '')
     setSvcDuration(service.durationMinutes != null ? String(service.durationMinutes) : '')
-    setSvcBufferBefore(service.bufferBeforeMinutes != null ? String(service.bufferBeforeMinutes) : '')
+    setSvcBufferBefore(
+      service.bufferBeforeMinutes != null ? String(service.bufferBeforeMinutes) : ''
+    )
     setSvcBufferAfter(service.bufferAfterMinutes != null ? String(service.bufferAfterMinutes) : '')
     setSvcImageUrl(service.image?.url ?? '')
     setSvcFieldErrors({})
@@ -265,7 +271,7 @@ function Services() {
     }
 
     const priceNum = Number(svcPrice)
-    if (svcPrice === '' || Number.isNaN(priceNum) || priceNum <= 0) {
+    if (svcPrice === '' || !Number.isFinite(priceNum) || priceNum <= 0) {
       errors.price = 'El precio debe ser un número mayor a 0.'
     }
 
@@ -290,6 +296,10 @@ function Services() {
     setSvcError('')
     setSvcSuccess('')
 
+    if (!currencyCode) {
+      setSvcError('Espera a que se cargue la moneda del negocio o recarga la página.')
+      return
+    }
     const errors = validateService()
     setSvcFieldErrors(errors)
     if (Object.keys(errors).length > 0) return
@@ -349,10 +359,15 @@ function Services() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Servicios" description="Organiza tus categorías y los servicios que ofreces." />
+      <PageHeader
+        title="Servicios"
+        description="Organiza tus categorías y los servicios que ofreces."
+      />
 
       <Card title="Categorías">
-        {categoriesListError && <Alert tone="error">Error al cargar categorías: {categoriesListError}</Alert>}
+        {categoriesListError && (
+          <Alert tone="error">Error al cargar categorías: {categoriesListError}</Alert>
+        )}
 
         {categoriesLoading ? (
           <p className="text-sm text-muted">Cargando categorías...</p>
@@ -381,10 +396,18 @@ function Services() {
                     </td>
                     <td className="py-2.5 pr-4">
                       <div className="flex items-center gap-2">
-                        <Button variant="ghost" className="px-2 py-1" onClick={() => loadCategoryForEdit(cat)}>
+                        <Button
+                          variant="ghost"
+                          className="px-2 py-1"
+                          onClick={() => loadCategoryForEdit(cat)}
+                        >
                           Editar
                         </Button>
-                        <Button variant="ghost" className="px-2 py-1" onClick={() => toggleCategoryActive(cat)}>
+                        <Button
+                          variant="ghost"
+                          className="px-2 py-1"
+                          onClick={() => toggleCategoryActive(cat)}
+                        >
                           {cat.isActive ? 'Desactivar' : 'Activar'}
                         </Button>
                       </div>
@@ -396,7 +419,11 @@ function Services() {
           </div>
         )}
 
-        <form onSubmit={handleCategorySubmit} noValidate className="mt-6 space-y-4 border-t border-border pt-6">
+        <form
+          onSubmit={handleCategorySubmit}
+          noValidate
+          className="mt-6 space-y-4 border-t border-border pt-6"
+        >
           <h4 className="text-sm font-semibold text-ink">
             {catEditingId ? 'Editar categoría' : 'Nueva categoría'}
           </h4>
@@ -441,7 +468,9 @@ function Services() {
       </Card>
 
       <Card title="Servicios">
-        {servicesListError && <Alert tone="error">Error al cargar servicios: {servicesListError}</Alert>}
+        {servicesListError && (
+          <Alert tone="error">Error al cargar servicios: {servicesListError}</Alert>
+        )}
 
         {servicesLoading ? (
           <p className="text-sm text-muted">Cargando servicios...</p>
@@ -478,11 +507,19 @@ function Services() {
                     </td>
                     <td className="py-2.5 pr-4">
                       <div className="flex items-center gap-2">
-                        <Button variant="ghost" className="px-2 py-1" onClick={() => loadServiceForEdit(svc)}>
+                        <Button
+                          variant="ghost"
+                          className="px-2 py-1"
+                          onClick={() => loadServiceForEdit(svc)}
+                        >
                           <Pencil size={14} />
                           Editar
                         </Button>
-                        <Button variant="ghost" className="px-2 py-1" onClick={() => toggleServiceActive(svc)}>
+                        <Button
+                          variant="ghost"
+                          className="px-2 py-1"
+                          onClick={() => toggleServiceActive(svc)}
+                        >
                           {svc.isActive ? 'Desactivar' : 'Activar'}
                         </Button>
                       </div>
@@ -499,7 +536,7 @@ function Services() {
             {svcEditingId ? 'Editar servicio' : 'Nuevo servicio'}
           </h4>
 
-          {activeCategories.length === 0 ? (
+          {activeCategories.length === 0 && !svcEditingId ? (
             <p className="text-sm text-muted">Crea una categoría primero.</p>
           ) : (
             <form onSubmit={handleServiceSubmit} noValidate className="space-y-4">
@@ -549,7 +586,11 @@ function Services() {
               </Field>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label={`Precio (${currencyCode || 'moneda del negocio'})`} htmlFor="svcPrice" error={svcFieldErrors.price}>
+                <Field
+                  label={`Precio (${currencyCode || 'moneda del negocio'})`}
+                  htmlFor="svcPrice"
+                  error={svcFieldErrors.price}
+                >
                   <input
                     id="svcPrice"
                     type="number"
@@ -564,7 +605,11 @@ function Services() {
                   />
                 </Field>
 
-                <Field label="Duración (minutos)" htmlFor="svcDuration" error={svcFieldErrors.durationMinutes}>
+                <Field
+                  label="Duración (minutos)"
+                  htmlFor="svcDuration"
+                  error={svcFieldErrors.durationMinutes}
+                >
                   <input
                     id="svcDuration"
                     type="number"

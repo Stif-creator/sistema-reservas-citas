@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useAuth } from '../context/AuthContext'
-import WeeklyHoursEditor, { hasInvalidWeeklyHoursSlot } from '../components/WeeklyHoursEditor'
+import WeeklyHoursEditor from '../components/WeeklyHoursEditor'
+import { hasInvalidWeeklyHoursSlot } from '../lib/hours'
 import Card from '../components/ui/Card'
 import PageHeader from '../components/ui/PageHeader'
 import Field, { fieldControlClasses } from '../components/ui/Field'
@@ -17,13 +18,15 @@ function BusinessSettings() {
   const businessId = membership?.businessId
 
   const [loadingBusiness, setLoadingBusiness] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [loadAttempt, setLoadAttempt] = useState(0)
 
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [logoUrl, setLogoUrl] = useState('')
   const [coverUrl, setCoverUrl] = useState('')
-  const [primaryColor, setPrimaryColor] = useState('#000000')
-  const [secondaryColor, setSecondaryColor] = useState('#ffffff')
+  const [primaryColor, setPrimaryColor] = useState('#1672ed')
+  const [secondaryColor, setSecondaryColor] = useState('#eaf3ff')
   const [contactPhone, setContactPhone] = useState('')
   const [contactWhatsapp, setContactWhatsapp] = useState('')
   const [contactEmail, setContactEmail] = useState('')
@@ -44,30 +47,43 @@ function BusinessSettings() {
   const [hoursSaving, setHoursSaving] = useState(false)
 
   useEffect(() => {
+    let active = true
     async function fetchBusiness() {
-      if (!businessId) return
-      const snap = await getDoc(doc(db, 'businesses', businessId))
-      if (snap.exists()) {
-        const data = snap.data()
-        setName(data.name ?? '')
-        setDescription(data.description ?? '')
-        setLogoUrl(data.logo?.url ?? '')
-        setCoverUrl(data.cover?.url ?? '')
-        setPrimaryColor(data.appearance?.primaryColor ?? '#000000')
-        setSecondaryColor(data.appearance?.secondaryColor ?? '#ffffff')
-        setContactPhone(data.contact?.phone ?? '')
-        setContactWhatsapp(data.contact?.whatsapp ?? '')
-        setContactEmail(data.contact?.email ?? '')
-        setAddressLine(data.location?.addressLine ?? '')
-        setCity(data.location?.city ?? '')
-        setStateRegion(data.location?.stateRegion ?? '')
-        setCountryCode(data.location?.countryCode ?? '')
-        setWeeklyHours(data.weeklyHours ?? {})
+      setLoadingBusiness(true)
+      setLoadError('')
+      try {
+        if (!businessId) throw new Error('Sin negocio')
+        const snap = await getDoc(doc(db, 'businesses', businessId))
+        if (!active) return
+        if (!snap.exists()) throw new Error('Negocio no encontrado')
+        if (snap.exists()) {
+          const data = snap.data()
+          setName(data.name ?? '')
+          setDescription(data.description ?? '')
+          setLogoUrl(data.logo?.url ?? '')
+          setCoverUrl(data.cover?.url ?? '')
+          setPrimaryColor(data.appearance?.primaryColor ?? '#1672ed')
+          setSecondaryColor(data.appearance?.secondaryColor ?? '#eaf3ff')
+          setContactPhone(data.contact?.phone ?? '')
+          setContactWhatsapp(data.contact?.whatsapp ?? '')
+          setContactEmail(data.contact?.email ?? '')
+          setAddressLine(data.location?.addressLine ?? '')
+          setCity(data.location?.city ?? '')
+          setStateRegion(data.location?.stateRegion ?? '')
+          setCountryCode(data.location?.countryCode ?? '')
+          setWeeklyHours(data.weeklyHours ?? {})
+        }
+      } catch {
+        if (active) setLoadError('No se pudo cargar la configuración del negocio.')
+      } finally {
+        if (active) setLoadingBusiness(false)
       }
-      setLoadingBusiness(false)
     }
     fetchBusiness()
-  }, [businessId])
+    return () => {
+      active = false
+    }
+  }, [businessId, loadAttempt])
 
   function clearFieldError(key) {
     setFieldErrors((prev) => (prev[key] ? { ...prev, [key]: '' } : prev))
@@ -147,7 +163,9 @@ function BusinessSettings() {
     setHoursSuccess('')
 
     if (hasInvalidWeeklyHoursSlot(weeklyHours)) {
-      setHoursError('Revisa las franjas marcadas en rojo: la hora de fin debe ser mayor a la de inicio.')
+      setHoursError(
+        'Completa las franjas, coloca el fin después del inicio y evita horarios superpuestos.'
+      )
       return
     }
 
@@ -166,13 +184,39 @@ function BusinessSettings() {
     }
   }
 
+  if (loadError)
+    return (
+      <div className="space-y-4">
+        <Alert>{loadError}</Alert>
+        <Button onClick={() => setLoadAttempt((n) => n + 1)}>Reintentar</Button>
+      </div>
+    )
+
   if (loadingBusiness) {
     return <p className="text-sm text-muted">Cargando configuración del negocio...</p>
   }
 
   return (
     <div className="max-w-3xl space-y-6">
-      <PageHeader title="Configuración" description="Datos generales, imágenes, contacto y ubicación de tu negocio." />
+      <PageHeader
+        title="Configuración"
+        description="Datos generales, imágenes, contacto y ubicación de tu negocio."
+      />
+
+      <Card title="Tu página pública">
+        <p className="mb-3 text-sm text-muted">
+          Comparte este enlace con tus clientes. El logo, la portada y los colores se aplican
+          también al inicio de sesión y registro.
+        </p>
+        <a
+          className="break-all text-primary underline"
+          href={`/b/${businessId}`}
+          target="_blank"
+          rel="noreferrer"
+        >
+          {window.location.origin}/b/{businessId}
+        </a>
+      </Card>
 
       <form onSubmit={handleSubmit} noValidate className="space-y-6">
         <Card title="Datos generales">
@@ -351,7 +395,10 @@ function BusinessSettings() {
       </form>
 
       <form onSubmit={handleHoursSubmit}>
-        <Card title="Horario de atención" description="Define las franjas en las que tu negocio atiende cada día.">
+        <Card
+          title="Horario de atención"
+          description="Define las franjas en las que tu negocio atiende cada día."
+        >
           <WeeklyHoursEditor value={weeklyHours} onChange={setWeeklyHours} />
 
           <div className="mt-4 space-y-3">

@@ -13,7 +13,8 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useAuth } from '../context/AuthContext'
-import WeeklyHoursEditor, { hasInvalidWeeklyHoursSlot } from '../components/WeeklyHoursEditor'
+import WeeklyHoursEditor from '../components/WeeklyHoursEditor'
+import { hasInvalidWeeklyHoursSlot } from '../lib/hours'
 import Card from '../components/ui/Card'
 import PageHeader from '../components/ui/PageHeader'
 import Field, { fieldControlClasses } from '../components/ui/Field'
@@ -25,7 +26,8 @@ import { MoreVertical, User, X } from 'lucide-react'
 const PHONE_REGEX = /^\+?\d{8,}$/
 
 function todayDateString() {
-  return new Date().toISOString().slice(0, 10)
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 }
 
 function initialsFor(text) {
@@ -73,7 +75,9 @@ function ProfessionalCard({ professional, onEdit, onToggleActive }) {
 
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-ink">{professional.displayName}</p>
-          {professional.jobTitle && <p className="truncate text-xs text-muted">{professional.jobTitle}</p>}
+          {professional.jobTitle && (
+            <p className="truncate text-xs text-muted">{professional.jobTitle}</p>
+          )}
         </div>
 
         <div className="relative shrink-0" ref={menuRef}>
@@ -111,7 +115,8 @@ function ProfessionalCard({ professional, onEdit, onToggleActive }) {
       {bioSnippet && <p className="mt-3 text-sm text-muted">{bioSnippet}</p>}
 
       <p className="mt-3 text-xs text-muted">
-        {professional.serviceIds?.length ?? 0} servicio{professional.serviceIds?.length === 1 ? '' : 's'} asignado
+        {professional.serviceIds?.length ?? 0} servicio
+        {professional.serviceIds?.length === 1 ? '' : 's'} asignado
         {professional.serviceIds?.length === 1 ? '' : 's'}
       </p>
 
@@ -243,10 +248,15 @@ function Professionals() {
   async function toggleProfessionalActive(prof) {
     setActionError('')
     try {
-      await updateDoc(doc(db, 'professionals', prof.id), {
+      const batch = writeBatch(db)
+      batch.update(doc(db, 'professionals', prof.id), {
         isActive: !prof.isActive,
         updatedAt: serverTimestamp(),
       })
+      batch.update(doc(db, 'memberships', `${businessId}_${prof.userId}`), {
+        status: prof.isActive ? 'inactive' : 'active',
+      })
+      await batch.commit()
     } catch (err) {
       console.error('Error al actualizar profesional', err)
       setActionError('No se pudo actualizar el profesional. Intenta de nuevo.')
@@ -262,7 +272,8 @@ function Professionals() {
   function validateProfile() {
     const errors = {}
     if (phone.trim() && !PHONE_REGEX.test(phone.trim())) {
-      errors.phone = 'Ingresa un teléfono válido: solo dígitos (puede empezar con "+"), mínimo 8 dígitos.'
+      errors.phone =
+        'Ingresa un teléfono válido: solo dígitos (puede empezar con "+"), mínimo 8 dígitos.'
     }
     return errors
   }
@@ -302,7 +313,14 @@ function Professionals() {
     setHoursSuccess('')
 
     if (hasInvalidWeeklyHoursSlot(weeklyHours)) {
-      setHoursError('Revisa las franjas marcadas en rojo: la hora de fin debe ser mayor a la de inicio.')
+      setHoursError(
+        'Completa las franjas, coloca el fin después del inicio y evita horarios superpuestos.'
+      )
+      return
+    }
+
+    if (scheduleValidFrom && scheduleValidUntil && scheduleValidUntil < scheduleValidFrom) {
+      setHoursError('La fecha final no puede ser anterior a la fecha inicial.')
       return
     }
 
@@ -400,7 +418,9 @@ function Professionals() {
       {professionalsLoading ? (
         <p className="text-sm text-muted">Cargando profesionales...</p>
       ) : professionals.length === 0 ? (
-        <p className="text-sm text-muted">Todavía no hay profesionales registrados en este negocio.</p>
+        <p className="text-sm text-muted">
+          Todavía no hay profesionales registrados en este negocio.
+        </p>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {professionals.map((prof) => (
@@ -426,7 +446,9 @@ function Professionals() {
           <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col overflow-y-auto border-l border-border bg-surface shadow-xl">
             <div className="flex items-center justify-between border-b border-border px-6 py-4">
               <div className="min-w-0">
-                <h3 className="truncate text-base font-semibold text-ink">{editingProfessional.displayName}</h3>
+                <h3 className="truncate text-base font-semibold text-ink">
+                  {editingProfessional.displayName}
+                </h3>
                 <p className="truncate text-sm text-muted">{editingProfessional.email}</p>
               </div>
               <button
@@ -520,12 +542,16 @@ function Professionals() {
 
               <section className="border-t border-border pt-6">
                 <h4 className="mb-4 text-sm font-semibold text-ink">Servicios asignados</h4>
-                {servicesListError && <Alert tone="error">Error al cargar servicios: {servicesListError}</Alert>}
+                {servicesListError && (
+                  <Alert tone="error">Error al cargar servicios: {servicesListError}</Alert>
+                )}
                 <form onSubmit={handleServicesSubmit} className="space-y-4">
                   {servicesLoading ? (
                     <p className="text-sm text-muted">Cargando servicios...</p>
                   ) : services.length === 0 ? (
-                    <p className="text-sm text-muted">Todavía no hay servicios creados en este negocio.</p>
+                    <p className="text-sm text-muted">
+                      Todavía no hay servicios creados en este negocio.
+                    </p>
                   ) : (
                     <div className="space-y-2">
                       {services.map((svc) => (
@@ -573,6 +599,7 @@ function Professionals() {
                       <input
                         id="scheduleValidUntil"
                         type="date"
+                        min={scheduleValidFrom || undefined}
                         value={scheduleValidUntil}
                         onChange={(e) => setScheduleValidUntil(e.target.value)}
                         className={fieldControlClasses(false)}
