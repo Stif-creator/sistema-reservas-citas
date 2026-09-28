@@ -4,12 +4,14 @@ export const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sáb
 
 export function isSlotInvalid(slot) {
   const time = /^(?:[01]\d|2[0-3]):[0-5]\d$/
-  return !time.test(slot.start) || !time.test(slot.end) || slot.end <= slot.start
+  return !slot || !time.test(slot.start) || !time.test(slot.end) || slot.end <= slot.start
 }
 
 export function hasInvalidWeeklyHoursSlot(hours) {
+  if (!hours || typeof hours !== 'object' || Array.isArray(hours)) return true
   return DAYS.some(({ key }) => {
     const slots = hours[key] ?? []
+    if (!Array.isArray(slots)) return true
     if (slots.some(isSlotInvalid)) return true
     const sorted = [...slots].sort((a, b) => a.start.localeCompare(b.start))
     return sorted.some((slot, i) => i > 0 && slot.start < sorted[i - 1].end)

@@ -3,9 +3,10 @@ import { Link, useNavigate } from 'react-router-dom'
 import { collection, getDocs, query, where } from 'firebase/firestore'
 import { ArrowRight } from 'lucide-react'
 import { db } from '../firebase/config'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/auth-context'
 import { getAuthErrorMessage } from '../firebase/authErrors'
-import { AuthShell, usePublicBusiness } from '../components/public/PublicLayout'
+import { AuthShell } from '../components/public/PublicLayout'
+import { usePublicBusiness } from '../context/PublicBusinessContext'
 import PasswordInput from '../components/public/PasswordInput'
 
 export default function Register({ owner = false }) {

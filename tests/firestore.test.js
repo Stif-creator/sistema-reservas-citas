@@ -145,6 +145,127 @@ after(async () => {
   await env?.cleanup()
 })
 
+test('client catalog stays scoped and read-only even when the public website is disabled', async () => {
+  await env.withSecurityRulesDisabled(async context => {
+    const db = context.firestore()
+    await setDoc(doc(db, 'businesses', 'catalog-private'), { status: 'active', settings: { publicPageEnabled: false }, ownerUserId: 'owner' })
+    await setDoc(doc(db, 'memberships', 'catalog-private_client'), { ...membership('client', 'client'), businessId: 'catalog-private' })
+    await setDoc(doc(db, 'categories', 'catalog-care'), { businessId: 'catalog-private', name: 'Bienestar' })
+    for (const [id, isActive, isPublic] of [['visible', true, true], ['inactive', false, true], ['hidden', true, false]]) {
+      await setDoc(doc(db, 'services', `catalog-${id}`), { businessId: 'catalog-private', name: id, isActive, isPublic })
+    }
+  })
+  const client = dbFor('client')
+  await assertSucceeds(getDocs(query(collection(client, 'categories'), where('businessId', '==', 'catalog-private'))))
+  const services = await assertSucceeds(getDocs(query(collection(client, 'services'), where('businessId', '==', 'catalog-private'), where('isActive', '==', true), where('isPublic', '==', true))))
+  assert.equal(services.size, 1)
+  await assertFails(getDoc(doc(client, 'services', 'catalog-inactive')))
+  await assertFails(getDoc(doc(client, 'services', 'catalog-hidden')))
+  await assertFails(updateDoc(doc(client, 'categories', 'catalog-care'), { name: 'Changed' }))
+  await assertFails(getDoc(doc(client, 'professionals', 'studio_pro')))
+  await assertFails(getDoc(doc(dbFor('outsider'), 'categories', 'catalog-care')))
+  await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), 'services', 'catalog-visible')))
+  await env.withSecurityRulesDisabled(context => updateDoc(doc(context.firestore(), 'memberships', 'catalog-private_client'), { status: 'inactive' }))
+  await assertFails(getDoc(doc(client, 'services', 'catalog-visible')))
+})
+
+function provisionProfessional(db, uid, businessId = 'studio') {
+  const id = `${businessId}_${uid}`
+  const batch = writeBatch(db)
+  batch.set(doc(db, 'users', uid), {
+    id: uid, auth_uid: uid, firstName: 'Nuevo', lastName: 'Profesional', email: `${uid}@example.test`, phone: '70000000',
+    globalRole: 'user', status: 'active', businessIds: [businessId], onboardingComplete: true, createdAt: serverTimestamp(),
+  })
+  batch.set(doc(db, 'memberships', id), {
+    userId: uid, businessId, role: 'professional', status: 'active', permissions: {}, createdAt: serverTimestamp(),
+  })
+  batch.set(doc(db, 'professionals', id), {
+    id, businessId, userId: uid, displayName: 'Nuevo Profesional', isActive: true, serviceIds: [], createdAt: serverTimestamp(),
+  })
+  return batch.commit()
+}
+
+test('only administrators can provision complete professional accounts in their business', async () => {
+  await assertSucceeds(provisionProfessional(dbFor('owner'), 'managed'))
+  await assertSucceeds(getDoc(doc(dbFor('owner'), 'users', 'managed')))
+  await assertFails(provisionProfessional(dbFor('client'), 'forbidden'))
+  await assertFails(provisionProfessional(dbFor('owner'), 'cross-tenant', 'private'))
+  await assertFails(getDoc(doc(dbFor('outsider'), 'users', 'managed')))
+  await assertSucceeds(getDoc(doc(dbFor('owner'), 'clients', 'studio_managed')))
+})
+
+test('role and account state management requires synchronized profiles and protects the owner', async () => {
+  const db = dbFor('owner')
+  await assertSucceeds(provisionProfessional(db, 'managed-role'))
+  const member = doc(db, 'memberships', 'studio_managed-role')
+  const profile = doc(db, 'professionals', 'studio_managed-role')
+  await assertFails(updateDoc(member, { role: 'client' }))
+  const demote = writeBatch(db)
+  demote.update(member, { role: 'client', status: 'inactive' })
+  demote.update(profile, { isActive: false })
+  demote.set(doc(db, 'clients', 'studio_managed-role'), {
+    id: 'studio_managed-role', businessId: 'studio', userId: 'managed-role', createdAt: serverTimestamp(),
+  })
+  await assertSucceeds(demote.commit())
+  await assertFails(updateDoc(doc(dbFor('managed-role'), 'memberships', 'studio_managed-role'), { status: 'active' }))
+  await assertSucceeds(updateDoc(member, { role: 'admin', status: 'active' }))
+  await assertSucceeds(updateDoc(doc(dbFor('managed-role'), 'businesses', 'studio'), { name: 'Cambio autorizado' }))
+  await assertFails(updateDoc(doc(dbFor('managed-role'), 'memberships', 'studio_owner'), { role: 'client' }))
+  await assertFails(updateDoc(doc(dbFor('managed-role'), 'memberships', 'studio_managed-role'), { status: 'inactive' }))
+  await assertSucceeds(updateDoc(member, { status: 'inactive' }))
+  await assertFails(updateDoc(doc(dbFor('managed-role'), 'businesses', 'studio'), { name: 'Cambio prohibido' }))
+  const promote = writeBatch(db)
+  promote.update(member, { role: 'professional', status: 'active' })
+  promote.update(profile, { isActive: true })
+  await assertSucceeds(promote.commit())
+  await assertFails(updateDoc(member, { permissions: { unrestricted: true } }))
+  await assertFails(updateDoc(member, { businessId: 'private' }))
+})
+
+test('administrator can create a professional profile when converting a client', async () => {
+  const db = dbFor('owner')
+  await env.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), 'users', 'convert'), { id: 'convert', status: 'active', businessIds: ['studio'] })
+    await setDoc(doc(context.firestore(), 'memberships', 'studio_convert'), membership('convert', 'client'))
+  })
+  await assertSucceeds(getDoc(doc(db, 'professionals', 'studio_convert')))
+  const batch = writeBatch(db)
+  batch.update(doc(db, 'memberships', 'studio_convert'), { role: 'professional', status: 'active' })
+  batch.set(doc(db, 'professionals', 'studio_convert'), {
+    id: 'studio_convert', businessId: 'studio', userId: 'convert', displayName: 'Cliente convertido',
+    serviceIds: [], isActive: true, createdAt: serverTimestamp(),
+  })
+  await assertSucceeds(batch.commit())
+})
+
+test('legacy professional IDs retain own blocks and synchronize membership state', async () => {
+  await env.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore()
+    await setDoc(doc(db, 'users', 'legacy'), { status: 'active', businessIds: ['studio'] })
+    await setDoc(doc(db, 'memberships', 'studio_legacy'), membership('legacy', 'professional'))
+    await setDoc(doc(db, 'professionals', 'professional_001'), { businessId: 'studio', userId: 'legacy', isActive: true, serviceIds: ['missing-service'] })
+  })
+  const db = dbFor('legacy')
+  await assertSucceeds(getDocs(query(collection(db, 'professionals'), where('businessId', '==', 'studio'), where('userId', '==', 'legacy'))))
+  const block = {
+    id: 'legacy-block', businessId: 'studio', professionalId: 'professional_001', allProfessionals: false,
+    title: 'Descanso', reason: 'personal', createdByUserId: 'legacy', createdAt: serverTimestamp(),
+    startAt: Timestamp.now(), endAt: Timestamp.fromMillis(Date.now() + 3600000),
+  }
+  await assertSucceeds(setDoc(doc(db, 'scheduleBlocks', block.id), block))
+  const blocks = await assertSucceeds(getDocs(query(collection(db, 'scheduleBlocks'),
+    and(where('businessId', '==', 'studio'), or(where('allProfessionals', '==', true), where('professionalId', '==', 'professional_001'))))))
+  assert.equal(blocks.size, 2)
+  await assertFails(getDocs(query(collection(db, 'scheduleBlocks'), where('businessId', '==', 'studio'), where('professionalId', '==', 'studio_pro'))))
+  await assertSucceeds(deleteDoc(doc(db, 'scheduleBlocks', block.id)))
+  const owner = dbFor('owner')
+  const batch = writeBatch(owner)
+  batch.update(doc(owner, 'memberships', 'studio_legacy'), { role: 'client', status: 'inactive', professionalId: 'professional_001' })
+  batch.update(doc(owner, 'professionals', 'professional_001'), { isActive: false })
+  await assertSucceeds(batch.commit())
+  await assertFails(updateDoc(doc(owner, 'memberships', 'studio_legacy'), { professionalId: 'studio_pro' }))
+})
+
 test('incomplete registration can roll back, but cannot claim another business as admin', async () => {
   const db = dbFor('incomplete')
   await assertSucceeds(

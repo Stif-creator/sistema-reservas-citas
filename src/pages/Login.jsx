@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ArrowRight } from 'lucide-react'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/auth-context'
 import { getAuthErrorMessage } from '../firebase/authErrors'
-import { AuthShell, usePublicBusiness } from '../components/public/PublicLayout'
+import { AuthShell } from '../components/public/PublicLayout'
+import { usePublicBusiness } from '../context/PublicBusinessContext'
 import PasswordInput from '../components/public/PasswordInput'
 
 export default function Login() {

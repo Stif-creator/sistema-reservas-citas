@@ -1,8 +1,9 @@
 import { Routes, Route } from 'react-router-dom'
 import { lazy, Suspense } from 'react'
 import ProtectedRoute from '../components/ProtectedRoute'
-import AdminLayout from '../components/AdminLayout'
+import PanelLayout from '../components/PanelLayout'
 import PublicLayout from '../components/public/PublicLayout'
+import PublicHomeLayout from '../components/public/PublicHomeLayout'
 
 const Home = lazy(() => import('../pages/Home'))
 const Login = lazy(() => import('../pages/Login'))
@@ -12,6 +13,16 @@ const BusinessSettings = lazy(() => import('../pages/BusinessSettings'))
 const Services = lazy(() => import('../pages/Services'))
 const Professionals = lazy(() => import('../pages/Professionals'))
 const ScheduleBlocks = lazy(() => import('../pages/ScheduleBlocks'))
+const Users = lazy(() => import('../pages/Users'))
+const Availability = lazy(() => import('../pages/Availability'))
+const ClientLayout = lazy(() => import('../components/client/ClientLayout'))
+const ClientAccountLayout = lazy(() => import('../components/client/ClientAccountLayout'))
+const ClientHome = lazy(() => import('../pages/client/ClientHome'))
+const ClientServices = lazy(() => import('../pages/client/ClientServices'))
+const ClientServiceDetail = lazy(() => import('../pages/client/ClientServiceDetail'))
+const ClientReservations = lazy(() => import('../pages/client/ClientReservations'))
+const ClientReservationDetail = lazy(() => import('../pages/client/ClientReservationDetail'))
+const ClientProfile = lazy(() => import('../pages/client/ClientProfile'))
 
 function AppRoutes() {
   return (
@@ -24,14 +35,14 @@ function AppRoutes() {
     >
       <Routes>
         <Route element={<PublicLayout />}>
-          <Route path="/" element={<Home />} />
+          <Route element={<PublicHomeLayout />}><Route path="/" element={<Home />} /></Route>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/registro" element={<Register />} />
           <Route path="/crear-negocio" element={<Register owner />} />
         </Route>
         <Route path="/b/:businessId" element={<PublicLayout />}>
-          <Route index element={<Home />} />
+          <Route element={<PublicHomeLayout />}><Route index element={<Home />} /></Route>
           <Route path="login" element={<Login />} />
           <Route path="registro" element={<Register />} />
         </Route>
@@ -45,19 +56,29 @@ function AppRoutes() {
           }
         />
 
-        {/* Layout compartido (sidebar + header) para cualquier usuario
-          autenticado. El layout en sí no restringe rol: cada página
-          exclusiva de administrador sigue envuelta en su propio
-          ProtectedRoute con allowedRoles, exactamente como antes, solo
-          que ahora anidado dentro del layout en vez de reemplazarlo. */}
+        <Route path="/cliente" element={<ProtectedRoute allowedRoles={['client']}><ClientLayout /></ProtectedRoute>}>
+          <Route index element={<ClientHome />} />
+          <Route path="servicios" element={<ClientServices />} />
+          <Route path="servicios/:serviceId" element={<ClientServiceDetail />} />
+          <Route element={<ClientAccountLayout />}>
+            <Route path="reservas" element={<ClientReservations />} />
+            <Route path="reservas/:reservationId" element={<ClientReservationDetail />} />
+            <Route path="perfil" element={<ClientProfile />} />
+          </Route>
+        </Route>
+
+        {/* Los clientes usan su propio layout; las rutas internas mantienen
+          además la autorización específica de administradores y profesionales. */}
         <Route
           element={
             <ProtectedRoute>
-              <AdminLayout />
+              <PanelLayout />
             </ProtectedRoute>
           }
         >
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/usuarios" element={<ProtectedRoute allowedRoles={['admin']}><Users /></ProtectedRoute>} />
+          <Route path="/disponibilidad" element={<ProtectedRoute allowedRoles={['admin', 'professional']}><Availability /></ProtectedRoute>} />
           <Route
             path="/negocio"
             element={

@@ -8,8 +8,9 @@
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test": "node --test tests/hours.test.js",
-    "test:rules": "firebase emulators:exec --only firestore --project demo-citaspro \"node --test tests/firestore.test.js\"",
+    "test": "node --test tests/hours.test.js tests/availability.test.js",
+    "test:rules": "firebase emulators:exec --only firestore --project demo-citaspro \"node --test --test-concurrency=1 tests/firestore.test.js tests/production-rules.test.js\"",
+    "test:rules:production": "firebase emulators:exec --only firestore --project demo-citaspro \"node --test tests/production-rules.test.js\"",
     "test:ui": "firebase emulators:exec --only auth,firestore --project demo-citaspro \"playwright test\""
   },
   "dependencies": {

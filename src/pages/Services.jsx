@@ -3,6 +3,7 @@ import {
   collection,
   doc,
   getDoc,
+  getDocFromServer,
   onSnapshot,
   orderBy,
   query,
@@ -12,10 +13,11 @@ import {
   where,
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/auth-context'
 import Card from '../components/ui/Card'
 import PageHeader from '../components/ui/PageHeader'
-import Field, { fieldControlClasses } from '../components/ui/Field'
+import Field from '../components/ui/Field'
+import { fieldControlClasses } from '../components/ui/fieldStyles'
 import Button from '../components/ui/Button'
 import Alert from '../components/ui/Alert'
 import Badge from '../components/ui/Badge'
@@ -60,7 +62,6 @@ function Services() {
   useEffect(() => {
     if (!businessId) return
 
-    setCategoriesLoading(true)
     // where + orderBy en campos distintos suele pedir un índice
     // compuesto la primera vez: si ves un error en consola con un link
     // de Firestore, ábrelo y crea el índice, luego reintenta.
@@ -72,7 +73,7 @@ function Services() {
     const unsubscribe = onSnapshot(
       q,
       (snap) => {
-        setCategories(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+        setCategories(snap.docs.map((d) => ({ ...d.data(), id: d.id })))
         setCategoriesListError('')
         setCategoriesLoading(false)
       },
@@ -91,12 +92,11 @@ function Services() {
   useEffect(() => {
     if (!businessId) return
 
-    setServicesLoading(true)
     const q = query(collection(db, 'services'), where('businessId', '==', businessId))
     const unsubscribe = onSnapshot(
       q,
       (snap) => {
-        const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+        const list = snap.docs.map((d) => ({ ...d.data(), id: d.id }))
         list.sort((a, b) => a.name.localeCompare(b.name))
         setServices(list)
         setServicesListError('')
@@ -305,6 +305,7 @@ function Services() {
     if (Object.keys(errors).length > 0) return
 
     setSvcSaving(true)
+    let writeCompleted = false
     try {
       const commonFields = {
         categoryId: svcCategoryId,
@@ -319,7 +320,15 @@ function Services() {
       }
 
       if (svcEditingId) {
-        await updateDoc(doc(db, 'services', svcEditingId), commonFields)
+        const ref = doc(db, 'services', svcEditingId)
+        await updateDoc(ref, commonFields)
+        writeCompleted = true
+        // Confirm server state and refresh the visible row before reporting success.
+        const saved = await getDocFromServer(ref)
+        if (!saved.exists()) throw new Error('El servicio ya no existe.')
+        const persisted = { ...saved.data(), id: saved.id }
+        setServices((previous) => previous.map((item) => item.id === saved.id ? persisted : item)
+          .sort((a, b) => a.name.localeCompare(b.name)))
         setSvcSuccess('Servicio actualizado.')
       } else {
         const serviceRef = doc(collection(db, 'services'))
@@ -338,7 +347,11 @@ function Services() {
       resetServiceForm()
     } catch (err) {
       console.error('Error al guardar servicio', err)
-      setSvcError('No se pudo guardar el servicio. Intenta de nuevo.')
+      setSvcError(writeCompleted
+        ? 'El cambio se guardó, pero no pudimos actualizar la tabla. Recarga la página para consultar los datos guardados.'
+        : err.code === 'permission-denied'
+          ? 'No tienes permisos para guardar este servicio. Contacta al administrador del negocio.'
+          : 'No se pudo guardar el servicio. Intenta de nuevo.')
     } finally {
       setSvcSaving(false)
     }
@@ -511,6 +524,7 @@ function Services() {
                           variant="ghost"
                           className="px-2 py-1"
                           onClick={() => loadServiceForEdit(svc)}
+                          disabled={svcSaving}
                         >
                           <Pencil size={14} />
                           Editar
@@ -519,6 +533,7 @@ function Services() {
                           variant="ghost"
                           className="px-2 py-1"
                           onClick={() => toggleServiceActive(svc)}
+                          disabled={svcSaving}
                         >
                           {svc.isActive ? 'Desactivar' : 'Activar'}
                         </Button>
@@ -630,9 +645,8 @@ function Services() {
                   material). bufferAfterMinutes: minutos que se bloquean
                   DESPUÉS de que termina (ej. limpieza, dejar salir al
                   cliente). Ninguno de los dos forma parte de durationMinutes
-                  ni se cobra: son márgenes internos. Los usaremos recién
-                  cuando construyamos el cálculo de disponibilidad/horarios
-                  en una fase futura; por ahora solo se guardan. */}
+                  ni se cobra: son márgenes internos que se respetan al
+                  calcular la disponibilidad y comprobar los bloqueos. */}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field
                   label="Margen antes (minutos)"
@@ -697,7 +711,7 @@ function Services() {
                   {svcSaving ? 'Guardando...' : svcEditingId ? 'Guardar cambios' : 'Crear servicio'}
                 </Button>
                 {svcEditingId && (
-                  <Button type="button" variant="secondary" onClick={resetServiceForm}>
+                  <Button type="button" variant="secondary" onClick={resetServiceForm} disabled={svcSaving}>
                     Cancelar edición
                   </Button>
                 )}

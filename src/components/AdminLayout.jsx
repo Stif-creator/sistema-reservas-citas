@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '../firebase/config'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/auth-context'
 import {
   Bell,
   Calendar,
@@ -28,10 +28,11 @@ const COMING_SOON_LINKS = [
   { label: 'Calendario', icon: Calendar },
 ]
 
-// Cada link declara qué roles pueden verlo: Bloqueos es el único de esta
-// sección visible también para profesionales, el resto sigue siendo
-// exclusivo de admin.
+// Cada enlace declara los roles autorizados; las rutas y Firestore también
+// aplican estas restricciones.
 const BUSINESS_LINKS = [
+  { to: '/usuarios', label: 'Usuarios', icon: Users, roles: ['admin'] },
+  { to: '/disponibilidad', label: 'Disponibilidad', icon: Calendar, roles: ['admin', 'professional'] },
   { to: '/servicios', label: 'Servicios', icon: Scissors, roles: ['admin'] },
   {
     to: '/profesionales',
@@ -305,7 +306,7 @@ function AdminLayout() {
               {layoutError}
             </p>
           )}
-          <Outlet />
+          <Outlet key={`${membership.businessId}:${membership.role}:${membership.userId}`} />
         </main>
       </div>
     </div>

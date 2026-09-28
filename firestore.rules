@@ -19,8 +19,11 @@ service cloud.firestore {
     }
     function admin(bid) { return activeMember(bid) && member(bid).role == 'admin'; }
     function professional(bid) {
-      return activeMember(bid) && member(bid).role == 'professional'
-        && get(/databases/$(database)/documents/professionals/$(bid + '_' + request.auth.uid)).data.isActive == true;
+      return activeMember(bid) && member(bid).role == 'professional';
+    }
+    function ownProfessional(bid, pid) {
+      let profile = get(/databases/$(database)/documents/professionals/$(pid)).data;
+      return profile.businessId == bid && profile.userId == request.auth.uid;
     }
     function recent(data) { return data.createdAt > request.time - duration.value(10, 'm'); }
     function provisioning() {
@@ -28,10 +31,31 @@ service cloud.firestore {
     }
     function sameIdentity() {
       return request.resource.data.businessId == resource.data.businessId
-        && request.resource.data.id == resource.data.id;
+        && request.resource.data.get('id', null) == resource.data.get('id', null);
+    }
+    function professionalMatches(businessId, uid, role, status) {
+      let membership = getAfter(/databases/$(database)/documents/memberships/$(businessId + '_' + uid)).data;
+      let pid = membership.get('professionalId', businessId + '_' + uid);
+      let path = /databases/$(database)/documents/professionals/$(pid);
+      return role == 'professional'
+        ? (existsAfter(path) && getAfter(path).data.userId == uid && getAfter(path).data.businessId == businessId
+          && getAfter(path).data.isActive == (status == 'active'))
+        : (!existsAfter(path) || (getAfter(path).data.userId == uid && getAfter(path).data.businessId == businessId && getAfter(path).data.isActive == false));
+    }
+    function managesProfile(id) {
+      return signedIn() && admin(get(/databases/$(database)/documents/memberships/$(id)).data.businessId);
     }
     match /users/{uid} {
-      allow read: if self(uid);
+      allow read: if self(uid) || (signedIn() && admin(resource.data.businessIds[0])
+        && exists(/databases/$(database)/documents/memberships/$(resource.data.businessIds[0] + '_' + uid)));
+      allow create: if signedIn() && request.resource.data.businessIds is list
+        && request.resource.data.businessIds.size() == 1
+        && admin(request.resource.data.businessIds[0])
+        && request.resource.data.id == uid && request.resource.data.auth_uid == uid
+        && request.resource.data.globalRole == 'user' && request.resource.data.status == 'active'
+        && request.resource.data.onboardingComplete == true
+        && request.resource.data.createdAt == request.time
+        && getAfter(/databases/$(database)/documents/memberships/$(request.resource.data.businessIds[0] + '_' + uid)).data.role == 'professional';
       allow create: if self(uid) && request.resource.data.id == uid
         && request.resource.data.auth_uid == uid
         && request.resource.data.globalRole == 'user'
@@ -61,6 +85,12 @@ service cloud.firestore {
     }
     match /memberships/{mid} {
       allow read: if self(resource.data.userId) || admin(resource.data.businessId);
+      allow create: if admin(request.resource.data.businessId)
+        && mid == request.resource.data.businessId + '_' + request.resource.data.userId
+        && request.resource.data.role == 'professional' && request.resource.data.status == 'active'
+        && request.resource.data.permissions == {} && request.resource.data.createdAt == request.time
+        && getAfter(/databases/$(database)/documents/users/$(request.resource.data.userId)).data.businessIds == [request.resource.data.businessId]
+        && professionalMatches(request.resource.data.businessId, request.resource.data.userId, 'professional', 'active');
       allow create: if userActive() && self(request.resource.data.userId)
         && mid == request.resource.data.businessId + '_' + request.auth.uid
         && request.resource.data.permissions == {}
@@ -72,15 +102,28 @@ service cloud.firestore {
             && ((request.resource.data.role == 'client' && request.resource.data.status == 'active')
               || (request.resource.data.role == 'professional' && request.resource.data.status == 'pending')))
         );
-      allow update: if admin(resource.data.businessId) && resource.data.role == 'professional'
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+      allow update: if admin(resource.data.businessId)
+        && resource.data.userId != request.auth.uid
+        && resource.data.userId != get(/databases/$(database)/documents/businesses/$(resource.data.businessId)).data.ownerUserId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role', 'status', 'professionalId'])
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['professionalId'])
+          || (request.resource.data.professionalId is string
+            && getAfter(/databases/$(database)/documents/professionals/$(request.resource.data.professionalId)).data.userId == resource.data.userId
+            && getAfter(/databases/$(database)/documents/professionals/$(request.resource.data.professionalId)).data.businessId == resource.data.businessId))
+        && request.resource.data.role in ['admin', 'professional', 'client']
         && request.resource.data.status in ['active', 'inactive']
-        && getAfter(/databases/$(database)/documents/professionals/$(resource.data.businessId + '_' + resource.data.userId)).data.isActive
-          == (request.resource.data.status == 'active');
+        && professionalMatches(resource.data.businessId, resource.data.userId, request.resource.data.role, request.resource.data.status);
       allow delete: if self(resource.data.userId) && recent(resource.data) && provisioning();
     }
     match /professionals/{pid} {
       allow read: if self(resource.data.userId) || admin(resource.data.businessId);
+      allow get: if managesProfile(pid);
+      allow create: if admin(request.resource.data.businessId)
+        && pid == request.resource.data.businessId + '_' + request.resource.data.userId
+        && request.resource.data.id == pid && request.resource.data.serviceIds == []
+        && request.resource.data.createdAt == request.time
+        && getAfter(/databases/$(database)/documents/memberships/$(pid)).data.role == 'professional'
+        && request.resource.data.isActive == (getAfter(/databases/$(database)/documents/memberships/$(pid)).data.status == 'active');
       allow create: if userActive() && self(request.resource.data.userId)
         && pid == request.resource.data.businessId + '_' + request.auth.uid
         && request.resource.data.id == pid
@@ -93,12 +136,18 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(['jobTitle', 'bio', 'phone', 'photo', 'isActive', 'serviceIds', 'weeklyHours', 'scheduleValidFrom', 'scheduleValidUntil', 'updatedAt'])
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['isActive'])
-          || getAfter(/databases/$(database)/documents/memberships/$(resource.data.businessId + '_' + resource.data.userId)).data.status
-            == (request.resource.data.isActive ? 'active' : 'inactive'));
+          || request.resource.data.isActive == (
+            getAfter(/databases/$(database)/documents/memberships/$(resource.data.businessId + '_' + resource.data.userId)).data.role == 'professional'
+            && getAfter(/databases/$(database)/documents/memberships/$(resource.data.businessId + '_' + resource.data.userId)).data.status == 'active'));
       allow delete: if self(resource.data.userId) && recent(resource.data) && resource.data.isActive == false && provisioning();
     }
     match /clients/{cid} {
       allow read: if self(resource.data.userId) || admin(resource.data.businessId);
+      allow get: if managesProfile(cid);
+      allow create: if admin(request.resource.data.businessId)
+        && cid == request.resource.data.businessId + '_' + request.resource.data.userId
+        && request.resource.data.id == cid && request.resource.data.createdAt == request.time
+        && getAfter(/databases/$(database)/documents/memberships/$(cid)).data.role == 'client';
       allow create: if userActive() && self(request.resource.data.userId)
         && cid == request.resource.data.businessId + '_' + request.auth.uid
         && request.resource.data.id == cid && member(request.resource.data.businessId).role == 'client'
@@ -107,27 +156,30 @@ service cloud.firestore {
       allow delete: if self(resource.data.userId) && recent(resource.data) && provisioning();
     }
     match /categories/{cid} {
-      allow read: if admin(resource.data.businessId);
+      allow read: if admin(resource.data.businessId)
+        || (activeMember(resource.data.businessId) && member(resource.data.businessId).role == 'client');
       allow create: if admin(request.resource.data.businessId) && request.resource.data.id == cid;
       allow update: if admin(resource.data.businessId) && sameIdentity();
     }
     match /services/{sid} {
       allow read: if (resource.data.isActive == true && resource.data.isPublic == true && publicBusiness(resource.data.businessId))
-        || admin(resource.data.businessId);
+        || (resource.data.isActive == true && resource.data.isPublic == true
+          && activeMember(resource.data.businessId) && member(resource.data.businessId).role == 'client')
+        || admin(resource.data.businessId) || professional(resource.data.businessId);
       allow create: if admin(request.resource.data.businessId) && request.resource.data.id == sid
         && validService(request.resource.data);
       allow update: if admin(resource.data.businessId) && sameIdentity() && validService(request.resource.data);
       function validService(data) {
         return data.name is string && data.name.size() > 0 && data.price is number && data.price > 0
           && data.durationMinutes is int && data.durationMinutes > 0
-          && data.bufferBeforeMinutes is int && data.bufferBeforeMinutes >= 0
-          && data.bufferAfterMinutes is int && data.bufferAfterMinutes >= 0
+          && data.get('bufferBeforeMinutes', 0) is int && data.get('bufferBeforeMinutes', 0) >= 0
+          && data.get('bufferAfterMinutes', 0) is int && data.get('bufferAfterMinutes', 0) >= 0
           && get(/databases/$(database)/documents/categories/$(data.categoryId)).data.businessId == data.businessId;
       }
     }
     match /scheduleBlocks/{bid} {
       allow read: if admin(resource.data.businessId) || (professional(resource.data.businessId)
-        && (resource.data.allProfessionals == true || resource.data.professionalId == resource.data.businessId + '_' + request.auth.uid));
+        && (resource.data.allProfessionals == true || ownProfessional(resource.data.businessId, resource.data.professionalId)));
       allow create: if signedIn() && request.resource.data.id == bid
         && request.resource.data.createdByUserId == request.auth.uid
         && request.resource.data.startAt is timestamp && request.resource.data.endAt is timestamp
@@ -142,12 +194,69 @@ service cloud.firestore {
                 && get(/databases/$(database)/documents/professionals/$(request.resource.data.professionalId)).data.businessId == request.resource.data.businessId
                 && get(/databases/$(database)/documents/professionals/$(request.resource.data.professionalId)).data.isActive == true)))
           || (professional(request.resource.data.businessId) && request.resource.data.allProfessionals == false
-            && request.resource.data.professionalId == request.resource.data.businessId + '_' + request.auth.uid)
+            && ownProfessional(request.resource.data.businessId, request.resource.data.professionalId)
+            && get(/databases/$(database)/documents/professionals/$(request.resource.data.professionalId)).data.isActive == true)
         );
       allow delete: if admin(resource.data.businessId) || (professional(resource.data.businessId)
         && resource.data.createdByUserId == request.auth.uid
-        && resource.data.professionalId == resource.data.businessId + '_' + request.auth.uid
+        && ownProfessional(resource.data.businessId, resource.data.professionalId)
         && resource.data.allProfessionals == false);
+    }
+    // Compatibilidad con las colecciones de fases posteriores ya existentes.
+    function activeUser() { return userActive(); }
+    function hasRole(businessId, roles) { return activeMember(businessId) && member(businessId).role in roles; }
+    function isAdmin(businessId) { return admin(businessId); }
+    function isProfessional(businessId) { return professional(businessId); }
+    function sameBusiness() { return request.resource.data.businessId == resource.data.businessId; }
+    function changedOnly(fields) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields); }
+    match /reservations/{id} {
+      allow read: if isAdmin(resource.data.businessId)
+                  || (isProfessional(resource.data.businessId) && resource.data.professionalUserId == request.auth.uid)
+                  || resource.data.clientUserId == request.auth.uid;
+      allow create: if activeUser() && (isAdmin(request.resource.data.businessId)
+                    || isProfessional(request.resource.data.businessId)
+                    || request.resource.data.clientUserId == request.auth.uid);
+      allow update: if sameBusiness() && (isAdmin(resource.data.businessId)
+                    || (isProfessional(resource.data.businessId) && resource.data.professionalUserId == request.auth.uid)
+                    || (resource.data.clientUserId == request.auth.uid && changedOnly(['status','startAt','endAt','updatedAt','cancellation','parentReservationId'])));
+      allow delete: if false;
+    }
+    match /notifications/{id} {
+      allow read: if activeUser() && resource.data.recipientUserId == request.auth.uid;
+      allow update: if activeUser() && resource.data.recipientUserId == request.auth.uid && changedOnly(['read','readAt']);
+      allow create, delete: if false;
+    }
+    match /favorites/{id} {
+      allow read, create, update, delete: if activeUser() && (resource.data.userId == request.auth.uid || request.resource.data.userId == request.auth.uid);
+    }
+    match /waitingList/{id} {
+      allow read: if isAdmin(resource.data.businessId) || isProfessional(resource.data.businessId) || resource.data.clientUserId == request.auth.uid;
+      allow create: if activeUser() && request.resource.data.clientUserId == request.auth.uid;
+      allow update, delete: if isAdmin(resource.data.businessId) || resource.data.clientUserId == request.auth.uid;
+    }
+    match /reviews/{id} {
+      allow read: if resource.data.status == 'published' && resource.data.isPublic == true || isAdmin(resource.data.businessId);
+      allow create: if activeUser() && request.resource.data.clientUserId == request.auth.uid;
+      allow update: if isAdmin(resource.data.businessId) || (resource.data.clientUserId == request.auth.uid && sameBusiness());
+      allow delete: if isAdmin(resource.data.businessId) || resource.data.clientUserId == request.auth.uid;
+    }
+    match /promotions/{id} {
+      allow read: if resource.data.isActive == true || isAdmin(resource.data.businessId);
+      allow write: if isAdmin(request.resource.data.businessId) || (resource != null && isAdmin(resource.data.businessId));
+    }
+    match /reminderSettings/{id} {
+      allow read: if hasRole(resource.data.businessId, ['admin','professional']);
+      allow write: if isAdmin(request.resource.data.businessId) || (resource != null && isAdmin(resource.data.businessId));
+    }
+    match /auditLogs/{id} {
+      allow read: if isAdmin(resource.data.businessId);
+      allow write: if false;
+    }
+    match /generatedReports/{id} {
+      allow read: if isAdmin(resource.data.businessId);
+      allow create: if isAdmin(request.resource.data.businessId)
+                    && request.resource.data.generatedByUserId == request.auth.uid;
+      allow update, delete: if isAdmin(resource.data.businessId);
     }
   }
 }

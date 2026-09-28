@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { collection, getDocs, query, where } from 'firebase/firestore'
+import { collection, onSnapshot, query, where } from 'firebase/firestore'
 import {
   ArrowRight,
   CalendarDays,
@@ -13,16 +13,15 @@ import {
   Store,
 } from 'lucide-react'
 import { db } from '../firebase/config'
-import { Brand, usePublicBusiness } from '../components/public/PublicLayout'
+import { usePublicBusiness } from '../context/PublicBusinessContext'
 import { safeImageUrl } from '../lib/brand'
 
 export default function Home() {
-  const { business, businessId, base } = usePublicBusiness()
+  const { business, businessId } = usePublicBusiness()
   const [items, setItems] = useState([])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   useEffect(() => {
-    let active = true
     const request = businessId
       ? query(
           collection(db, 'services'),
@@ -35,47 +34,23 @@ export default function Home() {
           where('status', '==', 'active'),
           where('settings.publicPageEnabled', '==', true)
         )
-    getDocs(request)
-      .then((snap) => {
-        if (active) {
+    return onSnapshot(request,
+      (snap) => {
           setItems(snap.docs.map((d) => ({ ...d.data(), id: d.id })))
           setError('')
-        }
+          setLoading(false)
+      },
+      () => {
+        setItems([])
+        setError('No pudimos cargar el catálogo. Intenta recargar la página.')
+        setLoading(false)
       })
-      .catch(() => {
-        if (active) setError('No pudimos cargar el catálogo. Intenta recargar la página.')
-      })
-      .finally(() => {
-        if (active) setLoading(false)
-      })
-    return () => {
-      active = false
-    }
   }, [businessId])
   const cover = safeImageUrl(business?.cover?.url)
   const phone = business?.contact?.phone?.replace(/[^+\d]/g, '')
   return (
     <>
-      <header className="public-header">
-        <div className="public-container header-inner">
-          <Brand />
-          <nav aria-label="Navegación principal">
-            <a href="#inicio">Inicio</a>
-            <a href="#servicios">{business ? 'Servicios' : 'Negocios'}</a>
-            <a href="#nosotros">Nosotros</a>
-            {business && <a href="#contacto">Contacto</a>}
-          </nav>
-          <div className="header-actions">
-            <Link className="public-button secondary" to={`${base}/login`}>
-              Iniciar sesión
-            </Link>
-            <Link className="public-button" to={`${base}/registro`}>
-              Crear cuenta
-            </Link>
-          </div>
-        </div>
-      </header>
-      <main>
+      <main id="contenido" tabIndex={-1}>
         <section className="public-hero" id="inicio">
           <div className="public-container hero-grid">
             <div className="hero-copy">
@@ -292,11 +267,6 @@ export default function Home() {
           </section>
         )}
       </main>
-      <footer className="public-container public-footer">
-        <Brand />
-        <span>Tu tiempo, bien acompañado.</span>
-        {!business && <Link to="/crear-negocio">¿Tienes un negocio?</Link>}
-      </footer>
     </>
   )
 }

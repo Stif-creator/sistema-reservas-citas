@@ -12,12 +12,14 @@ import {
   writeBatch,
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/auth-context'
 import WeeklyHoursEditor from '../components/WeeklyHoursEditor'
+import CreateProfessionalForm from '../components/CreateProfessionalForm'
 import { hasInvalidWeeklyHoursSlot } from '../lib/hours'
 import Card from '../components/ui/Card'
 import PageHeader from '../components/ui/PageHeader'
-import Field, { fieldControlClasses } from '../components/ui/Field'
+import Field from '../components/ui/Field'
+import { fieldControlClasses } from '../components/ui/fieldStyles'
 import Button from '../components/ui/Button'
 import Alert from '../components/ui/Alert'
 import Badge from '../components/ui/Badge'
@@ -133,6 +135,7 @@ function Professionals() {
 
   // --- Lista de profesionales ---
   const [professionals, setProfessionals] = useState([])
+  const [professionalUsers, setProfessionalUsers] = useState([])
   const [professionalsLoading, setProfessionalsLoading] = useState(true)
   const [professionalsListError, setProfessionalsListError] = useState('')
   const [actionError, setActionError] = useState('')
@@ -171,13 +174,19 @@ function Professionals() {
 
   useEffect(() => {
     if (!businessId) return
+    return onSnapshot(query(collection(db, 'memberships'), where('businessId', '==', businessId)),
+      (snapshot) => setProfessionalUsers(snapshot.docs.filter((item) => item.data().role === 'professional').map((item) => item.data().userId)),
+      () => setProfessionalsListError('No se pudieron cargar los roles de los profesionales.'))
+  }, [businessId])
 
-    setProfessionalsLoading(true)
+  useEffect(() => {
+    if (!businessId) return
+
     const q = query(collection(db, 'professionals'), where('businessId', '==', businessId))
     const unsubscribe = onSnapshot(
       q,
       (snap) => {
-        const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+        const list = snap.docs.map((d) => ({ ...d.data(), id: d.id }))
         list.sort((a, b) => (a.displayName ?? '').localeCompare(b.displayName ?? ''))
         setProfessionals(list)
         setProfessionalsListError('')
@@ -196,12 +205,11 @@ function Professionals() {
   useEffect(() => {
     if (!businessId) return
 
-    setServicesLoading(true)
     const q = query(collection(db, 'services'), where('businessId', '==', businessId))
     const unsubscribe = onSnapshot(
       q,
       (snap) => {
-        const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+        const list = snap.docs.map((d) => ({ ...d.data(), id: d.id }))
         list.sort((a, b) => a.name.localeCompare(b.name))
         setServices(list)
         setServicesListError('')
@@ -255,6 +263,7 @@ function Professionals() {
       })
       batch.update(doc(db, 'memberships', `${businessId}_${prof.userId}`), {
         status: prof.isActive ? 'inactive' : 'active',
+        professionalId: prof.id,
       })
       await batch.commit()
     } catch (err) {
@@ -363,10 +372,11 @@ function Professionals() {
     setSvcAssignSaving(true)
     try {
       const previousIds = new Set(editingProfessional?.serviceIds ?? [])
-      const newIds = selectedServiceIds
+      const existingIds = new Set(services.map((service) => service.id))
+      const newIds = new Set([...selectedServiceIds].filter((id) => existingIds.has(id)))
 
       const added = [...newIds].filter((id) => !previousIds.has(id))
-      const removed = [...previousIds].filter((id) => !newIds.has(id))
+      const removed = [...previousIds].filter((id) => existingIds.has(id) && !newIds.has(id))
 
       const batch = writeBatch(db)
 
@@ -388,6 +398,7 @@ function Professionals() {
       })
 
       await batch.commit()
+      setSelectedServiceIds(newIds)
       setSvcAssignSuccess('Servicios asignados actualizados.')
     } catch (err) {
       console.error('Error al actualizar los servicios asignados', err)
@@ -401,8 +412,10 @@ function Professionals() {
     <div>
       <PageHeader
         title="Profesionales"
-        description="Los profesionales se registran ellos mismos; aquí solo administras su perfil, servicios y horario."
+        description="Registra profesionales y administra su perfil, servicios y horario."
       />
+
+      <CreateProfessionalForm businessId={businessId} />
 
       {professionalsListError && (
         <div className="mb-4">
@@ -417,13 +430,13 @@ function Professionals() {
 
       {professionalsLoading ? (
         <p className="text-sm text-muted">Cargando profesionales...</p>
-      ) : professionals.length === 0 ? (
+      ) : professionalUsers.length === 0 ? (
         <p className="text-sm text-muted">
           Todavía no hay profesionales registrados en este negocio.
         </p>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {professionals.map((prof) => (
+          {professionals.filter((prof) => professionalUsers.includes(prof.userId)).map((prof) => (
             <ProfessionalCard
               key={prof.id}
               professional={prof}
@@ -546,6 +559,9 @@ function Professionals() {
                   <Alert tone="error">Error al cargar servicios: {servicesListError}</Alert>
                 )}
                 <form onSubmit={handleServicesSubmit} className="space-y-4">
+                  {!servicesLoading && !servicesListError && [...selectedServiceIds].some((id) => !services.some((service) => service.id === id)) && (
+                    <p className="text-sm text-muted">Hay servicios asignados que ya no existen. Al guardar se conservarán únicamente los servicios disponibles seleccionados.</p>
+                  )}
                   {servicesLoading ? (
                     <p className="text-sm text-muted">Cargando servicios...</p>
                   ) : services.length === 0 ? (
@@ -575,7 +591,7 @@ function Professionals() {
                   {svcAssignError && <Alert tone="error">{svcAssignError}</Alert>}
                   {svcAssignSuccess && <Alert tone="success">{svcAssignSuccess}</Alert>}
 
-                  <Button type="submit" disabled={svcAssignSaving || services.length === 0}>
+                  <Button type="submit" disabled={svcAssignSaving || servicesLoading || Boolean(servicesListError)}>
                     {svcAssignSaving ? 'Guardando...' : 'Guardar servicios'}
                   </Button>
                 </form>

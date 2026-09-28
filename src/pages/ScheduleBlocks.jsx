@@ -15,11 +15,13 @@ import {
   where,
 } from 'firebase/firestore'
 import { businessDate } from '../lib/hours'
+import useProfessionalProfile from '../hooks/useProfessionalProfile'
 import { db } from '../firebase/config'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/auth-context'
 import Card from '../components/ui/Card'
 import PageHeader from '../components/ui/PageHeader'
-import Field, { fieldControlClasses } from '../components/ui/Field'
+import Field from '../components/ui/Field'
+import { fieldControlClasses } from '../components/ui/fieldStyles'
 import Button from '../components/ui/Button'
 import Alert from '../components/ui/Alert'
 import Badge from '../components/ui/Badge'
@@ -62,7 +64,8 @@ function ScheduleBlocks() {
   const { currentUser, membership, userDoc } = useAuth()
   const businessId = membership?.businessId
   const isAdmin = membership?.role === 'admin'
-  const myProfessionalId = currentUser && businessId ? `${businessId}_${currentUser.uid}` : null
+  const ownProfile = useProfessionalProfile(businessId, currentUser?.uid, !isAdmin)
+  const myProfessionalId = ownProfile.profile?.id
   const myName = userDoc ? `${userDoc.firstName} ${userDoc.lastName}` : 'Ti'
 
   // --- Lista de bloqueos ---
@@ -114,7 +117,6 @@ function ScheduleBlocks() {
     if (!businessId) return
     if (!isAdmin && !myProfessionalId) return
 
-    setBlocksLoading(true)
     const businessFilter = where('businessId', '==', businessId)
     // where(businessId) + orderBy(startAt) pide un índice compuesto la
     // primera vez (igual que en categorías/servicios). Para el rol
@@ -138,7 +140,7 @@ function ScheduleBlocks() {
     const unsubscribe = onSnapshot(
       q,
       (snap) => {
-        setBlocks(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+        setBlocks(snap.docs.map((d) => ({ ...d.data(), id: d.id })))
         setBlocksListError('')
         setBlocksLoading(false)
       },
@@ -159,7 +161,7 @@ function ScheduleBlocks() {
     const unsubscribe = onSnapshot(
       q,
       (snap) => {
-        const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+        const list = snap.docs.map((d) => ({ ...d.data(), id: d.id }))
         list.sort((a, b) => (a.displayName ?? '').localeCompare(b.displayName ?? ''))
         setProfessionals(list)
       },
@@ -283,6 +285,7 @@ function ScheduleBlocks() {
       />
 
       {zoneError && <Alert>{zoneError}</Alert>}
+      {ownProfile.error && <Alert tone="error">{ownProfile.error}</Alert>}
       {timeZone && <p className="text-sm text-muted">Todas las horas corresponden a {timeZone}.</p>}
       <Card title="Bloqueos programados">
         {blocksListError && <Alert tone="error">Error al cargar bloqueos: {blocksListError}</Alert>}
@@ -454,7 +457,7 @@ function ScheduleBlocks() {
           {formError && <Alert tone="error">{formError}</Alert>}
           {formSuccess && <Alert tone="success">{formSuccess}</Alert>}
 
-          <Button type="submit" disabled={saving || !timeZone}>
+          <Button type="submit" disabled={saving || !timeZone || (!isAdmin && !myProfessionalId)}>
             {saving ? 'Guardando...' : 'Crear bloqueo'}
           </Button>
         </form>

@@ -61,6 +61,7 @@ test('business identity persists across home, login and registration on desktop 
       path: `test-results/home-${viewport.width}.png`,
       fullPage: true,
     })
+    if (viewport.width < 1050) await page.getByRole('button', { name: 'Abrir menú' }).click()
     await page.getByRole('link', { name: 'Iniciar sesión', exact: true }).click()
     await expect(page).toHaveURL(/\/b\/violeta\/login$/)
     await expect(page.getByRole('heading', { name: 'Inicia sesión' })).toBeVisible()

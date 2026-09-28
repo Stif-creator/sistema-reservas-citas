@@ -1,4 +1,4 @@
-import { createContext, useContext, useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -21,16 +21,7 @@ import {
   onSnapshot,
 } from 'firebase/firestore'
 import { auth, db } from '../firebase/config'
-
-const AuthContext = createContext(null)
-
-export function useAuth() {
-  const context = useContext(AuthContext)
-  if (!context) {
-    throw new Error('useAuth debe usarse dentro de un <AuthProvider>')
-  }
-  return context
-}
+import { AuthContext } from './auth-context'
 
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null)

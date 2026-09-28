@@ -1,32 +1,17 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, Outlet, useParams } from 'react-router-dom'
 import { doc, onSnapshot } from 'firebase/firestore'
 import { CalendarDays, ArrowLeft } from 'lucide-react'
 import { db } from '../../firebase/config'
 import { brandVariables, safeImageUrl } from '../../lib/brand'
 import './public.css'
+import BusinessBrand from '../shared/BusinessBrand'
 
-const PublicContext = createContext(null)
-export const usePublicBusiness = () => useContext(PublicContext)
+import { PublicContext, usePublicBusiness } from '../../context/PublicBusinessContext'
 
 export function Brand() {
   const { business, base } = usePublicBusiness()
-  const logo = safeImageUrl(business?.logo?.url)
-  return (
-    <Link to={base || '/'} className="public-brand">
-      {logo ? (
-        <img src={logo} alt="" />
-      ) : (
-        <span className="brand-mark">
-          <CalendarDays size={25} />
-        </span>
-      )}
-      <span>
-        <strong>{business?.name || 'CitasPro'}</strong>
-        <small>Tu tiempo, nuestra prioridad</small>
-      </span>
-    </Link>
-  )
+  return <BusinessBrand business={business} to={base || '/'} />
 }
 
 export function AuthShell({ children, register = false }) {
