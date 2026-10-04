@@ -21,11 +21,10 @@ import {
 
 // Enlaces de la barra de administración. Las próximas fases (categorías,
 // profesionales, horarios) solo necesitan agregar una entrada aquí.
-const GENERAL_LINKS = [{ to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard }]
-
-const COMING_SOON_LINKS = [
-  { label: 'Reservas', icon: CalendarCheck },
-  { label: 'Calendario', icon: Calendar },
+const GENERAL_LINKS = [
+  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/reservas', label: 'Reservas', icon: CalendarCheck },
+  { to: '/agenda', label: 'Agenda', icon: Calendar, roles: ['admin'] },
 ]
 
 // Cada enlace declara los roles autorizados; las rutas y Firestore también
@@ -139,7 +138,7 @@ function AdminLayout() {
             General
           </p>
           <div className="space-y-1">
-            {GENERAL_LINKS.map((link) => (
+            {GENERAL_LINKS.filter(link => !link.roles || link.roles.includes(membership.role)).map((link) => (
               <NavLink
                 key={link.to}
                 to={link.to}
@@ -149,18 +148,6 @@ function AdminLayout() {
                 <link.icon size={18} />
                 {link.label}
               </NavLink>
-            ))}
-            {COMING_SOON_LINKS.map((link) => (
-              <div
-                key={link.label}
-                className="flex cursor-not-allowed items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted opacity-50"
-              >
-                <link.icon size={18} />
-                {link.label}
-                <span className="ml-auto rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted">
-                  Próximamente
-                </span>
-              </div>
             ))}
           </div>
         </div>

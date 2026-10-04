@@ -145,6 +145,23 @@ after(async () => {
   await env?.cleanup()
 })
 
+test('reservations are read by active scoped actors but all direct mutations and locks are denied', async () => {
+  await env.withSecurityRulesDisabled(async context => {
+    await setDoc(doc(context.firestore(), 'reservations', 'protected-reservation'), { businessId: 'studio', clientUserId: 'client', professionalUserId: 'pro', status: 'pending' })
+    await setDoc(doc(context.firestore(), 'bookingLocks', 'studio'), { revision: 1 })
+  })
+  for (const uid of ['owner', 'client', 'pro']) {
+    const db = dbFor(uid)
+    await assertSucceeds(getDoc(doc(db, 'reservations', 'protected-reservation')))
+    await assertFails(updateDoc(doc(db, 'reservations', 'protected-reservation'), { status: 'confirmed' }))
+    await assertFails(setDoc(doc(db, 'reservations', `forged-${uid}`), { businessId: 'studio', clientUserId: uid, professionalUserId: 'pro', status: 'confirmed' }))
+    await assertFails(deleteDoc(doc(db, 'reservations', 'protected-reservation')))
+    await assertFails(getDoc(doc(db, 'bookingLocks', 'studio')))
+  }
+  await assertFails(getDoc(doc(dbFor('outsider'), 'reservations', 'protected-reservation')))
+  await assertFails(getDoc(doc(dbFor('pending'), 'reservations', 'protected-reservation')))
+})
+
 test('client catalog stays scoped and read-only even when the public website is disabled', async () => {
   await env.withSecurityRulesDisabled(async context => {
     const db = context.firestore()

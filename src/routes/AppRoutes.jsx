@@ -23,6 +23,9 @@ const ClientServiceDetail = lazy(() => import('../pages/client/ClientServiceDeta
 const ClientReservations = lazy(() => import('../pages/client/ClientReservations'))
 const ClientReservationDetail = lazy(() => import('../pages/client/ClientReservationDetail'))
 const ClientProfile = lazy(() => import('../pages/client/ClientProfile'))
+const ClientBooking = lazy(() => import('../pages/client/ClientBooking'))
+const Reservations = lazy(() => import('../pages/Reservations'))
+const Agenda = lazy(() => import('../pages/Agenda'))
 
 function AppRoutes() {
   return (
@@ -60,6 +63,9 @@ function AppRoutes() {
           <Route index element={<ClientHome />} />
           <Route path="servicios" element={<ClientServices />} />
           <Route path="servicios/:serviceId" element={<ClientServiceDetail />} />
+          <Route path="reservar" element={<ClientBooking />} />
+          <Route path="reserva-exitosa/:reservationId" element={<ClientBooking receipt />} />
+          <Route path="reservas/:reservationId/reprogramar" element={<ClientBooking reschedule />} />
           <Route element={<ClientAccountLayout />}>
             <Route path="reservas" element={<ClientReservations />} />
             <Route path="reservas/:reservationId" element={<ClientReservationDetail />} />
@@ -77,6 +83,10 @@ function AppRoutes() {
           }
         >
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/reservas" element={<ProtectedRoute allowedRoles={['admin', 'professional']}><Reservations /></ProtectedRoute>} />
+          <Route path="/reservas/nueva" element={<ProtectedRoute allowedRoles={['admin']}><Reservations manual /></ProtectedRoute>} />
+          <Route path="/reservas/:reservationId" element={<ProtectedRoute allowedRoles={['admin', 'professional']}><Reservations detail /></ProtectedRoute>} />
+          <Route path="/agenda" element={<ProtectedRoute allowedRoles={['admin']}><Agenda /></ProtectedRoute>} />
           <Route path="/usuarios" element={<ProtectedRoute allowedRoles={['admin']}><Users /></ProtectedRoute>} />
           <Route path="/disponibilidad" element={<ProtectedRoute allowedRoles={['admin', 'professional']}><Availability /></ProtectedRoute>} />
           <Route

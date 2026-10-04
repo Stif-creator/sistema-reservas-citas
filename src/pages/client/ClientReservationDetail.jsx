@@ -1,10 +1,12 @@
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import ReservationActions from '../../components/booking/ReservationActions'
 import { ArrowLeft, CalendarDays, Clock3, Hash, UserRound, Wallet } from 'lucide-react'
 import { useClientBusiness } from '../../context/client-context'
 import useClientReservations from '../../hooks/useClientReservations'
 import { formatAppointmentDate, formatPrice, reservationStatuses } from '../../lib/clientPresentation'
 
 export default function ClientReservationDetail() {
+  const navigate = useNavigate()
   const { reservationId } = useParams()
   const { business, services } = useClientBusiness()
   const { items, loading, error } = useClientReservations()
@@ -25,6 +27,7 @@ export default function ClientReservationDetail() {
           <div><dt><Wallet size={16} />Precio</dt><dd>{formatPrice(item.price ?? item.serviceSnapshot?.price, item.currencyCode || business.settings?.currencyCode)}</dd></div>
           <div><dt>Notas</dt><dd>{item.notes || 'Sin notas adicionales'}</dd></div>
         </dl>
+        <ReservationActions reservation={item} business={business} onReschedule={() => navigate(`/cliente/reservas/${item.id}/reprogramar`)} />
       </article>
     </>}
   </>

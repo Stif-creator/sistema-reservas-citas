@@ -210,16 +210,19 @@ service cloud.firestore {
     function sameBusiness() { return request.resource.data.businessId == resource.data.businessId; }
     function changedOnly(fields) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields); }
     match /reservations/{id} {
-      allow read: if isAdmin(resource.data.businessId)
-                  || (isProfessional(resource.data.businessId) && resource.data.professionalUserId == request.auth.uid)
-                  || resource.data.clientUserId == request.auth.uid;
-      allow create: if activeUser() && (isAdmin(request.resource.data.businessId)
-                    || isProfessional(request.resource.data.businessId)
-                    || request.resource.data.clientUserId == request.auth.uid);
-      allow update: if sameBusiness() && (isAdmin(resource.data.businessId)
-                    || (isProfessional(resource.data.businessId) && resource.data.professionalUserId == request.auth.uid)
-                    || (resource.data.clientUserId == request.auth.uid && changedOnly(['status','startAt','endAt','updatedAt','cancellation','parentReservationId'])));
-      allow delete: if false;
+      allow read: if activeMember(resource.data.businessId) && (
+        member(resource.data.businessId).role == 'admin'
+        || (member(resource.data.businessId).role == 'professional' && resource.data.professionalUserId == request.auth.uid)
+        || (member(resource.data.businessId).role == 'client' && resource.data.clientUserId == request.auth.uid));
+      // Solo Cloud Functions puede validar y escribir una reserva y su bloqueo
+      // de concurrencia en la misma transacción.
+      allow write: if false;
+    }
+    match /bookingLocks/{id} {
+      allow read, write: if false;
+    }
+    match /bookingRequests/{id} {
+      allow read, write: if false;
     }
     match /notifications/{id} {
       allow read: if activeUser() && resource.data.recipientUserId == request.auth.uid;

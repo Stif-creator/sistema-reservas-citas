@@ -38,6 +38,8 @@ function AvailabilityView({ membership, ownId }) {
       services: query(collection(db, 'services'), where('businessId', '==', businessId)),
       blocks: query(collection(db, 'scheduleBlocks'), isAdmin ? where('businessId', '==', businessId) :
         and(where('businessId', '==', businessId), or(where('allProfessionals', '==', true), where('professionalId', '==', ownId)))),
+      reservations: query(collection(db, 'reservations'), isAdmin ? where('businessId', '==', businessId) :
+        and(where('businessId', '==', businessId), where('professionalUserId', '==', membership.userId))),
     }
     const stops = Object.entries(sources).map(([key, source]) => onSnapshot(source, (snapshot) => {
       const value = snapshot.docs ? snapshot.docs.map((item) => ({ ...item.data(), id: item.id })) :
@@ -46,16 +48,16 @@ function AvailabilityView({ membership, ownId }) {
       setErrors((previous) => ({ ...previous, [key]: '' }))
     }, () => setErrors((previous) => ({ ...previous, [key]: 'No se pudo cargar la disponibilidad. Recarga la página.' }))))
     return () => stops.forEach((stop) => stop())
-  }, [businessId, isAdmin, ownId])
+  }, [businessId, isAdmin, ownId, membership.userId])
   const error = Object.values(errors).find(Boolean)
-  const loaded = ['business', 'professionals', 'services', 'blocks'].every((key) => key in data)
+  const loaded = ['business', 'professionals', 'services', 'blocks', 'reservations'].every((key) => key in data)
   const professionals = (data.professionals || []).filter((item) => item.isActive)
   const professional = professionals.find((item) => item.id === (isAdmin ? professionalId : ownId))
   const services = (data.services || []).filter((item) => item.isActive && professional?.serviceIds?.includes(item.id))
   const service = services.find((item) => item.id === serviceId)
-  const slots = loaded && !error && professional && service && date ? availableSlots({ business: data.business, professional, service, date, blocks: data.blocks, now }) : []
+  const slots = loaded && !error && professional && service && date ? availableSlots({ business: data.business, professional, service, date, blocks: data.blocks, reservations: data.reservations, now }) : []
   return <div className="space-y-6">
-    <PageHeader title="Disponibilidad" description="Consulta las franjas de atención libres de bloqueos." />
+    <PageHeader title="Disponibilidad" description="Consulta las franjas libres de reservas y bloqueos." />
     {error && <Alert tone="error">{error}</Alert>}
     {!loaded && !error && <p>Cargando disponibilidad…</p>}
     {loaded && !error && <Card title="Consultar horarios">

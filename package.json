@@ -11,7 +11,11 @@
     "test": "node --test tests/hours.test.js tests/availability.test.js",
     "test:rules": "firebase emulators:exec --only firestore --project demo-citaspro \"node --test --test-concurrency=1 tests/firestore.test.js tests/production-rules.test.js\"",
     "test:rules:production": "firebase emulators:exec --only firestore --project demo-citaspro \"node --test tests/production-rules.test.js\"",
-    "test:ui": "firebase emulators:exec --only auth,firestore --project demo-citaspro \"playwright test\""
+    "test:ui": "firebase emulators:exec --only auth,firestore --project demo-citaspro \"playwright test\"",
+    "test:booking": "firebase emulators:exec --only firestore --project demo-citaspro \"node --test tests/booking.test.js\"",
+    "demo": "firebase emulators:exec --only auth,firestore --project demo-citaspro \"node scripts/dev-demo.mjs\"",
+    "test:http": "node --test tests/booking-http.test.js",
+    "server": "node --env-file=.env.server functions/server.js"
   },
   "dependencies": {
     "firebase": "^12.19.0",

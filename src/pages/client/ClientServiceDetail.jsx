@@ -24,7 +24,7 @@ export default function ClientServiceDetail() {
           {category && <div><Tag size={23} /><dt>Categoría</dt><dd>{category.name}</dd></div>}
         </dl>
         <div className="client-description"><h2>Acerca del servicio</h2><p>{service.description || 'Contacta al negocio para conocer más detalles de este servicio.'}</p></div>
-      </article><BookingContactCard /></div>}
+      </article><BookingContactCard serviceId={service.id} /></div>}
     </CatalogState>
   </section>
 }

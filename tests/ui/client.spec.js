@@ -64,7 +64,7 @@ test('client layouts use real scoped data and live branding on desktop and mobil
     await page.getByRole('searchbox', { name: 'Buscar servicios' }).fill('masaje')
     await page.getByRole('link', { name: 'Ver servicio', exact: true }).click()
     await expect(page.getByRole('heading', { name: 'Masaje relajante' })).toBeVisible()
-    await expect(page.getByText('Las reservas en línea estarán disponibles próximamente.')).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Reservar cita', exact: true })).toBeVisible()
     await page.getByRole('link', { name: 'Mis reservas', exact: true }).click()
     await expect(page.getByRole('heading', { name: 'Tu próxima visita empieza aquí' })).toBeVisible()
 

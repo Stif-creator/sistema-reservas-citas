@@ -4,6 +4,7 @@ import { CalendarDays, Clock3, Sparkles } from 'lucide-react'
 import { useClientBusiness } from '../../context/client-context'
 import useClientReservations from '../../hooks/useClientReservations'
 import { dateMillis, formatAppointmentDate, reservationStatuses } from '../../lib/clientPresentation'
+import { bookingEnabled } from '../../lib/bookingApi'
 
 export default function ClientReservations() {
   const { business, services } = useClientBusiness()
@@ -21,7 +22,7 @@ export default function ClientReservations() {
     return filter === 'past' ? past : !past
   }).sort((a, b) => (dateMillis(a.startAt) - dateMillis(b.startAt)) * (filter === 'past' ? -1 : 1))
   return <>
-    <div className="client-page-heading"><div><span className="client-overline">TUS VISITAS, EN UN SOLO LUGAR</span><h1>Mis reservas</h1><p>Consulta la información y el estado de tus citas.</p></div></div>
+    <div className="client-page-heading"><div><span className="client-overline">TUS VISITAS, EN UN SOLO LUGAR</span><h1>Mis reservas</h1><p>Consulta la información y el estado de tus citas.</p></div>{bookingEnabled && <Link className="public-button" to="/cliente/reservar">Nueva reserva</Link>}</div>
     <div className="client-reservation-filters" role="group" aria-label="Filtrar reservas">
       {[['upcoming', 'Próximas'], ['past', 'Anteriores'], ['cancelled', 'Canceladas']].map(([value, label]) => <button key={value} aria-pressed={filter === value} onClick={() => setFilter(value)}>{label}</button>)}
     </div>

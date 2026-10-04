@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: citaspro-booking
+    runtime: node
+    plan: free
+    rootDir: functions
+    buildCommand: npm ci
+    startCommand: node server.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: GCLOUD_PROJECT
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: GOOGLE_APPLICATION_CREDENTIALS
+        value: /etc/secrets/firebase-service-account.json

@@ -23,6 +23,13 @@ test('duration and preparation/cleanup must fit opening hours and avoid blocks',
   assert.deepEqual(labels({ service: { ...service, bufferBeforeMinutes: 15, bufferAfterMinutes: 15 } }), ['09:30', '10:00', '10:30', '11:00'])
 })
 
+test('reservations occupy their full buffered intervals and cancelled appointments release them', () => {
+  const reservation = { ...block, status: 'confirmed', startAt: '2026-09-28T14:00Z', endAt: '2026-09-28T14:30Z', bufferAfterMinutes: 15 }
+  assert.deepEqual(labels({ reservations: [reservation] }), ['09:00', '09:30', '11:00', '11:30'])
+  assert.equal(labels({ reservations: [{ ...reservation, status: 'cancelled' }] }).length, 6)
+  assert.equal(labels({ reservations: [{ ...reservation, professionalId: 'other' }] }).length, 6)
+})
+
 test('closed days, inactive/unassigned professionals and schedule validity produce no slots', () => {
   assert.deepEqual(labels({ date: '2026-09-29' }), [])
   for (const changes of [{ isActive: false }, { serviceIds: [] }, { scheduleValidFrom: '2026-09-29' }, { scheduleValidUntil: '2026-09-27' }, { weeklyHours: {} }]) {
