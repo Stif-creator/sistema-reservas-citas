@@ -13,6 +13,12 @@ No subas `.env` al repositorio. Las variables `VITE_*` forman parte del cliente;
 
 ## Identidad del negocio
 
+**Nosotros y Contacto** son páginas independientes: `/b/:businessId/nosotros` y `/b/:businessId/contacto` en el portal, y `/cliente/nosotros` y `/cliente/contacto` dentro de la cuenta. Comparten layouts y los colores del negocio. Inicio ya no incluye esas secciones. En **Configuración → Página Nosotros** el administrador edita el título, historia, misión y valores; el guardado se refleja en tiempo real en las páginas abiertas.
+
+El formulario de Contacto prepara un mensaje con nombre, correo, teléfono opcional, asunto y texto. El visitante termina el envío en su aplicación de correo o WhatsApp, usando los canales configurados por el administrador. No simula un envío, no almacena mensajes y no necesita cambios en Render. Si no hay correo ni WhatsApp configurados, informa de ello y deshabilita la preparación. El directorio general permite elegir un negocio antes de contactarlo.
+
+Para estos cambios de interfaz, `npm run dev` los muestra localmente; para la web publicada, ejecuta `npm run build` y `npx firebase deploy --only hosting --project sistema-reservas-jf745-2026`. El nuevo campo `about` requiere publicar también las reglas de Firestore una vez. Los cambios posteriores de texto realizados desde Configuración se guardan directamente en Firestore y no requieren recompilar, subir a GitHub ni desplegar Render.
+
 - `/`: directorio de negocios públicos.
 - `/login`, `/registro` (también `/register`): acceso general.
 - `/crear-negocio`: registro de un dueño y su nuevo negocio.

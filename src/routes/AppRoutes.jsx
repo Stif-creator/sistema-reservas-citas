@@ -5,6 +5,7 @@ import PanelLayout from '../components/PanelLayout'
 import PublicLayout from '../components/public/PublicLayout'
 import PublicHomeLayout from '../components/public/PublicHomeLayout'
 
+const BusinessInfo = lazy(() => import('../pages/BusinessInfo'))
 const Home = lazy(() => import('../pages/Home'))
 const Login = lazy(() => import('../pages/Login'))
 const Register = lazy(() => import('../pages/Register'))
@@ -38,14 +39,14 @@ function AppRoutes() {
     >
       <Routes>
         <Route element={<PublicLayout />}>
-          <Route element={<PublicHomeLayout />}><Route path="/" element={<Home />} /></Route>
+          <Route element={<PublicHomeLayout />}><Route path="/" element={<Home />} /><Route path="/nosotros" element={<BusinessInfo />} /><Route path="/contacto" element={<BusinessInfo contact />} /></Route>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/registro" element={<Register />} />
           <Route path="/crear-negocio" element={<Register owner />} />
         </Route>
         <Route path="/b/:businessId" element={<PublicLayout />}>
-          <Route element={<PublicHomeLayout />}><Route index element={<Home />} /></Route>
+          <Route element={<PublicHomeLayout />}><Route index element={<Home />} /><Route path="nosotros" element={<BusinessInfo />} /><Route path="contacto" element={<BusinessInfo contact />} /></Route>
           <Route path="login" element={<Login />} />
           <Route path="registro" element={<Register />} />
         </Route>
@@ -61,6 +62,8 @@ function AppRoutes() {
 
         <Route path="/cliente" element={<ProtectedRoute allowedRoles={['client']}><ClientLayout /></ProtectedRoute>}>
           <Route index element={<ClientHome />} />
+          <Route path="nosotros" element={<BusinessInfo />} />
+          <Route path="contacto" element={<BusinessInfo contact />} />
           <Route path="servicios" element={<ClientServices />} />
           <Route path="servicios/:serviceId" element={<ClientServiceDetail />} />
           <Route path="reservar" element={<ClientBooking />} />

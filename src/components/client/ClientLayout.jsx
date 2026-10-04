@@ -15,8 +15,8 @@ import './client.css'
 const links = [
   { to: '/cliente', label: 'Inicio', end: true },
   { to: '/cliente/servicios', label: 'Servicios' },
-  { to: '/cliente#nosotros', label: 'Nosotros' },
-  { to: '/cliente#contacto', label: 'Contacto' },
+  { to: '/cliente/nosotros', label: 'Nosotros' },
+  { to: '/cliente/contacto', label: 'Contacto' },
 ]
 
 export default function ClientLayout() {
@@ -71,7 +71,7 @@ function ClientWorkspace({ businessId }) {
           : businessError ? <div className="client-empty" role="alert"><h1>{businessError}</h1><button className="public-button secondary" onClick={() => window.location.reload()}>Reintentar</button><button className="public-button secondary" onClick={endSession}>Cerrar sesión</button></div>
           : <Outlet />}
       </main>
-      <SiteFooter business={business} homeTo="/cliente" />
+      <SiteFooter business={business} homeTo="/cliente" contactTo="/cliente/contacto" />
     </div>
   </ClientContext.Provider>
 }

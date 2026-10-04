@@ -6,8 +6,6 @@ import {
   CalendarDays,
   Clock3,
   Heart,
-  MapPin,
-  Phone,
   Sparkles,
   Users,
   Store,
@@ -17,7 +15,7 @@ import { usePublicBusiness } from '../context/PublicBusinessContext'
 import { safeImageUrl } from '../lib/brand'
 
 export default function Home() {
-  const { business, businessId } = usePublicBusiness()
+  const { business, businessId, base } = usePublicBusiness()
   const [items, setItems] = useState([])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
@@ -47,7 +45,6 @@ export default function Home() {
       })
   }, [businessId])
   const cover = safeImageUrl(business?.cover?.url)
-  const phone = business?.contact?.phone?.replace(/[^+\d]/g, '')
   return (
     <>
       <main id="contenido" tabIndex={-1}>
@@ -69,9 +66,9 @@ export default function Home() {
                   {business ? 'Explorar servicios' : 'Descubrir negocios'}
                   <ArrowRight size={17} />
                 </a>
-                <a className="public-button secondary" href="#nosotros">
+                <Link className="public-button secondary" to={`${base}/nosotros`}>
                   Conoce más
-                </a>
+                </Link>
               </div>
               <div className="hero-caption">
                 <span className="mini-avatars">
@@ -222,50 +219,6 @@ export default function Home() {
             </p>
           )}
         </section>
-        <section className="about-section" id="nosotros">
-          <div className="public-container about-inner">
-            <div>
-              <span className="eyebrow">MENOS COMPLICACIONES, MÁS TIEMPO PARA TI</span>
-              <h2>
-                Lo importante empieza
-                <br />
-                con un momento para ti.
-              </h2>
-            </div>
-            <p>
-              {business?.description ||
-                'CitasPro conecta negocios y personas en un espacio sencillo. Descubre servicios y empieza a organizar tus próximos planes.'}
-            </p>
-          </div>
-        </section>
-        {business && (
-          <section className="public-container public-section contact-section" id="contacto">
-            <div>
-              <span className="eyebrow">ESTAMOS CERCA</span>
-              <h2>Hablemos de tu próxima visita</h2>
-            </div>
-            <div>
-              {phone && (
-                <a href={`tel:${phone}`}>
-                  <Phone size={18} />
-                  {business.contact.phone}
-                </a>
-              )}
-              {business.contact?.email && (
-                <a href={`mailto:${business.contact.email}`}>{business.contact.email}</a>
-              )}
-              {business.location?.addressLine && (
-                <p>
-                  <MapPin size={18} />
-                  {business.location.addressLine} {business.location.city}
-                </p>
-              )}
-              {!phone && !business.contact?.email && !business.location?.addressLine && (
-                <p>Pronto publicaremos nuestros datos de contacto.</p>
-              )}
-            </div>
-          </section>
-        )}
       </main>
     </>
   )

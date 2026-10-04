@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, CalendarDays, Clock3, MapPin, Phone, ShieldCheck, Sparkles } from 'lucide-react'
+import { ArrowRight, CalendarDays, Clock3, ShieldCheck, Sparkles } from 'lucide-react'
 import { useClientBusiness } from '../../context/client-context'
 import { useAuth } from '../../context/auth-context'
 import { safeImageUrl } from '../../lib/brand'
@@ -10,7 +10,6 @@ export default function ClientHome() {
   const { business, services, categories } = useClientBusiness()
   const { userDoc } = useAuth()
   const cover = safeImageUrl(business.cover?.url)
-  const phone = business.contact?.phone?.replace(/[^+\d]/g, '')
   return <>
     <section className="client-home-hero">
       <div className="public-container client-hero-grid">
@@ -33,12 +32,5 @@ export default function ClientHome() {
       <div className="client-page-heading"><div><span className="client-overline">DESCUBRE LO QUE TENEMOS PARA TI</span><h2>Nuestros servicios</h2><p>Encuentra lo que necesitas para tu próxima visita.</p></div><Link className="text-link" to="/cliente/servicios">Ver todos <ArrowRight size={16} /></Link></div>
       <CatalogState empty={!services.length}><div className="client-service-grid">{services.slice(0, 6).map(service => <ServiceCard key={service.id} service={service} category={categories.find(category => category.id === service.categoryId)?.name} currency={business.settings?.currencyCode} />)}</div></CatalogState>
     </section>
-    <section id="nosotros" className="client-about"><div className="public-container"><span className="client-overline">CONOCE TU NEGOCIO</span><h2>{business.name}</h2><p>{business.description || 'Estamos aquí para ayudarte a encontrar el servicio que necesitas.'}</p></div></section>
-    <section id="contacto" className="public-container client-section client-contact"><div><span className="client-overline">ESTAMOS CERCA</span><h2>Hablemos de tu próxima visita</h2><p>Contacta con nosotros para conocer más.</p></div><div>
-      {phone && <a href={`tel:${phone}`}><Phone size={18} />{business.contact.phone}</a>}
-      {business.contact?.email && <a href={`mailto:${business.contact.email}`}>{business.contact.email}</a>}
-      {business.location?.addressLine && <p><MapPin size={18} />{business.location.addressLine} {business.location.city}</p>}
-      {!phone && !business.contact?.email && !business.location?.addressLine && <p>El negocio aún no ha publicado sus datos de contacto.</p>}
-    </div></section>
   </>
 }

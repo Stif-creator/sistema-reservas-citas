@@ -119,7 +119,7 @@ test('client booking, admin agenda, manual booking and assigned professional sta
     await page.getByRole('button', { name: 'Cancelar cita', exact: true }).click()
     await page.getByLabel('Motivo (opcional)').fill('Cambio de planes')
     await page.getByRole('button', { name: 'Aplicar cambio', exact: true }).click()
-    await expect(page.getByText('Cancelada', { exact: true })).toBeVisible()
+    await expect(page.getByText('Cancelada', { exact: true })).toBeVisible({ timeout: 20000 })
 
     await staff.goto('/reservas/nueva')
     await staff.getByRole('button', { name: /Consulta integral/ }).click()

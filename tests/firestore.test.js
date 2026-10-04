@@ -79,6 +79,7 @@ before(async () => {
         currencyCode: 'BOB',
       },
       appearance: { primaryColor: '#7c3aed', secondaryColor: '#f0e7ff' },
+      about: { title: 'Nuestra historia', story: 'Atención cercana', mission: 'Escuchar', values: 'Respeto' },
       createdAt: Timestamp.now(),
     })
     await setDoc(doc(db, 'businesses', 'private'), {
@@ -341,6 +342,7 @@ test('public catalog queries succeed while private records stay private', async 
 test('clients cannot modify a business, elevate role or reactivate themselves', async () => {
   const db = dbFor('client')
   await assertFails(updateDoc(doc(db, 'businesses', 'studio'), { name: 'Hijacked' }))
+  await assertFails(updateDoc(doc(db, 'businesses', 'studio'), { about: { title: 'No autorizado' } }))
   await assertFails(updateDoc(doc(db, 'memberships', 'studio_client'), { role: 'admin' }))
   await assertFails(updateDoc(doc(db, 'users', 'client'), { status: 'inactive' }))
   await assertFails(deleteDoc(doc(db, 'memberships', 'studio_client')))

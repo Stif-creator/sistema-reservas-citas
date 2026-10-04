@@ -10,10 +10,10 @@ export default function PublicHomeLayout() {
   const { membership } = useAuth()
   const home = base || '/'
   const links = [
-    { to: `${home}#inicio`, label: 'Inicio' },
+    { to: home, label: 'Inicio', end: true },
     { to: `${home}#servicios`, label: business ? 'Servicios' : 'Negocios' },
-    { to: `${home}#nosotros`, label: 'Nosotros' },
-    ...(business ? [{ to: `${home}#contacto`, label: 'Contacto' }] : []),
+    { to: `${base}/nosotros`, label: 'Nosotros' },
+    { to: `${base}/contacto`, label: 'Contacto' },
   ]
   return <>
     <SiteHeader business={business} homeTo={home} links={links}>
@@ -23,6 +23,6 @@ export default function PublicHomeLayout() {
       </>}
     </SiteHeader>
     <Outlet />
-    <SiteFooter business={business} homeTo={home} />
+    <SiteFooter business={business} homeTo={home} contactTo={`${base}/contacto`} />
   </>
 }

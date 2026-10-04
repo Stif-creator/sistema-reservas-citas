@@ -10,6 +10,7 @@ import Field from '../components/ui/Field'
 import { fieldControlClasses } from '../components/ui/fieldStyles'
 import Button from '../components/ui/Button'
 import Alert from '../components/ui/Alert'
+import { aboutFields, defaultAbout } from '../lib/businessAbout'
 
 const PHONE_REGEX = /^\+?\d{8,}$/
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -24,6 +25,7 @@ function BusinessSettings() {
 
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
+  const [about, setAbout] = useState(defaultAbout)
   const [logoUrl, setLogoUrl] = useState('')
   const [coverUrl, setCoverUrl] = useState('')
   const [primaryColor, setPrimaryColor] = useState('#1672ed')
@@ -61,6 +63,7 @@ function BusinessSettings() {
           const data = snap.data()
           setName(data.name ?? '')
           setDescription(data.description ?? '')
+          setAbout(Object.fromEntries(Object.entries(defaultAbout).map(([key, fallback]) => [key, data.about?.[key] ?? fallback])))
           setLogoUrl(data.logo?.url ?? '')
           setCoverUrl(data.cover?.url ?? '')
           setPrimaryColor(data.appearance?.primaryColor ?? '#1672ed')
@@ -133,6 +136,7 @@ function BusinessSettings() {
       await updateDoc(doc(db, 'businesses', businessId), {
         name: name.trim(),
         description,
+        about: Object.fromEntries(aboutFields.map(([key, , max]) => [key, about[key].trim().slice(0, max)])),
         logo: { url: logoUrl.trim() },
         cover: { url: coverUrl.trim() },
         appearance: { primaryColor, secondaryColor },
@@ -303,6 +307,16 @@ function BusinessSettings() {
                 className="h-10 w-16 cursor-pointer rounded-lg border border-border bg-white p-1"
               />
             </Field>
+          </div>
+        </Card>
+
+        <Card title="Página Nosotros">
+          <p className="mb-4 text-sm text-muted">Personaliza la historia, misión y valores que se muestran en la página pública y en el panel del cliente. Los campos vacíos utilizan el texto inicial.</p>
+          <div className="grid gap-4">
+            {aboutFields.map(([key, label, max]) => <Field key={key} label={label} htmlFor={`about-${key}`}>
+              {key === 'title' ? <input id={`about-${key}`} value={about[key]} maxLength={max} onChange={event => setAbout(previous => ({ ...previous, [key]: event.target.value }))} className={fieldControlClasses(false)} />
+                : <textarea id={`about-${key}`} value={about[key]} rows={key === 'story' ? 6 : 3} maxLength={max} onChange={event => setAbout(previous => ({ ...previous, [key]: event.target.value }))} className={fieldControlClasses(false)} />}
+            </Field>)}
           </div>
         </Card>
 

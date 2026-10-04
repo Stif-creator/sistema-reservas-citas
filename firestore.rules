@@ -80,7 +80,7 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.businessIds == [bid]
         && request.resource.data.createdAt == request.time;
       allow update: if admin(bid) && request.resource.data.diff(resource.data).affectedKeys()
-        .hasOnly(['name', 'description', 'logo', 'cover', 'appearance', 'contact', 'location', 'weeklyHours', 'settings', 'updatedAt']);
+        .hasOnly(['name', 'description', 'about', 'logo', 'cover', 'appearance', 'contact', 'location', 'weeklyHours', 'settings', 'updatedAt']);
       allow delete: if signedIn() && resource.data.ownerUserId == request.auth.uid && recent(resource.data) && provisioning();
     }
     match /memberships/{mid} {

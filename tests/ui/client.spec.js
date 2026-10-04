@@ -29,6 +29,24 @@ test('client layouts use real scoped data and live branding on desktop and mobil
         durationMinutes: 60, description: 'Una pausa para reconectar contigo.', currencyCode: 'BOB', isActive, isPublic })
     })
     await page.setViewportSize({ width: 1440, height: 1000 })
+    await page.goto(`/b/${businessId}`)
+    await expect(page.locator('#nosotros, #contacto')).toHaveCount(0)
+    await page.getByRole('link', { name: 'Nosotros', exact: true }).click()
+    await expect(page).toHaveURL(new RegExp(`/b/${businessId}/nosotros$`))
+    await expect(page.getByRole('heading', { name: 'Nuestra historia' })).toBeVisible()
+    await env.withSecurityRulesDisabled(context => updateDoc(doc(context.firestore(), 'businesses', businessId), { about: { title: 'Somos Estudio Violeta', story: 'Una historia cercana.', mission: 'Escucharte.', values: 'Respeto\nCercanía' } }))
+    await expect(page.getByRole('heading', { name: 'Somos Estudio Violeta' })).toBeVisible()
+    await page.getByRole('link', { name: 'Contacto', exact: true }).click()
+    await expect(page).toHaveURL(new RegExp(`/b/${businessId}/contacto$`))
+    await page.getByLabel('Nombre completo').fill('María Prueba')
+    await page.getByLabel('Correo electrónico').fill('cliente@example.test')
+    await page.getByLabel('Asunto').fill('Consulta & horarios')
+    await page.getByLabel('Mensaje', { exact: true }).fill('¿Atienden el sábado?')
+    await page.getByRole('button', { name: 'Preparar mensaje' }).click()
+    const draft = await page.getByRole('link', { name: 'Abrir correo', exact: true }).getAttribute('href')
+    expect(draft).toContain('mailto:hola@example.test?subject=')
+    expect(decodeURIComponent(draft)).toContain('Consulta & horarios')
+    expect(decodeURIComponent(draft)).toContain('¿Atienden el sábado?')
     await page.goto(`/b/${businessId}/registro`)
     await page.getByLabel('Nombre', { exact: true }).fill('María')
     await page.getByLabel('Apellido', { exact: true }).fill('Flores')
@@ -91,6 +109,8 @@ test('client layouts use real scoped data and live branding on desktop and mobil
         [`/cliente/servicios/${businessId}-massage`, 'Masaje relajante', 'service-detail'],
         ['/cliente/reservas', 'Mis reservas', 'reservations'], [`/cliente/reservas/own-${suffix}`, 'Detalle de reserva', 'reservation-detail'],
         ['/cliente/perfil', 'Mi perfil', 'profile'],
+        ['/cliente/nosotros', 'Somos Estudio Violeta', 'about'],
+        ['/cliente/contacto', 'Hablemos de tu próxima visita', 'contact'],
       ]) {
         await page.goto(path)
         await expect(page.getByRole('heading', { name: title, exact: false }).first()).toBeVisible()
