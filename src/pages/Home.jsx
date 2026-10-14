@@ -1,3 +1,4 @@
+import PublicCatalogExtras from '../components/PublicCatalogExtras'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { collection, onSnapshot, query, where } from 'firebase/firestore'
@@ -196,6 +197,7 @@ export default function Home() {
                       </p>
                       {business ? (
                         <div className="service-meta">
+                          <Link to={`${base}/reservar?servicio=${encodeURIComponent(item.id)}`}>Reservar</Link>
                           <span>{item.durationMinutes} min</span>
                           <strong>
                             {item.price} {item.currencyCode}
@@ -212,13 +214,9 @@ export default function Home() {
               })}
             </div>
           )}
-          {business && (
-            <p className="booking-note">
-              Las reservas en línea estarán disponibles próximamente. Por ahora, consulta nuestros
-              servicios y contáctanos.
-            </p>
-          )}
+          {business && <Link className="public-button" to={`${base}/reservar`}>Reservar cita</Link>}
         </section>
+        {business && <PublicCatalogExtras business={business} />}
       </main>
     </>
   )

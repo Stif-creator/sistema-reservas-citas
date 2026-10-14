@@ -8,18 +8,18 @@ const apiUrl = (import.meta.env.VITE_BOOKING_API_URL || '').replace(/\/+$/, '')
 
 async function httpRequest(data) {
   if (!apiUrl) throw new Error('Falta configurar la dirección del servidor de reservas.')
-  if (!auth.currentUser) {
+  if (!auth.currentUser && !['publicOptions', 'publicAvailability'].includes(data.action)) {
     const error = new Error('Inicia sesión para continuar.')
     error.code = 'functions/unauthenticated'
     throw error
   }
-  const token = await auth.currentUser.getIdToken()
+  const token = auth.currentUser ? await auth.currentUser.getIdToken() : null
   const controller = new AbortController()
   // El servidor gratuito puede tardar alrededor de un minuto en despertar.
   const timeout = setTimeout(() => controller.abort(), 120000)
   try {
     const response = await fetch(`${apiUrl}/booking`, { method: 'POST', signal: controller.signal,
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     })
     const payload = await response.json()

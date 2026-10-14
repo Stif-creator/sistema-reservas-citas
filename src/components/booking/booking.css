@@ -1,5 +1,5 @@
 .booking-flow, .booking-scope { --brand: #5145ef; --brand-secondary: #eeedff; --on-brand: white; --brand-ink: #302886; color: #14213d; }
-.client-site .booking-flow, .client-site .booking-scope { --brand: inherit; --brand-secondary: inherit; --on-brand: inherit; --brand-ink: inherit; }
+.public-site .booking-flow, .public-site .booking-scope { --brand: inherit; --brand-secondary: inherit; --on-brand: inherit; --brand-ink: inherit; }
 .booking-flow { line-height: 1.6; }
 .booking-flow h2, .booking-panel h2 { font-size: 22px; font-weight: 700; margin-bottom: 12px; }
 .booking-flow h3 { font-size: 16px; font-weight: 650; }

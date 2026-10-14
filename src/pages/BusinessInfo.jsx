@@ -5,6 +5,7 @@ import { usePublicBusiness } from '../context/PublicBusinessContext'
 import { useClientBusiness } from '../context/client-context'
 import { defaultAbout } from '../lib/businessAbout'
 import './business-info.css'
+import BusinessMap from '../components/BusinessMap'
 
 export default function BusinessInfo({ contact = false }) {
   const publicContext = usePublicBusiness()
@@ -47,7 +48,7 @@ function Contact({ business }) {
         {validEmail && <a href={`mailto:${validEmail}`}><Mail size={20} />{validEmail}</a>}
         {business.location?.addressLine && <p><MapPin size={20} />{business.location.addressLine} {business.location.city}</p>}
         {whatsapp && <a href={`https://wa.me/${whatsapp}`} target="_blank" rel="noreferrer">Abrir WhatsApp <ArrowRight size={16} /></a>}
-        <p>Para reservar una cita, utiliza la opción de reservas de tu cuenta.</p>
+        <BusinessMap business={business} />
       </aside>
       <form className="info-card info-form" onSubmit={submit} onChange={() => setPrepared(null)}>
         <h2>Escríbenos</h2>

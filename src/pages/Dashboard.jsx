@@ -1,3 +1,4 @@
+import BusinessStats from '../components/BusinessStats'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { doc, getDoc } from 'firebase/firestore'
@@ -90,6 +91,7 @@ function Dashboard() {
         </Card>
       </div>
 
+      {membership?.role === 'admin' && <BusinessStats />}
       {membership?.role === 'admin' && (
         <p className="mt-6 text-sm text-muted">
           <Link to="/negocio" className="font-medium text-primary hover:text-primary-hover">

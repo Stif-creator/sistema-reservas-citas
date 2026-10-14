@@ -1,3 +1,4 @@
+import ReviewForm from '../../components/ReviewForm'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import ReservationActions from '../../components/booking/ReservationActions'
 import { ArrowLeft, CalendarDays, Clock3, Hash, UserRound, Wallet } from 'lucide-react'
@@ -29,6 +30,7 @@ export default function ClientReservationDetail() {
         </dl>
         <ReservationActions reservation={item} business={business} onReschedule={() => navigate(`/cliente/reservas/${item.id}/reprogramar`)} />
       </article>
+      <ReviewForm reservation={item} />
     </>}
   </>
 }

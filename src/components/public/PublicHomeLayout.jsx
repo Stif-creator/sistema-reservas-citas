@@ -12,6 +12,7 @@ export default function PublicHomeLayout() {
   const links = [
     { to: home, label: 'Inicio', end: true },
     { to: `${home}#servicios`, label: business ? 'Servicios' : 'Negocios' },
+    ...(business ? [{ to: `${home}#profesionales`, label: 'Profesionales' }, { to: `${base}/reservar`, label: 'Reservar' }] : []),
     { to: `${base}/nosotros`, label: 'Nosotros' },
     { to: `${base}/contacto`, label: 'Contacto' },
   ]

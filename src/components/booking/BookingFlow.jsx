@@ -7,18 +7,19 @@ import { formatPrice } from '../../lib/clientPresentation'
 import BookingStepper from './BookingStepper'
 import BookingSummary from './BookingSummary'
 import './booking.css'
+import { Link } from 'react-router-dom'
 
-export default function BookingFlow({ business, initialServiceId = '', reservation, manual = false, onSuccess }) {
-  const { userDoc } = useAuth()
+export default function BookingFlow({ business, initialServiceId = '', reservation, manual = false, onSuccess, publicMode = false, draft = null }) {
+  const { userDoc, currentUser, membership } = useAuth()
   const [options, setOptions] = useState(null)
   const [optionsError, setOptionsError] = useState('')
   const [attempt, setAttempt] = useState(0)
-  const [step, setStep] = useState(reservation ? 2 : initialServiceId ? 1 : 0)
-  const [serviceId, setServiceId] = useState(reservation?.serviceId || initialServiceId)
-  const [professionalId, setProfessionalId] = useState(reservation?.professionalId || '')
+  const [step, setStep] = useState(draft ? 2 : reservation ? 2 : initialServiceId ? 1 : 0)
+  const [serviceId, setServiceId] = useState(draft?.serviceId || reservation?.serviceId || initialServiceId)
+  const [professionalId, setProfessionalId] = useState(draft?.professionalId || reservation?.professionalId || '')
   const zone = business.settings?.timezone || 'America/La_Paz'
-  const [date, setDate] = useState(() => dayKey(Date.now(), zone))
-  const [chosen, setChosen] = useState(null)
+  const [date, setDate] = useState(() => draft?.date || dayKey(Date.now(), zone))
+  const [chosen, setChosen] = useState(draft?.chosen || null)
   const [availability, setAvailability] = useState({ slots: [], key: '' })
   const [refresh, setRefresh] = useState(0)
   const [error, setError] = useState('')
@@ -40,11 +41,11 @@ export default function BookingFlow({ business, initialServiceId = '', reservati
   useEffect(() => {
     if (!bookingEnabled) return
     let active = true
-    bookingRequest({ action: 'options', businessId: business.id }).then(result => {
+    bookingRequest({ action: publicMode ? 'publicOptions' : 'options', businessId: business.id }).then(result => {
       if (active) { setOptions(result); setOptionsError('') }
     }).catch(failure => { if (active) setOptionsError(failure.message) })
     return () => { active = false }
-  }, [business.id, attempt])
+  }, [business.id, attempt, publicMode])
 
   const refreshAvailability = useCallback(() => {
     // Una consulta lenta debe poder terminar antes de iniciar la siguiente.
@@ -61,21 +62,27 @@ export default function BookingFlow({ business, initialServiceId = '', reservati
     if (!bookingEnabled || !serviceId || !professionalId || !date || step !== 2) return
     let active = true
     availabilityLoading.current = true
-    bookingRequest({ action: 'availability', businessId: business.id, serviceId, professionalId, date,
+    bookingRequest({ action: publicMode ? 'publicAvailability' : 'availability', businessId: business.id, serviceId, professionalId, date,
       ...(reservation ? { reservationId: reservation.id } : {}) }).then(result => {
       if (active) setAvailability({ ...result, key: queryKey, error: '' })
     }).catch(failure => { if (active) setAvailability({ key: queryKey, slots: [], error: failure.message }) })
       .finally(() => { if (active) availabilityLoading.current = false })
     return () => { active = false; availabilityLoading.current = false }
-  }, [business.id, serviceId, professionalId, date, step, refresh, reservation, queryKey])
+  }, [business.id, serviceId, professionalId, date, step, refresh, reservation, queryKey, publicMode])
+
+  function preserveDraft() {
+    try { sessionStorage.setItem(`booking-draft:${business.id}`, JSON.stringify({ serviceId, professionalId, date, chosen, savedAt: Date.now() })) } catch { /* Selection can be repeated when browser storage is unavailable. */ }
+  }
 
   function clearSelection() { setChosen(null); setError(''); pending.current = null }
   async function confirm(event) {
     event.preventDefault()
     if (!chosen || saving) return
+    if (publicMode && (!currentUser || membership?.businessId !== business.id || membership?.role !== 'client' || membership.status !== 'active')) { setError('Confirma con una cuenta de cliente activa de este negocio.'); return }
     setSaving(true); setError('')
     if (!pending.current) pending.current = {
       action: reservation ? 'reschedule' : 'create', businessId: business.id, requestId: crypto.randomUUID(),
+      ...(publicMode ? { source: 'public' } : {}),
       date, startAt: chosen.start, expectedPrice: chosen.quote.price, expectedDuration: chosen.quote.durationMinutes,
       ...(reservation ? { reservationId: reservation.id, revision: reservation.revision || 0 }
         : { serviceId, professionalId, notes, ...(manual ? (clientId ? { clientId } : { manualClient }) : {}) }),
@@ -109,6 +116,7 @@ export default function BookingFlow({ business, initialServiceId = '', reservati
     {step === 0 && <section><h2>Selecciona un servicio</h2><p>Elige el servicio para tu próxima visita.</p><div className="booking-choices">
       {options.services.map(item => <button key={item.id} className={`booking-choice ${serviceId === item.id ? 'selected' : ''}`} onClick={() => { setServiceId(item.id); setProfessionalId(''); clearSelection(); setStep(1) }}>
         <h3>{item.name}</h3><span><Clock3 size={16} />{item.durationMinutes} minutos</span><strong>{formatPrice(item.price, item.currencyCode)}</strong><span className="booking-choice-action">Seleccionar</span>
+      {item.promotionTitle && <span>{item.promotionTitle} · Antes {formatPrice(item.originalPrice, item.currencyCode)}</span>}
       </button>)}
     </div>{!options.services.length && <p>No hay servicios disponibles en este momento.</p>}</section>}
     {step === 1 && <section><h2>Selecciona un profesional</h2><p>{service?.name || 'El servicio ya no está disponible. Vuelve a elegir un servicio.'}</p><div className="booking-choices">
@@ -122,7 +130,7 @@ export default function BookingFlow({ business, initialServiceId = '', reservati
         <div className="booking-panel"><div className="booking-heading"><h3>Horarios disponibles</h3><button type="button" className="booking-link" onClick={refreshAvailability}>Actualizar</button></div>
           {availability.key !== queryKey ? <p role="status">Consultando horarios…</p> : availability.error ? <p role="alert" className="booking-error">{availability.error}</p>
             : availability.slots.length ? <div className="booking-slots" role="group" aria-label="Horarios disponibles">{availability.slots.map(slot => <button key={slot.start} aria-pressed={chosen?.start === slot.start} onClick={() => { setChosen({ ...slot, quote: availability.quote }); setError('') }}>{slot.label}</button>)}</div>
-              : <p>No hay horarios disponibles. Prueba otra fecha.</p>}
+              : <p>No hay horarios disponibles. Prueba otra fecha. {!publicMode && membership?.role === 'client' && <Link to="/cliente/favoritos">Registrar interés en la lista de espera</Link>}</p>}
         </div></div>
       <div className="booking-controls"><button className="booking-button" disabled={!selectedValid} onClick={() => setStep(3)}>Continuar <Check size={16} /></button></div>
     </section>}
@@ -133,12 +141,12 @@ export default function BookingFlow({ business, initialServiceId = '', reservati
           {manual && !reservation ? <>
             <label className="booking-field">Cliente<select value={clientId} onChange={event => { setClientId(event.target.value); pending.current = null }}><option value="">Cliente sin cuenta</option>{options.clients.map(item => <option key={item.id} value={item.id}>{item.name} · {item.phone}</option>)}</select></label>
             {!clientId && [['name', 'Nombre completo', 'text'], ['phone', 'Teléfono', 'tel'], ['email', 'Correo electrónico (opcional)', 'email']].map(([key, label, type]) => <label key={key} className="booking-field">{label}<input type={type} required={key !== 'email'} maxLength={key === 'name' ? 120 : key === 'phone' ? 30 : 254} value={manualClient[key]} onChange={event => setManualClient(previous => ({ ...previous, [key]: event.target.value }))} /></label>)}
-          </> : <dl className="booking-client-data"><dt>Nombre</dt><dd>{reservation?.clientName || `${userDoc.firstName} ${userDoc.lastName}`}</dd><dt>Correo</dt><dd>{reservation?.clientEmail || userDoc.email}</dd><dt>Teléfono</dt><dd>{reservation?.clientPhone || userDoc.phone || 'Sin teléfono'}</dd></dl>}
+          </> : <dl className="booking-client-data"><dt>Nombre</dt><dd>{reservation?.clientName || (userDoc ? `${userDoc.firstName} ${userDoc.lastName}` : 'Inicia sesión al confirmar')}</dd><dt>Correo</dt><dd>{reservation?.clientEmail || userDoc?.email || 'Sin sesión'}</dd><dt>Teléfono</dt><dd>{reservation?.clientPhone || userDoc?.phone || 'Sin teléfono'}</dd></dl>}
           {!reservation && <label className="booking-field">Notas adicionales (opcional)<textarea maxLength={1000} value={notes} onChange={event => setNotes(event.target.value)} rows={3} /></label>}
           <p className="booking-notice">{business.settings?.autoConfirmBookings ? 'La cita se confirmará al guardarla.' : 'La cita quedará pendiente de confirmación por el negocio.'}</p>
           <p className="booking-notice">Cancelación o reprogramación: al menos {business.settings?.cancellationLimitHours ?? 24} horas antes.</p>
         </fieldset></div>
-      <div className="booking-controls"><button className="booking-button" disabled={saving}>{saving ? 'Guardando…' : uncertain ? 'Reintentar confirmación' : reservation ? 'Guardar nuevo horario' : 'Confirmar reserva'}</button></div>
+      {publicMode && !currentUser ? <div className="booking-controls"><p>Inicia sesión o regístrate para confirmar. El horario se comprobará otra vez al volver.</p><Link className="booking-button" onClick={preserveDraft} to={`/b/${encodeURIComponent(business.id)}/login?reserva=1`}>Iniciar sesión para confirmar</Link><Link className="booking-button secondary" onClick={preserveDraft} to={`/b/${encodeURIComponent(business.id)}/registro?reserva=1`}>Registrarme para confirmar</Link></div> : <div className="booking-controls"><button className="booking-button" disabled={saving}>{saving ? 'Guardando…' : uncertain ? 'Reintentar confirmación' : reservation ? 'Guardar nuevo horario' : 'Confirmar reserva'}</button></div>}
     </form>}
     {step > 0 && !reservation && <button className="booking-button secondary" disabled={blocked} onClick={() => { setStep(value => value - 1); setError('') }}><ArrowLeft size={16} />Volver</button>}
     {reservation && step === 3 && <button className="booking-button secondary" disabled={blocked} onClick={() => setStep(2)}>Elegir otro horario</button>}

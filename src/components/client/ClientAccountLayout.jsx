@@ -12,6 +12,8 @@ export default function ClientAccountLayout() {
       <p className="client-sidebar-name">Hola, {userDoc.firstName}</p>
       <nav aria-label="Mi cuenta">
         <NavLink to="/cliente/reservas"><CalendarDays size={18} />Mis reservas</NavLink>
+        <NavLink to="/cliente/avisos"><CalendarDays size={18} />Avisos</NavLink>
+        <NavLink to="/cliente/favoritos"><CalendarDays size={18} />Favoritos y espera</NavLink>
         <NavLink to="/cliente/perfil"><UserRound size={18} />Mi perfil</NavLink>
         <button onClick={endSession}><LogOut size={18} />Cerrar sesión</button>
       </nav>

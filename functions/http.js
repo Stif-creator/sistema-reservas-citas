@@ -28,9 +28,9 @@ export function createBookingServer({ allowedOrigins, verifyToken, execute, uplo
     if (req.method !== 'POST') { res.setHeader('Allow', 'POST, OPTIONS'); return send(405, { error: { code: 'invalid-argument', message: 'Usa POST.' } }) }
     try {
       const token = /^Bearer (\S+)$/i.exec(req.headers.authorization || '')?.[1]
-      if (!token) throw new BookingError('unauthenticated', 'Inicia sesión para continuar.')
-      let identity
-      try { identity = await verifyToken(token) }
+      if (!token && isImage) throw new BookingError('unauthenticated', 'Inicia sesión para continuar.')
+      let identity = null
+      try { if (token) identity = await verifyToken(token) }
       catch (error) {
         if (['auth/id-token-expired', 'auth/id-token-revoked', 'auth/argument-error', 'auth/invalid-id-token', 'auth/user-disabled', 'auth/user-not-found'].includes(error.code))
           throw new BookingError('unauthenticated', 'Tu sesión no es válida. Vuelve a iniciar sesión.')
@@ -47,7 +47,8 @@ export function createBookingServer({ allowedOrigins, verifyToken, execute, uplo
       try { data = JSON.parse(Buffer.concat(chunks).toString('utf8')) }
       catch { throw new BookingError('invalid-argument', 'Solicitud JSON inválida.') }
       if (!data || typeof data !== 'object' || Array.isArray(data)) throw new BookingError('invalid-argument', 'Solicitud inválida.')
-      send(200, { data: await (isImage ? upload : execute)(identity.uid, data) })
+      if (!identity && !['publicOptions', 'publicAvailability'].includes(data.action)) throw new BookingError('unauthenticated', 'Inicia sesión para continuar.')
+      send(200, { data: await (isImage ? upload : execute)(identity?.uid, data) })
     } catch (error) {
       const known = error instanceof BookingError
       if (!known) console.error('Booking HTTP failed:', error.code || 'unknown')

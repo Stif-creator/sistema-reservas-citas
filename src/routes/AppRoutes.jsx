@@ -27,6 +27,11 @@ const ClientProfile = lazy(() => import('../pages/client/ClientProfile'))
 const ClientBooking = lazy(() => import('../pages/client/ClientBooking'))
 const Reservations = lazy(() => import('../pages/Reservations'))
 const Agenda = lazy(() => import('../pages/Agenda'))
+const Notifications = lazy(() => import('../pages/Notifications'))
+const Clients = lazy(() => import('../pages/Clients'))
+const Promotions = lazy(() => import('../pages/Promotions'))
+const ClientExtras = lazy(() => import('../pages/client/ClientExtras'))
+const PublicBooking = lazy(() => import('../pages/PublicBooking'))
 
 function AppRoutes() {
   return (
@@ -46,7 +51,7 @@ function AppRoutes() {
           <Route path="/crear-negocio" element={<Register owner />} />
         </Route>
         <Route path="/b/:businessId" element={<PublicLayout />}>
-          <Route element={<PublicHomeLayout />}><Route index element={<Home />} /><Route path="nosotros" element={<BusinessInfo />} /><Route path="contacto" element={<BusinessInfo contact />} /></Route>
+          <Route element={<PublicHomeLayout />}><Route index element={<Home />} /><Route path="reservar" element={<PublicBooking />} /><Route path="nosotros" element={<BusinessInfo />} /><Route path="contacto" element={<BusinessInfo contact />} /></Route>
           <Route path="login" element={<Login />} />
           <Route path="registro" element={<Register />} />
         </Route>
@@ -72,7 +77,7 @@ function AppRoutes() {
           <Route element={<ClientAccountLayout />}>
             <Route path="reservas" element={<ClientReservations />} />
             <Route path="reservas/:reservationId" element={<ClientReservationDetail />} />
-            <Route path="perfil" element={<ClientProfile />} />
+            <Route path="perfil" element={<ClientProfile />} /><Route path="avisos" element={<Notifications />} /><Route path="favoritos" element={<ClientExtras />} />
           </Route>
         </Route>
 
@@ -85,11 +90,11 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         >
-          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/dashboard" element={<Dashboard />} /><Route path="/avisos" element={<Notifications />} /><Route path="/clientes" element={<ProtectedRoute allowedRoles={['admin']}><Clients /></ProtectedRoute>} /><Route path="/promociones" element={<ProtectedRoute allowedRoles={['admin']}><Promotions /></ProtectedRoute>} />
           <Route path="/reservas" element={<ProtectedRoute allowedRoles={['admin', 'professional']}><Reservations /></ProtectedRoute>} />
           <Route path="/reservas/nueva" element={<ProtectedRoute allowedRoles={['admin']}><Reservations manual /></ProtectedRoute>} />
           <Route path="/reservas/:reservationId" element={<ProtectedRoute allowedRoles={['admin', 'professional']}><Reservations detail /></ProtectedRoute>} />
-          <Route path="/agenda" element={<ProtectedRoute allowedRoles={['admin']}><Agenda /></ProtectedRoute>} />
+          <Route path="/agenda" element={<ProtectedRoute allowedRoles={['admin', 'professional']}><Agenda /></ProtectedRoute>} />
           <Route path="/usuarios" element={<ProtectedRoute allowedRoles={['admin']}><Users /></ProtectedRoute>} />
           <Route path="/disponibilidad" element={<ProtectedRoute allowedRoles={['admin', 'professional']}><Availability /></ProtectedRoute>} />
           <Route

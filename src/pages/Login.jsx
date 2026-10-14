@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowRight } from 'lucide-react'
 import { useAuth } from '../context/auth-context'
 import { getAuthErrorMessage } from '../firebase/authErrors'
@@ -11,6 +11,8 @@ export default function Login() {
   const { login, resetPassword } = useAuth()
   const { base } = usePublicBusiness()
   const navigate = useNavigate()
+  const [params] = useSearchParams()
+  const resume = params.get('reserva') === '1' && !!base
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [remember, setRemember] = useState(true)
@@ -24,7 +26,7 @@ export default function Login() {
     setBusy(true)
     try {
       await login(email.trim(), password, remember)
-      navigate('/dashboard')
+      navigate(resume ? `${base}/reservar` : '/dashboard')
     } catch (err) {
       setError(getAuthErrorMessage(err))
     } finally {
@@ -109,7 +111,7 @@ export default function Login() {
       </form>
       <p className="auth-switch">
         ¿No tienes una cuenta?{' '}
-        <Link className="text-link" to={`${base}/registro`}>
+        <Link className="text-link" to={`${base}/registro${resume ? '?reserva=1' : ''}`}>
           Regístrate aquí
         </Link>
       </p>

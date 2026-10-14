@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { collection, getDocs, query, where } from 'firebase/firestore'
 import { ArrowRight } from 'lucide-react'
 import { db } from '../firebase/config'
@@ -13,6 +13,8 @@ export default function Register({ owner = false }) {
   const { register } = useAuth()
   const { business, businessId, base } = usePublicBusiness()
   const navigate = useNavigate()
+  const [params] = useSearchParams()
+  const resume = params.get('reserva') === '1' && !!base
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
@@ -82,7 +84,7 @@ export default function Register({ owner = false }) {
         businessId: businessId || form.businessId,
         role: owner ? 'admin' : role,
       })
-      navigate('/dashboard')
+      navigate(resume ? `${base}/reservar` : '/dashboard')
     } catch (err) {
       setError(err.code ? getAuthErrorMessage(err) : err.message)
     } finally {
@@ -198,7 +200,7 @@ export default function Register({ owner = false }) {
       </form>
       <p className="auth-switch">
         ¿Ya tienes cuenta?{' '}
-        <Link className="text-link" to={`${base}/login`}>
+        <Link className="text-link" to={`${base}/login${resume ? '?reserva=1' : ''}`}>
           Inicia sesión
         </Link>
       </p>

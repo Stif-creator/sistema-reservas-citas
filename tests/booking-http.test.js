@@ -3,6 +3,21 @@ import assert from 'node:assert/strict'
 import { createBookingServer } from '../functions/http.js'
 import { BookingError } from '../functions/bookingError.js'
 
+test('public HTTP permits only explicit read actions without a token', async t => {
+  const calls = []
+  const server = createBookingServer({ allowedOrigins:['https://app.example'], verifyToken:async () => { throw Object.assign(new Error('invalid'), { code:'auth/invalid-id-token' }) }, execute:async (uid, data) => { calls.push({ uid, action:data.action }); return { slots:[] } } })
+  await new Promise(resolve => server.listen(0,'127.0.0.1',resolve))
+  t.after(() => new Promise(resolve => server.close(resolve)))
+  const send = (action, headers = {}) => fetch(`http://127.0.0.1:${server.address().port}/booking`, { method:'POST', headers:{ 'Content-Type':'application/json', ...headers }, body:JSON.stringify({ action }) })
+  assert.equal((await send('publicOptions')).status,200)
+  assert.equal((await send('publicAvailability')).status,200)
+  for (const action of ['create','options','hub','promotionSave','clientUpdate']) assert.equal((await send(action)).status,401)
+  assert.equal((await send('publicOptions', { Authorization:'Bearer bad' })).status,401)
+  assert.equal((await send('publicOptions', { Origin:'https://evil.example' })).status,403)
+  assert.equal(calls.length,2)
+  assert.equal(calls[0].uid,undefined)
+})
+
 test('HTTP: autenticación, CORS, identidad verificada y errores sin secretos', async t => {
   let calls = 0
   const server = createBookingServer({ allowedOrigins: ['https://app.example'],

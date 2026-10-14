@@ -39,6 +39,8 @@ function BusinessSettings() {
   const [city, setCity] = useState('')
   const [stateRegion, setStateRegion] = useState('')
   const [countryCode, setCountryCode] = useState('')
+  const [latitude, setLatitude] = useState('')
+  const [longitude, setLongitude] = useState('')
 
   const [fieldErrors, setFieldErrors] = useState({})
   const [error, setError] = useState('')
@@ -77,6 +79,8 @@ function BusinessSettings() {
           setCity(data.location?.city ?? '')
           setStateRegion(data.location?.stateRegion ?? '')
           setCountryCode(data.location?.countryCode ?? '')
+          setLatitude(data.location?.latitude ?? '')
+          setLongitude(data.location?.longitude ?? '')
           setWeeklyHours(data.weeklyHours ?? {})
         }
       } catch {
@@ -126,6 +130,9 @@ function BusinessSettings() {
     setSuccess('')
 
     const errors = validate()
+    if ((latitude !== '' || longitude !== '') && (latitude === '' || longitude === '' || !Number.isFinite(Number(latitude)) || !Number.isFinite(Number(longitude)) || Math.abs(Number(latitude)) > 85 || Math.abs(Number(longitude)) > 180)) {
+      setError('Ingresa ambas coordenadas: latitud entre -85 y 85 y longitud entre -180 y 180.'); return
+    }
     setFieldErrors(errors)
     if (Object.keys(errors).length > 0) {
       return
@@ -149,6 +156,8 @@ function BusinessSettings() {
           email: contactEmail.trim(),
         },
         location: {
+          latitude: latitude === '' ? null : Number(latitude),
+          longitude: longitude === '' ? null : Number(longitude),
           addressLine,
           city,
           stateRegion,
@@ -337,6 +346,8 @@ function BusinessSettings() {
         </Card>
 
         <Card title="Ubicación">
+          <p className="text-sm text-muted mb-4">Para mostrar el mapa, copia las coordenadas del local desde tu aplicación de mapas. No necesitas contratar una API.</p>
+          <div className="grid sm:grid-cols-2 gap-4 mb-4"><Field label="Latitud del mapa" htmlFor="latitude"><input id="latitude" type="number" step="any" value={latitude} onChange={e => setLatitude(e.target.value)} className={fieldControlClasses(false)} /></Field><Field label="Longitud del mapa" htmlFor="longitude"><input id="longitude" type="number" step="any" value={longitude} onChange={e => setLongitude(e.target.value)} className={fieldControlClasses(false)} /></Field></div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Dirección" htmlFor="addressLine">
               <input

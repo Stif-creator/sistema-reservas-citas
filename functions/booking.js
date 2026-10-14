@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { FieldValue, Timestamp } from 'firebase-admin/firestore'
 import { BookingError } from './bookingError.js'
 import { availableSlots } from './shared/availability.js'
+import { executeEngagement, engagementActions, discountedService, bookingNotices } from './engagement.js'
 
 const fail = (code, message) => { throw new BookingError(code, message) }
 const record = snapshot => snapshot.exists ? { ...snapshot.data(), id: snapshot.id } : null
@@ -27,6 +28,13 @@ async function context(db, reader, uid, businessId) {
   if (!user || user.status !== 'active' || !member || member.status !== 'active' || business?.status !== 'active' ||
     !['admin', 'professional', 'client'].includes(member.role)) fail('permission-denied', 'Tu cuenta no tiene acceso activo a este negocio.')
   return { user, member, business, uid }
+}
+
+async function publicContext(db, reader, businessId) {
+  if (!identifier(businessId)) fail('invalid-argument', 'Negocio inválido.')
+  const business = record(await reader.get(db.doc(`businesses/${businessId}`)))
+  if (business?.status !== 'active' || business.settings?.publicPageEnabled !== true) fail('permission-denied', 'La página pública no está disponible.')
+  return { business, member: { role: 'client' }, uid: null }
 }
 
 function manage(actor, item, clientAllowed = true) {
@@ -61,7 +69,8 @@ async function selection(db, reader, actor, serviceId, professionalId) {
   ])
   if (member?.role !== 'professional' || member.status !== 'active' || user?.status !== 'active') fail('failed-precondition', 'El profesional no está activo.')
   if (actor.member.role === 'professional' && professional.userId !== actor.uid) fail('permission-denied', 'Solo puedes consultar tu disponibilidad.')
-  return { service, professional }
+  const promotions = list(await reader.get(scoped(db, 'promotions', actor.business.id)))
+  return { service: discountedService(service, promotions), professional }
 }
 
 async function calendar(db, reader, businessId, professionalId) {
@@ -109,23 +118,28 @@ export async function executeBooking(db, uid, input) {
   if (!input || typeof input !== 'object') fail('invalid-argument', 'Solicitud inválida.')
   const { businessId, action } = input
   const reader = { get: ref => ref.get() }
-  if (action === 'options') {
-    const actor = await context(db, reader, uid, businessId)
-    const [services, professionals, members, clients] = await Promise.all([
+  if (engagementActions.includes(action)) return executeEngagement(db, uid, input, await context(db, reader, uid, businessId))
+  if (action === 'options' || action === 'publicOptions') {
+    const actor = action === 'publicOptions' ? await publicContext(db, reader, businessId) : await context(db, reader, uid, businessId)
+    const [services, professionals, members, clients, promotions, reviews] = await Promise.all([
       reader.get(scoped(db, 'services', businessId)).then(list), reader.get(scoped(db, 'professionals', businessId)).then(list),
       reader.get(scoped(db, 'memberships', businessId)).then(list),
       actor.member.role === 'admin' ? reader.get(scoped(db, 'clients', businessId)).then(list) : [],
+      reader.get(scoped(db, 'promotions', businessId)).then(list),
+      reader.get(scoped(db, 'reviews', businessId)).then(list),
     ])
     return {
-      services: services.filter(s => s.isActive && (actor.member.role !== 'client' || s.isPublic)).map(s => ({ id: s.id, name: s.name, ...quote(s, actor.business.settings?.currencyCode) })),
+      services: services.filter(s => s.isActive && (actor.member.role !== 'client' || s.isPublic) && (actor.member.role !== 'professional' || professionals.some(p => p.userId === uid && p.isActive && p.serviceIds?.includes(s.id)))).map(s => { const priced = discountedService(s, promotions); return { id: s.id, name: s.name, promotionTitle: priced.promotionTitle || '', originalPrice: s.price, ...quote(priced, actor.business.settings?.currencyCode) } }),
+      reviews: reviews.filter(r => r.status === 'published' && r.isPublic).map(r => ({ id: r.id, serviceName: r.serviceName, rating: r.rating, comment: r.comment, authorName: r.authorName })),
       professionals: professionals.filter(p => p.isActive && members.some(m => m.userId === p.userId && m.status === 'active' && m.role === 'professional') &&
         (actor.member.role !== 'professional' || p.userId === uid)).map(p => ({ id: p.id, displayName: p.displayName || 'Profesional', jobTitle: p.jobTitle || '', bio: p.bio || '', photoUrl: p.photo?.url || '', serviceIds: p.serviceIds || [] })),
       clients: clients.filter(c => !c.userId || members.some(m => m.userId === c.userId && m.status === 'active' && m.role === 'client'))
         .map(c => ({ id: c.id, name: fullName(c), phone: c.phone || '' })),
     }
   }
-  if (action === 'availability') {
-    const actor = await context(db, reader, uid, businessId)
+  if (action === 'availability' || action === 'publicAvailability') {
+    const actor = action === 'publicAvailability' ? await publicContext(db, reader, businessId) : await context(db, reader, uid, businessId)
+    if (action === 'publicAvailability' && input.reservationId) fail('permission-denied', 'La consulta pública no permite acceder a reservas.')
     if (typeof input.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(input.date)) fail('invalid-argument', 'Selecciona una fecha válida.')
     const selected = await selection(db, reader, actor, input.serviceId, input.professionalId)
     const agenda = await calendar(db, reader, businessId, selected.professional.id)
@@ -146,6 +160,7 @@ export async function executeBooking(db, uid, input) {
   const fingerprint = createHash('sha256').update(JSON.stringify(input)).digest('hex')
   return db.runTransaction(async transaction => {
     const actor = await context(db, transaction, uid, businessId)
+    if (input.source === 'public' && actor.business.settings?.publicPageEnabled !== true) fail('permission-denied', 'La reserva pública está desactivada.')
     const previous = record(await transaction.get(operationRef))
     if (previous) {
       if (previous.fingerprint !== fingerprint) fail('already-exists', 'Esta solicitud ya se utilizó. Actualiza la página.')
@@ -157,6 +172,7 @@ export async function executeBooking(db, uid, input) {
     await transaction.get(lock)
     const now = Date.now()
     const stamp = Timestamp.fromMillis(now)
+    const reminder = record(await transaction.get(db.doc(`reminderSettings/${businessId}`)))
     let ref, original
     if (action === 'create') ref = db.doc(`reservations/${operationId}`)
     else {
@@ -215,7 +231,8 @@ export async function executeBooking(db, uid, input) {
     }
     if (original) transaction.update(ref, { ...update, revision, updatedAt: stamp, updatedByUserId: uid })
     else transaction.create(ref, { ...update, ...client, id: ref.id, businessId, revision, code: ref.id,
-      source: actor.member.role === 'admin' ? 'manual' : 'client', createdByUserId: uid, createdAt: stamp, updatedAt: stamp })
+      source: actor.member.role === 'admin' ? 'manual' : input.source === 'public' ? 'public' : 'client', createdByUserId: uid, createdAt: stamp, updatedAt: stamp })
+    bookingNotices(db, transaction, { ...original, ...update, ...client, id: ref.id, businessId }, revision, action, reminder?.hours ?? 24, stamp, actor.business.ownerUserId)
     transaction.set(lock, { revision: FieldValue.increment(1), updatedAt: stamp }, { merge: true })
     transaction.create(operationRef, { businessId, userId: uid, fingerprint, result, createdAt: stamp })
     return result

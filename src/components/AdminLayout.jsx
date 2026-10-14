@@ -1,3 +1,4 @@
+import NotificationLink from './NotificationLink'
 import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { doc, getDoc } from 'firebase/firestore'
@@ -24,12 +25,15 @@ import {
 const GENERAL_LINKS = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/reservas', label: 'Reservas', icon: CalendarCheck },
-  { to: '/agenda', label: 'Agenda', icon: Calendar, roles: ['admin'] },
+  { to: '/agenda', label: 'Agenda', icon: Calendar, roles: ['admin', 'professional'] },
 ]
 
 // Cada enlace declara los roles autorizados; las rutas y Firestore también
 // aplican estas restricciones.
 const BUSINESS_LINKS = [
+  { to: '/clientes', label: 'Clientes', icon: Users, roles: ['admin'] },
+  { to: '/promociones', label: 'Promociones', icon: Scissors, roles: ['admin'] },
+  { to: '/avisos', label: 'Avisos', icon: Bell, roles: ['admin', 'professional'] },
   { to: '/usuarios', label: 'Usuarios', icon: Users, roles: ['admin'] },
   { to: '/disponibilidad', label: 'Disponibilidad', icon: Calendar, roles: ['admin', 'professional'] },
   { to: '/servicios', label: 'Servicios', icon: Scissors, roles: ['admin'] },
@@ -242,13 +246,7 @@ function AdminLayout() {
           </div>
 
           <div className="ml-auto flex items-center gap-2">
-            <button
-              type="button"
-              className="rounded-lg p-2 text-muted hover:bg-slate-100 hover:text-ink"
-              aria-label="Notificaciones"
-            >
-              <Bell size={20} />
-            </button>
+            <NotificationLink />
 
             <div className="relative" ref={userMenuRef}>
               <button

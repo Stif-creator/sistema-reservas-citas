@@ -224,32 +224,30 @@ service cloud.firestore {
     match /bookingRequests/{id} {
       allow read, write: if false;
     }
+    // Sprint 3 writes are validated by the authenticated server.
     match /notifications/{id} {
-      allow read: if activeUser() && resource.data.recipientUserId == request.auth.uid;
-      allow update: if activeUser() && resource.data.recipientUserId == request.auth.uid && changedOnly(['read','readAt']);
-      allow create, delete: if false;
+      allow read: if activeMember(resource.data.businessId) && resource.data.recipientUserId == request.auth.uid;
+      allow write: if false;
     }
     match /favorites/{id} {
-      allow read, create, update, delete: if activeUser() && (resource.data.userId == request.auth.uid || request.resource.data.userId == request.auth.uid);
+      allow read: if activeMember(resource.data.businessId) && resource.data.userId == request.auth.uid;
+      allow write: if false;
     }
     match /waitingList/{id} {
-      allow read: if isAdmin(resource.data.businessId) || isProfessional(resource.data.businessId) || resource.data.clientUserId == request.auth.uid;
-      allow create: if activeUser() && request.resource.data.clientUserId == request.auth.uid;
-      allow update, delete: if isAdmin(resource.data.businessId) || resource.data.clientUserId == request.auth.uid;
+      allow read: if admin(resource.data.businessId) || (activeMember(resource.data.businessId) && resource.data.userId == request.auth.uid);
+      allow write: if false;
     }
     match /reviews/{id} {
-      allow read: if resource.data.status == 'published' && resource.data.isPublic == true || isAdmin(resource.data.businessId);
-      allow create: if activeUser() && request.resource.data.clientUserId == request.auth.uid;
-      allow update: if isAdmin(resource.data.businessId) || (resource.data.clientUserId == request.auth.uid && sameBusiness());
-      allow delete: if isAdmin(resource.data.businessId) || resource.data.clientUserId == request.auth.uid;
+      allow read: if admin(resource.data.businessId) || (resource.data.status == 'published' && resource.data.isPublic == true && publicBusiness(resource.data.businessId));
+      allow write: if false;
     }
     match /promotions/{id} {
-      allow read: if resource.data.isActive == true || isAdmin(resource.data.businessId);
-      allow write: if isAdmin(request.resource.data.businessId) || (resource != null && isAdmin(resource.data.businessId));
+      allow read: if admin(resource.data.businessId) || (resource.data.isActive == true && publicBusiness(resource.data.businessId));
+      allow write: if false;
     }
     match /reminderSettings/{id} {
-      allow read: if hasRole(resource.data.businessId, ['admin','professional']);
-      allow write: if isAdmin(request.resource.data.businessId) || (resource != null && isAdmin(resource.data.businessId));
+      allow read: if admin(resource.data.businessId);
+      allow write: if false;
     }
     match /auditLogs/{id} {
       allow read: if isAdmin(resource.data.businessId);

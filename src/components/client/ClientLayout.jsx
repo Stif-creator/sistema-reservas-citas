@@ -1,3 +1,4 @@
+import NotificationLink from '../NotificationLink'
 import { useEffect, useState } from 'react'
 import { Link, Outlet, useNavigate } from 'react-router-dom'
 import { collection, doc, onSnapshot, query, where } from 'firebase/firestore'
@@ -62,6 +63,7 @@ function ClientWorkspace({ businessId }) {
   return <ClientContext.Provider value={value}>
     <div className="public-site client-site" style={brandVariables(business?.appearance)}>
       <SiteHeader business={business} homeTo="/cliente" links={links}>
+        <NotificationLink />
         <Link className="client-user-link" to="/cliente/perfil"><UserRound size={17} />{userDoc.firstName}</Link>
         <Link className="public-button" to="/cliente/reservas">Mis reservas</Link>
       </SiteHeader>

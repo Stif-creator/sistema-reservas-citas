@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useAuth } from '../context/auth-context'
+import { useEffect, useState } from 'react'
+import { bookingRequest } from '../lib/bookingApi'
 import { Link } from 'react-router-dom'
 import useBusinessReservations from '../hooks/useBusinessReservations'
 import { addDays, agendaDays, dayKey } from '../lib/calendarDates'
@@ -10,12 +12,13 @@ import '../components/booking/agenda.css'
 
 export default function Agenda() {
   const data = useBusinessReservations()
+  const { membership } = useAuth()
   if (data.error) return <Alert tone="error">{data.error}</Alert>
   if (data.loading) return <p role="status">Cargando agenda…</p>
-  return <AgendaView key={data.business.id} business={data.business} items={data.items} />
+  return <AgendaView key={data.business.id} business={data.business} items={data.items} own={membership.role === 'professional'} />
 }
 
-function AgendaView({ business, items }) {
+function AgendaView({ business, items, own }) {
   const zone = business.settings?.timezone || 'America/La_Paz'
   const [date, setDate] = useState(() => dayKey(Date.now(), zone))
   const [view, setView] = useState('week')
@@ -30,7 +33,8 @@ function AgendaView({ business, items }) {
   }
   const filtered = items.filter(item => item.status !== 'cancelled' && (!professional || item.professionalId === professional) && Number.isFinite(dateMillis(item.startAt)))
   return <div className="booking-scope space-y-6">
-    <PageHeader title="Agenda del negocio" description={`Reservas por día, semana y mes. Zona horaria: ${zone}. Las canceladas se consultan en Reservas.`} />
+    <PageHeader title={own ? 'Mi agenda profesional' : 'Agenda del negocio'} description={`Reservas por día, semana y mes. Zona horaria: ${zone}. Las canceladas se consultan en Reservas.`} />
+    {own && <AssignedServices businessId={business.id} />}
     <div className="agenda-toolbar"><div className="flex flex-wrap gap-2" role="group" aria-label="Vista de agenda">{[['day', 'Día'], ['week', 'Semana'], ['month', 'Mes']].map(([value, label]) => <button key={value} className={`booking-button ${view === value ? '' : 'secondary'}`} aria-pressed={view === value} onClick={() => setView(value)}>{label}</button>)}</div>
       <div className="flex flex-wrap items-center gap-2"><button className="booking-button secondary" aria-label="Período anterior" onClick={() => move(-1)}>←</button><label className="booking-field"><span className="sr-only">Fecha de agenda</span><input type="date" required value={date} onChange={event => { if (event.target.value) setDate(event.target.value) }} /></label><button className="booking-button secondary" aria-label="Período siguiente" onClick={() => move(1)}>→</button><button className="booking-button secondary" onClick={() => setDate(dayKey(Date.now(), zone))}>Hoy</button></div>
       <label className="booking-field"><span className="sr-only">Filtrar profesional</span><select value={professional} onChange={event => setProfessional(event.target.value)}><option value="">Todos los profesionales</option>{professionals.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label>
@@ -47,4 +51,10 @@ function AgendaView({ business, items }) {
       })}
     </div></div>
   </div>
+}
+
+function AssignedServices({ businessId }) {
+  const [items, setItems] = useState(null), [error, setError] = useState('')
+  useEffect(() => { let active = true; bookingRequest({ action:'options', businessId }).then(r => { if (active) setItems(r.services) }).catch(e => { if (active) setError(e.message) }); return () => { active = false } }, [businessId])
+  return <section className="booking-panel"><h2>Mis servicios asignados</h2>{error && <p role="alert">{error}</p>}{!items && !error && <p role="status">Cargando servicios…</p>}{items?.length === 0 && <p>No tienes servicios activos asignados.</p>}<ul>{items?.map(s => <li key={s.id}>{s.name} · {s.durationMinutes} minutos</li>)}</ul></section>
 }

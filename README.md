@@ -27,7 +27,7 @@ Para estos cambios de interfaz, `npm run dev` los muestra localmente; para la we
 
 En **Configuración**, el dueño puede modificar `appearance.primaryColor`, `appearance.secondaryColor`, logo, portada, descripción y contacto. Allí aparece el enlace para compartir. Las tres páginas usan la misma identidad; si no hay portada se muestra una ilustración de calendario. El texto de los botones se adapta al contraste del color elegido. El panel administrativo conserva su diseño.
 
-Home muestra servicios reales activos y públicos. La reserva del Sprint 2 se realiza dentro del panel del cliente autenticado. La reserva directamente desde el portal público corresponde a HU-16 (Sprint 3) y sigue pendiente.
+Home muestra servicios reales activos y públicos. La reserva del Sprint 2 se realiza dentro del panel del cliente autenticado. La reserva desde el portal público (HU-16) ya permite elegir servicio, profesional y horario antes del acceso y autenticarse al confirmar.
 
 Los profesionales que se registran por su cuenta quedan con membresía `pending` y perfil `isActive: false`. El administrador los aprueba desde **Profesionales → Activar** o **Usuarios**. Los clientes se registran directamente en el negocio seleccionado.
 
@@ -69,13 +69,13 @@ Al iniciar sesión o registrarse como **Cliente**, `/dashboard` redirige a `/cli
 | `/cliente/perfil` | Datos de la cuenta en modo consulta y envío del enlace para cambiar la contraseña. |
 | `/reservas` y `/reservas/:reservationId` | Lista y gestión de reservas; los profesionales solo acceden a las asignadas. |
 | `/reservas/nueva` | Reserva manual, exclusiva del administrador. |
-| `/agenda` | Agenda de día, semana y mes, exclusiva del administrador. |
+| `/agenda` | Agenda de día, semana y mes: el administrador ve el negocio y el profesional solo sus citas. |
 
 `ClientLayout` carga el negocio y su catálogo y aplica `appearance.primaryColor` y `appearance.secondaryColor` en tiempo real. `ClientAccountLayout` comparte el menú de cuenta entre reservas, detalle y perfil. `SiteHeader`, `SiteFooter` y `BusinessBrand` se reutilizan también en `PublicHomeLayout`; las vistas no repiten encabezados ni pies de página. El menú móvil es desplegable y los colores de texto se adaptan al contraste.
 
 El catálogo solo muestra servicios activos y públicos del negocio de la membresía. El cliente puede consultarlo aunque el administrador desactive la página pública externa; las reglas habilitan únicamente la lectura del catálogo y categorías de su negocio, sin dar acceso a perfiles privados de profesionales ni a la administración. La consulta de reservas filtra por negocio y usuario autenticado. No se generan citas, valoraciones, profesionales o confirmaciones ficticias para completar la interfaz.
 
-La referencia visual guía las tarjetas, la distribución y el menú de cuenta. `BookingFlow`, `BookingStepper`, `BookingSummary` y `ReservationActions` se comparten entre cliente y administración. La edición de perfil permanece fuera de este Sprint. Avisos, favoritos y reserva desde el portal externo corresponden al Sprint 3.
+La referencia visual guía las tarjetas, la distribución y el menú de cuenta. `BookingFlow`, `BookingStepper`, `BookingSummary` y `ReservationActions` se comparten entre cliente y administración. La edición de perfil permanece fuera de este Sprint. Avisos, favoritos y reserva desde el portal externo se implementan en el Sprint 3.
 
 `tests/ui/client.spec.js` comprueba registro y redirección, filtros, aislamiento de citas, identidad en vivo, catálogo con página pública desactivada, navegación móvil y cierre de sesión. Genera capturas de las seis vistas a 1440 y 390 píxeles en `test-results/client-*.png`. Los datos usados en las pruebas se crean únicamente en los emuladores.
 
@@ -150,6 +150,20 @@ npx firebase deploy --only firestore:rules --config firebase.production.json --p
 
 Después configura `VITE_BOOKING_PROVIDER=functions` y `VITE_BOOKING_ENABLED=true`, recompila con `npm run build` y publica con `npx firebase deploy --only hosting --project sistema-reservas-jf745-2026`. `VITE_BOOKING_API_URL` se ignora en este modo. No hay que migrar documentos ni cuentas: ambos servidores usan `functions/booking.js`, el mismo proyecto y las mismas claves de idempotencia. Comprueba el flujo publicado antes de retirar Render. La función se ejecuta en `us-central1`, con un máximo de tres instancias. La activación del indicador por sí sola no publica el servidor ni protege las reglas antiguas.
 
+
+## Sprint 3
+
+La implementacion de HU-13 a HU-25 y sus limites se detallan en [Verificacion del Sprint 3](docs/sprint-3-verificacion.md).
+
+- Portal: profesionales, opiniones, promociones, mapa en Contacto y reserva sin sesion hasta confirmar.
+- Cliente: historial, avisos, recordatorios internos, favoritos, lista de espera y valoraciones de citas finalizadas.
+- Profesional: agenda propia y servicios asignados.
+- Administrador: indicadores, contactos e historial de clientes, promociones y anticipacion de recordatorios.
+
+Los layouts y el tema del negocio se comparten. No se requiere Blaze ni nuevas credenciales. Los recordatorios son internos, sin correo, SMS ni notificaciones con el navegador cerrado. Para mostrar el mapa configura latitud y longitud reales en Configuracion. Los descuentos se validan en el servidor.
+
+Para publicar esta etapa: sube los cambios a GitHub y despliega Render; publica las reglas con `npx firebase deploy --only firestore:rules,firestore:indexes --project sistema-reservas-jf745-2026`; ejecuta `npm run build` y `npx firebase deploy --only hosting --project sistema-reservas-jf745-2026`. No basta actualizar solamente el frontend: estas funciones requieren la nueva API y reglas.
+
 ## Firebase y compatibilidad de datos
 
 Se incluyen `firestore.rules`, `firestore.indexes.json` y `firebase.json`. Las reglas y recorridos se comprueban contra un proyecto local `demo-citaspro`; **las pruebas no publican reglas ni modifican Firebase real**.
@@ -202,14 +216,14 @@ La conexión a emuladores solo se habilita en desarrollo. `npm run demo` configu
 1. Entra en https://cloudinary.com/users/register_free y crea una cuenta gratuita de **Image & Video API**. No necesitas activar facturación en Firebase. Consulta las cuotas vigentes en https://cloudinary.com/pricing.
 2. Abre la consola de Cloudinary y busca **API Keys** en la configuración del entorno de producto. Copia `Cloud name`, `API Key` y `API Secret`. No publiques el secreto ni lo pongas en variables `VITE_`.
 3. En Render, abre **citaspro-booking > Environment > Add Environment Variable** y agrega `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` y `CLOUDINARY_API_SECRET` con sus valores. Guarda los cambios y redespliega. No hace falta un upload preset: el servidor firma las subidas.
-4. Sube los cambios de código a `main` cuando estás listo. Render debe desplegar la versión que incluye `/images`; si no se despliega automáticamente, usa **Manual Deploy > Deploy latest commit**. Las credenciales existentes de Firebase y `ALLOWED_ORIGINS` se conservan.
-5. En desarrollo, la dirección `VITE_BOOKING_API_URL=https://citaspro-booking.onrender.com` tambión sirve para las fotos. Reinicia `npm run dev` si cambias variables. `VITE_MEDIA_API_URL` permite usar otra API de imágenes; déjala vacía para reutilizar Render.
+4. Sube los cambios de código a `main` cuando estés listo. Render debe desplegar la versión que incluye `/images`; si no se despliega automáticamente, usa **Manual Deploy > Deploy latest commit**. Las credenciales existentes de Firebase y `ALLOWED_ORIGINS` se conservan.
+5. En desarrollo, la dirección `VITE_BOOKING_API_URL=https://citaspro-booking.onrender.com` también sirve para las fotos. Reinicia `npm run dev` si cambias variables. `VITE_MEDIA_API_URL` permite usar otra API de imágenes; déjala vacía para reutilizar Render.
 6. Para actualizar el sitio publicado en Firebase Hosting: `npm run build` y después `npx firebase deploy --only hosting --project sistema-reservas-jf745-2026`. Un despliegue de Render solo actualiza el servidor.
 
-Prueba con una imagen JPG, PNG o WebP de hasta 2 MB: Configuración (logo/portada), Servicios y Profesionales. Espera la confirmación de subida, guarda el formulario y recarga. En Mi perfil la foto se guarda inmediatamente. Comprueba tambión un archivo no permitido y uno mayor de 2 MB: deben rechazarse sin sustituir la foto anterior.
+Prueba con una imagen JPG, PNG o WebP de hasta 2 MB: Configuración (logo/portada), Servicios y Profesionales. Espera la confirmación de subida, guarda el formulario y recarga. En Mi perfil la foto se guarda inmediatamente. Comprueba también un archivo no permitido y uno mayor de 2 MB: deben rechazarse sin sustituir la foto anterior.
 
 Firebase conserva las cuentas y los documentos; Cloudinary conserva los archivos y Firestore guarda automáticamente su dirección. El usuario ya no introduce URLs. Las fotos anteriores siguen funcionando. Las imágenes son públicas: utiliza fotos destinadas a mostrarse en la web, no documentos privados. Render no guarda archivos en su disco temporal.
 
-El servidor verifica sesión, cuenta activa y pertenencia al negocio; solo administradores pueden subir imágenes del negocio. Cada usuario tiene un límite de 30 intentos de subida por hora. Las imágenes retiradas, reemplazadas o subidas en formularios cancelados permanecen en Cloudinary; se pueden eliminar desde su biblioteca después de comprobar que no estón en uso. Las pruebas automatizadas simulan Cloudinary; la prueba real requiere completar la configuración anterior.
+El servidor verifica sesión, cuenta activa y pertenencia al negocio; solo administradores pueden subir imágenes del negocio. Cada usuario tiene un límite de 30 intentos de subida por hora. Las imágenes retiradas, reemplazadas o subidas en formularios cancelados permanecen en Cloudinary; se pueden eliminar desde su biblioteca después de comprobar que no están en uso. Las pruebas automatizadas simulan Cloudinary; la prueba real requiere completar la configuración anterior.
 
-Para ejecutar tambión la API localmente, agrega las tres variables a `.env.server` (archivo privado ignorado por Git) y ejecuta `npm run server`. Si en el futuro cambias las reservas a Cloud Functions, conserva Render y configura `VITE_MEDIA_API_URL` con su dirección hasta migrar tambión este endpoint.
+Para ejecutar también la API localmente, agrega las tres variables a `.env.server` (archivo privado ignorado por Git) y ejecuta `npm run server`. Si en el futuro cambias las reservas a Cloud Functions, conserva Render y configura `VITE_MEDIA_API_URL` con su dirección hasta migrar también este endpoint.

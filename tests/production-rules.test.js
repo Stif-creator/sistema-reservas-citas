@@ -24,6 +24,18 @@ before(async () => {
 })
 after(async () => { await env?.cleanup() })
 
+test('Sprint 3 collections reject direct forged writes and cross-business reads', async () => {
+  for (const collection of ['favorites','waitingList','reviews','promotions','notifications','reminderSettings']) {
+    for (const uid of ['client','outsider','owner']) await assertFails(setDoc(doc(env.authenticatedContext(uid).firestore(), collection, 'forged'), { businessId:'studio', userId:uid, clientUserId:uid, recipientUserId:uid, status:'published', isPublic:true, isActive:true }))
+  }
+  await env.withSecurityRulesDisabled(async context => {
+    await setDoc(doc(context.firestore(),'notifications','private'), { businessId:'studio', recipientUserId:'client', read:false })
+  })
+  await assertSucceeds(getDoc(doc(env.authenticatedContext('client').firestore(),'notifications','private')))
+  await assertFails(getDoc(doc(env.authenticatedContext('outsider').firestore(),'notifications','private')))
+  await assertFails(updateDoc(doc(env.authenticatedContext('client').firestore(),'notifications','private'), { recipientUserId:'outsider' }))
+})
+
 test('production administrator reads own business users including old profiles without embedded IDs', async () => {
   const db = env.authenticatedContext('owner').firestore()
   for (const uid of ['owner', 'client', 'pro']) await assertSucceeds(getDoc(doc(db, 'users', uid)))
