@@ -1,3 +1,4 @@
+import DataList from '../../components/ui/DataList'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { CalendarDays, Clock3, Sparkles } from 'lucide-react'
@@ -28,12 +29,12 @@ export default function ClientReservations() {
     </div>
     {loading ? <p role="status" className="client-loading">Cargando tus reservas…</p> : error ? <p className="public-alert" role="alert">{error}</p>
       : !filtered.length ? <div className="client-panel client-empty"><span className="client-icon"><CalendarDays size={30} /></span><h2>{filter === 'upcoming' ? 'Tu próxima visita empieza aquí' : 'No hay reservas en esta sección'}</h2><p>{filter === 'upcoming' ? 'Todavía no tienes citas próximas. Descubre los servicios que el negocio tiene para ti.' : 'Aquí aparecerán tus citas cuando correspondan a este estado.'}</p><Link className="public-button" to="/cliente/servicios">Explorar servicios</Link></div>
-        : <div className="client-reservations-list">{filtered.map(item => <article key={item.id} className="client-reservation-row">
+        : <DataList label="Mis reservas" items={filtered} resetKey={filter} searchText={r => `${r.serviceName || r.serviceSnapshot?.name || ""} ${r.professionalName || ""} ${formatAppointmentDate(r.startAt,business.settings?.timezone)} ${reservationStatuses[r.status]}`}>{rows => <div className="client-reservations-list">{rows.map(item => <article key={item.id} className="client-reservation-row">
           <span className="client-reservation-icon"><Sparkles size={24} /></span>
           <div className="client-reservation-name"><h2>{item.serviceName || item.serviceSnapshot?.name || services.find(service => service.id === item.serviceId)?.name || 'Servicio reservado'}</h2><p>{item.professionalName || item.professionalSnapshot?.displayName || 'Profesional asignado'}</p></div>
           <div className="client-reservation-date"><span><CalendarDays size={14} />{formatAppointmentDate(item.startAt, business.settings?.timezone)}</span><span><Clock3 size={14} />{formatAppointmentDate(item.startAt, business.settings?.timezone, true)}</span></div>
           <span className={`client-status status-${Object.hasOwn(reservationStatuses, item.status) ? item.status : 'unknown'}`}>{reservationStatuses[item.status] || 'Por confirmar'}</span>
           <Link className="public-button secondary" to={`/cliente/reservas/${encodeURIComponent(item.id)}`}>Ver detalles</Link>
-        </article>)}</div>}
+        </article>)}</div>}</DataList>}
   </>
 }

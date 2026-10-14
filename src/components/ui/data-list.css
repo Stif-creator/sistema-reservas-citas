@@ -1,0 +1,10 @@
+.data-list { min-width: 0; margin-block: 1rem; }
+.data-list-toolbar, .data-list-footer, .data-list-footer nav { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; }
+.data-list-toolbar { margin-bottom: 1rem; justify-content: space-between; }
+.data-list-toolbar label { display: grid; gap: .35rem; font-size: .875rem; }
+.data-list-toolbar label:first-child { flex: 1; min-width: 180px; max-width: 420px; }
+.data-list-toolbar input, .data-list-toolbar select { width: 100%; border: 1px solid #cbd5e1; border-radius: .5rem; padding: .6rem .75rem; background: white; color: #172033; }
+.data-list-footer { justify-content: space-between; margin-top: 1rem; font-size: .875rem; }
+.data-list-footer button { border: 1px solid #cbd5e1; border-radius: .5rem; padding: .5rem .75rem; }
+.data-list-footer button:disabled { opacity: .45; cursor: not-allowed; }
+.data-list :is(input, select, button):focus-visible { outline: 2px solid var(--brand, #4f46e5); outline-offset: 2px; }

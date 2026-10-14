@@ -75,10 +75,17 @@ test('Sprint 3 public booking resumes after login, preferences, admin clients an
     await page.getByRole('button', { name:'Continuar', exact:true }).click()
     await page.getByRole('button', { name:'Confirmar reserva', exact:true }).click()
     await expect(page.getByRole('heading', { name:'¡Solicitud registrada!' })).toBeVisible({ timeout:20000 })
+    let notificationHubCalls = 0
+    await page.route('**/booking', route => {
+      if (route.request().postDataJSON()?.action === 'hub') { notificationHubCalls++; return route.fulfill({ status:502, body:'Gateway unavailable' }) }
+      return route.continue()
+    })
     await page.goto('/cliente/avisos')
     await expect(page.getByRole('heading', { name:/Cita pendiente/ })).toBeVisible({ timeout:20000 })
     await page.getByRole('button', { name:'Marcar como leído' }).click()
     await expect(page.getByRole('button', { name:'Marcar como leído' })).toHaveCount(0)
+    expect(notificationHubCalls).toBe(0)
+    await page.unroute('**/booking')
     await page.goto('/cliente/favoritos')
     await page.getByRole('button', { name:/♡ Consulta integral/ }).click()
     await expect(page.getByRole('button', { name:'Quitar favorito' })).toBeVisible()
@@ -90,6 +97,11 @@ test('Sprint 3 public booking resumes after login, preferences, admin clients an
     await page.getByRole('button', { name:'Registrar interés' }).click()
     await page.getByRole('button', { name:'Retirar de la lista' }).click()
     await expect(page.getByText('No tienes solicitudes en espera.')).toBeVisible()
+    let clientApiCalls = 0
+    await staff.route('**/booking', route => {
+      if (route.request().postDataJSON()?.action === 'clients') { clientApiCalls++; return route.fulfill({ status:502, body:'Gateway unavailable' }) }
+      return route.continue()
+    })
     await login(staff, 'admin')
     await expect(staff.getByRole('heading', { name:'Actividad del negocio' })).toBeVisible()
     await staff.goto('/clientes')
@@ -98,7 +110,24 @@ test('Sprint 3 public booking resumes after login, preferences, admin clients an
     await staff.getByRole('button', { name:'Guardar cliente' }).click()
     await expect(staff.getByText('Datos de contacto guardados.')).toBeVisible()
     await expect(staff.getByRole('heading', { name:'Historial del cliente' })).toBeVisible()
+    expect(clientApiCalls).toBe(0)
+    await staff.unroute('**/booking')
+    // A failed hub request must not hide the services, which come from Firestore.
+    let hubOffline = true, optionsCalls = 0
+    await staff.route('**/booking', async route => {
+      const action = route.request().postDataJSON()?.action
+      if (action === 'options') optionsCalls++
+      if (action === 'hub' && hubOffline) return route.fulfill({ status:500, contentType:'application/json', body:JSON.stringify({ error:{ code:'internal', message:'Server error' } }) })
+      return route.continue()
+    })
     await staff.goto('/promociones')
+    await expect(staff.getByRole('alert')).toContainText('error al cargar los datos')
+    await staff.getByRole('combobox', { name:'Servicio', exact:true }).selectOption(serviceId)
+    expect(optionsCalls).toBe(0)
+    hubOffline = false
+    await staff.getByRole('button', { name:'Actualizar datos', exact:true }).click()
+    await expect(staff.getByRole('alert')).toHaveCount(0)
+    await staff.unroute('**/booking')
     await staff.getByLabel('Título', { exact:true }).fill('Oferta de prueba')
     await staff.getByRole('combobox', { name:'Servicio', exact:true }).selectOption(serviceId)
     await staff.getByLabel('Desde', { exact:true }).fill(new Date(Date.now()-86400000).toISOString().slice(0,10))

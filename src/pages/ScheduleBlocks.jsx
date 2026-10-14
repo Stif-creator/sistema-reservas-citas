@@ -1,3 +1,4 @@
+import DataList from '../components/ui/DataList'
 import { useEffect, useState } from 'react'
 import {
   Timestamp,
@@ -296,7 +297,7 @@ function ScheduleBlocks() {
         ) : blocks.length === 0 ? (
           <p className="text-sm text-muted">Todavía no hay bloqueos programados.</p>
         ) : (
-          <div className="overflow-x-auto">
+          <DataList items={blocks} label="Bloqueos" searchText={b => `${b.title} ${scopeLabel(b)} ${REASON_LABELS[b.reason] || b.reason} ${timeZone ? formatRange(b.startAt,b.endAt,timeZone) : ""}`}>{rows => <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-border text-xs font-semibold uppercase tracking-wide text-muted">
@@ -308,7 +309,7 @@ function ScheduleBlocks() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {blocks.map((block) => (
+                {rows.map((block) => (
                   <tr key={block.id}>
                     <td className="py-2.5 pr-4 font-medium text-ink">{block.title}</td>
                     <td className="py-2.5 pr-4">
@@ -340,7 +341,7 @@ function ScheduleBlocks() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </div>}</DataList>
         )}
 
         <form

@@ -1,3 +1,4 @@
+import DataList from '../components/ui/DataList'
 import { useEffect, useState } from 'react'
 import { collection, doc, getDoc, onSnapshot, query, where } from 'firebase/firestore'
 import { db } from '../firebase/config'
@@ -95,11 +96,11 @@ export default function Users() {
     {success && <Alert tone="success">{success}</Alert>}
     <Card title="Cuentas del negocio">
       <p className="mb-4 text-sm text-muted">Desactivar una cuenta impide su acceso al panel de este negocio. Tu cuenta y la del propietario están protegidas.</p>
-      {loading ? <p>Cargando usuarios…</p> : <div className="overflow-x-auto"><table className="w-full text-left text-sm">
+      {loading ? <p>Cargando usuarios…</p> : <DataList items={members} label="Usuarios" searchText={m => `${m.name} ${m.email} ${roles[m.role]} ${m.status === "active" ? "Activo" : m.status === "pending" ? "Pendiente" : "Inactivo"}`}>{rows => <div className="overflow-x-auto"><table className="w-full text-left text-sm">
         <thead><tr><th className="p-3">Usuario</th><th className="p-3">Rol</th><th className="p-3">Estado</th><th className="p-3">Acción</th></tr></thead>
-        <tbody>{members.map((member) => <UserRow key={member.userId}
+        <tbody>{rows.map((member) => <UserRow key={member.userId}
           member={member} busy={busy} locked={!ownerId || member.userId === ownerId || member.userId === currentUser.uid} save={save} />)}</tbody>
-      </table></div>}
+      </table></div>}</DataList>}
     </Card>
     <Card title="Permisos por rol">
       <ul className="space-y-2 text-sm">

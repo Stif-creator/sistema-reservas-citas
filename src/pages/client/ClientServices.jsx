@@ -1,3 +1,4 @@
+import DataList from '../../components/ui/DataList'
 import { useState } from 'react'
 import { Search } from 'lucide-react'
 import { useClientBusiness } from '../../context/client-context'
@@ -23,6 +24,6 @@ export default function ClientServices() {
       <button aria-pressed={!categoryId} onClick={() => setSelected('')}>Todos</button>
       {options.map(category => <button key={category.id} aria-pressed={categoryId === category.id} onClick={() => setSelected(category.id)}>{category.name}</button>)}
     </div>
-    <CatalogState empty={!filtered.length}><p className="client-results" role="status">{filtered.length} {filtered.length === 1 ? 'servicio disponible' : 'servicios disponibles'}</p><div className="client-service-grid">{filtered.map(service => <ServiceCard key={service.id} service={service} category={categories.find(category => category.id === service.categoryId)?.name} currency={business.settings?.currencyCode} />)}</div></CatalogState>
+    <CatalogState empty={!filtered.length}><p className="client-results" role="status">{filtered.length} {filtered.length === 1 ? 'servicio disponible' : 'servicios disponibles'}</p><DataList label="Servicios" items={filtered} search={false} resetKey={`${search}:${categoryId}`}>{rows => <div className="client-service-grid">{rows.map(service => <ServiceCard key={service.id} service={service} category={categories.find(category => category.id === service.categoryId)?.name} currency={business.settings?.currencyCode} />)}</div>}</DataList></CatalogState>
   </section>
 }

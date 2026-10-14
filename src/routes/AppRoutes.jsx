@@ -11,6 +11,7 @@ const Login = lazy(() => import('../pages/Login'))
 const Register = lazy(() => import('../pages/Register'))
 const Dashboard = lazy(() => import('../pages/Dashboard'))
 const BusinessSettings = lazy(() => import('../pages/BusinessSettings'))
+const Categories = lazy(() => import('../pages/Categories'))
 const Services = lazy(() => import('../pages/Services'))
 const Professionals = lazy(() => import('../pages/Professionals'))
 const ScheduleBlocks = lazy(() => import('../pages/ScheduleBlocks'))
@@ -95,6 +96,7 @@ function AppRoutes() {
           <Route path="/reservas/nueva" element={<ProtectedRoute allowedRoles={['admin']}><Reservations manual /></ProtectedRoute>} />
           <Route path="/reservas/:reservationId" element={<ProtectedRoute allowedRoles={['admin', 'professional']}><Reservations detail /></ProtectedRoute>} />
           <Route path="/agenda" element={<ProtectedRoute allowedRoles={['admin', 'professional']}><Agenda /></ProtectedRoute>} />
+          <Route path="/categorias" element={<ProtectedRoute allowedRoles={['admin']}><Categories /></ProtectedRoute>} />
           <Route path="/usuarios" element={<ProtectedRoute allowedRoles={['admin']}><Users /></ProtectedRoute>} />
           <Route path="/disponibilidad" element={<ProtectedRoute allowedRoles={['admin', 'professional']}><Availability /></ProtectedRoute>} />
           <Route

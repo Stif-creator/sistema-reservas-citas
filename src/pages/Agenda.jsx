@@ -1,3 +1,4 @@
+import DataList from '../components/ui/DataList'
 import { useAuth } from '../context/auth-context'
 import { useEffect, useState } from 'react'
 import { bookingRequest } from '../lib/bookingApi'
@@ -56,5 +57,5 @@ function AgendaView({ business, items, own }) {
 function AssignedServices({ businessId }) {
   const [items, setItems] = useState(null), [error, setError] = useState('')
   useEffect(() => { let active = true; bookingRequest({ action:'options', businessId }).then(r => { if (active) setItems(r.services) }).catch(e => { if (active) setError(e.message) }); return () => { active = false } }, [businessId])
-  return <section className="booking-panel"><h2>Mis servicios asignados</h2>{error && <p role="alert">{error}</p>}{!items && !error && <p role="status">Cargando servicios…</p>}{items?.length === 0 && <p>No tienes servicios activos asignados.</p>}<ul>{items?.map(s => <li key={s.id}>{s.name} · {s.durationMinutes} minutos</li>)}</ul></section>
+  return <section className="booking-panel"><h2>Mis servicios asignados</h2>{error && <p role="alert">{error}</p>}{!items && !error && <p role="status">Cargando servicios…</p>}{items?.length === 0 && <p>No tienes servicios activos asignados.</p>}<DataList label="Servicios asignados" items={items || []}>{rows => <ul>{rows.map(s => <li key={s.id}>{s.name} · {s.durationMinutes} minutos</li>)}</ul>}</DataList></section>
 }

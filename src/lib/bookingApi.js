@@ -1,3 +1,4 @@
+import { sendBookingRequest, bookingFailure } from './bookingTransport'
 import { httpsCallable } from 'firebase/functions'
 import { auth, functions } from '../firebase/config'
 
@@ -14,28 +15,7 @@ async function httpRequest(data) {
     throw error
   }
   const token = auth.currentUser ? await auth.currentUser.getIdToken() : null
-  const controller = new AbortController()
-  // El servidor gratuito puede tardar alrededor de un minuto en despertar.
-  const timeout = setTimeout(() => controller.abort(), 120000)
-  try {
-    const response = await fetch(`${apiUrl}/booking`, { method: 'POST', signal: controller.signal,
-      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    })
-    const payload = await response.json()
-    if (!response.ok || payload.error) {
-      const error = new Error(payload.error?.message || 'El servidor no está disponible.')
-      error.code = `functions/${payload.error?.code || 'unavailable'}`
-      throw error
-    }
-    if (!Object.hasOwn(payload, 'data')) throw new Error('Respuesta inválida del servidor.')
-    return payload.data
-  } catch (error) {
-    if (error.code?.startsWith('functions/')) throw error
-    const failure = new Error('No se recibió la respuesta del servidor.')
-    failure.code = controller.signal.aborted ? 'functions/deadline-exceeded' : 'functions/unavailable'
-    throw failure
-  } finally { clearTimeout(timeout) }
+  return sendBookingRequest(data, { base: apiUrl, token })
 }
 
 export async function bookingRequest(data) {
@@ -45,12 +25,5 @@ export async function bookingRequest(data) {
     if (provider === 'functions') return (await endpoint(data)).data
     throw new Error('Proveedor de reservas desconocido.')
   }
-  catch (error) {
-    if (['functions/internal', 'functions/unavailable', 'functions/deadline-exceeded'].includes(error.code)) {
-      const failure = new Error('No pudimos confirmar la respuesta del servidor. Reintenta la misma operación para comprobarla sin duplicarla.')
-      failure.code = error.code
-      throw failure
-    }
-    throw error
-  }
+  catch (error) { throw bookingFailure(error, data.action) }
 }

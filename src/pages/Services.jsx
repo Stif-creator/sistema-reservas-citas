@@ -1,3 +1,4 @@
+import DataList from '../components/ui/DataList'
 import ImageUploadField from '../components/ImageUploadField'
 import { useEffect, useState } from 'react'
 import {
@@ -34,14 +35,6 @@ function Services() {
   const [categories, setCategories] = useState([])
   const [categoriesLoading, setCategoriesLoading] = useState(true)
   const [categoriesListError, setCategoriesListError] = useState('')
-  const [catEditingId, setCatEditingId] = useState(null)
-  const [catName, setCatName] = useState('')
-  const [catDescription, setCatDescription] = useState('')
-  const [catFieldErrors, setCatFieldErrors] = useState({})
-  const [catError, setCatError] = useState('')
-  const [catSuccess, setCatSuccess] = useState('')
-  const [catSaving, setCatSaving] = useState(false)
-
   // --- Servicios ---
   const [services, setServices] = useState([])
   const [servicesLoading, setServicesLoading] = useState(true)
@@ -134,91 +127,6 @@ function Services() {
     svcEditingId && svcCategoryId && !activeCategories.some((c) => c.id === svcCategoryId)
       ? [...activeCategories, ...categories.filter((c) => c.id === svcCategoryId)]
       : activeCategories
-
-  // ---------- Categorías: formulario ----------
-
-  function resetCategoryForm() {
-    setCatEditingId(null)
-    setCatName('')
-    setCatDescription('')
-    setCatFieldErrors({})
-  }
-
-  function loadCategoryForEdit(category) {
-    setCatEditingId(category.id)
-    setCatName(category.name ?? '')
-    setCatDescription(category.description ?? '')
-    setCatFieldErrors({})
-    setCatError('')
-    setCatSuccess('')
-  }
-
-  function clearCatFieldError(key) {
-    setCatFieldErrors((prev) => (prev[key] ? { ...prev, [key]: '' } : prev))
-  }
-
-  function validateCategory() {
-    const errors = {}
-    if (!catName.trim()) {
-      errors.name = 'El nombre de la categoría es obligatorio.'
-    }
-    return errors
-  }
-
-  async function handleCategorySubmit(e) {
-    e.preventDefault()
-    setCatError('')
-    setCatSuccess('')
-
-    const errors = validateCategory()
-    setCatFieldErrors(errors)
-    if (Object.keys(errors).length > 0) return
-
-    setCatSaving(true)
-    try {
-      if (catEditingId) {
-        await updateDoc(doc(db, 'categories', catEditingId), {
-          name: catName.trim(),
-          description: catDescription.trim(),
-          updatedAt: serverTimestamp(),
-        })
-        setCatSuccess('Categoría actualizada.')
-      } else {
-        const categoryRef = doc(collection(db, 'categories'))
-        await setDoc(categoryRef, {
-          businessId,
-          name: catName.trim(),
-          description: catDescription.trim(),
-          displayOrder: categories.length + 1,
-          isActive: true,
-          image: { url: null, publicId: null },
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-          id: categoryRef.id,
-        })
-        setCatSuccess('Categoría creada.')
-      }
-      resetCategoryForm()
-    } catch (err) {
-      console.error('Error al guardar categoría', err)
-      setCatError('No se pudo guardar la categoría. Intenta de nuevo.')
-    } finally {
-      setCatSaving(false)
-    }
-  }
-
-  async function toggleCategoryActive(category) {
-    setCatError('')
-    try {
-      await updateDoc(doc(db, 'categories', category.id), {
-        isActive: !category.isActive,
-        updatedAt: serverTimestamp(),
-      })
-    } catch (err) {
-      console.error('Error al actualizar categoría', err)
-      setCatError('No se pudo actualizar la categoría. Intenta de nuevo.')
-    }
-  }
 
   // ---------- Servicios: formulario ----------
 
@@ -377,112 +285,11 @@ function Services() {
     <div className="space-y-6">
       <PageHeader
         title="Servicios"
-        description="Organiza tus categorías y los servicios que ofreces."
+        description="Administra los servicios que ofreces. Gestiona sus categorías desde el menú Categorías."
       />
 
-      <Card title="Categorías">
-        {categoriesListError && (
-          <Alert tone="error">Error al cargar categorías: {categoriesListError}</Alert>
-        )}
-
-        {categoriesLoading ? (
-          <p className="text-sm text-muted">Cargando categorías...</p>
-        ) : categories.length === 0 ? (
-          <p className="text-sm text-muted">Todavía no hay categorías.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-border text-xs font-semibold uppercase tracking-wide text-muted">
-                  <th className="py-2 pr-4">Nombre</th>
-                  <th className="py-2 pr-4">Descripción</th>
-                  <th className="py-2 pr-4">Estado</th>
-                  <th className="py-2 pr-4">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {categories.map((cat) => (
-                  <tr key={cat.id}>
-                    <td className="py-2.5 pr-4 font-medium text-ink">{cat.name}</td>
-                    <td className="py-2.5 pr-4 text-muted">{cat.description || '—'}</td>
-                    <td className="py-2.5 pr-4">
-                      <Badge tone={cat.isActive ? 'success' : 'neutral'}>
-                        {cat.isActive ? 'Activa' : 'Inactiva'}
-                      </Badge>
-                    </td>
-                    <td className="py-2.5 pr-4">
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          className="px-2 py-1"
-                          onClick={() => loadCategoryForEdit(cat)}
-                        >
-                          Editar
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          className="px-2 py-1"
-                          onClick={() => toggleCategoryActive(cat)}
-                        >
-                          {cat.isActive ? 'Desactivar' : 'Activar'}
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        <form
-          onSubmit={handleCategorySubmit}
-          noValidate
-          className="mt-6 space-y-4 border-t border-border pt-6"
-        >
-          <h4 className="text-sm font-semibold text-ink">
-            {catEditingId ? 'Editar categoría' : 'Nueva categoría'}
-          </h4>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Nombre" htmlFor="catName" error={catFieldErrors.name}>
-              <input
-                id="catName"
-                value={catName}
-                onChange={(e) => {
-                  setCatName(e.target.value)
-                  clearCatFieldError('name')
-                }}
-                className={fieldControlClasses(Boolean(catFieldErrors.name))}
-              />
-            </Field>
-
-            <Field label="Descripción" htmlFor="catDescription">
-              <input
-                id="catDescription"
-                value={catDescription}
-                onChange={(e) => setCatDescription(e.target.value)}
-                className={fieldControlClasses(false)}
-              />
-            </Field>
-          </div>
-
-          {catError && <Alert tone="error">{catError}</Alert>}
-          {catSuccess && <Alert tone="success">{catSuccess}</Alert>}
-
-          <div className="flex items-center gap-2">
-            <Button type="submit" disabled={catSaving}>
-              {catSaving ? 'Guardando...' : catEditingId ? 'Guardar cambios' : 'Crear categoría'}
-            </Button>
-            {catEditingId && (
-              <Button type="button" variant="secondary" onClick={resetCategoryForm}>
-                Cancelar edición
-              </Button>
-            )}
-          </div>
-        </form>
-      </Card>
-
+      {categoriesListError && <Alert tone="error">No se pudieron cargar las categorías.</Alert>}
+      {categoriesLoading && <p>Cargando categorías…</p>}
       <Card title="Servicios">
         {servicesListError && (
           <Alert tone="error">Error al cargar servicios: {servicesListError}</Alert>
@@ -493,7 +300,7 @@ function Services() {
         ) : services.length === 0 ? (
           <p className="text-sm text-muted">Todavía no hay servicios.</p>
         ) : (
-          <div className="overflow-x-auto">
+          <DataList items={services} label="Servicios" searchText={s => `${s.name} ${s.description || ""} ${categories.find(c => c.id === s.categoryId)?.name || ""} ${s.price} ${s.durationMinutes} ${s.isActive ? "Activo" : "Inactivo"}`}>{rows => <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-border text-xs font-semibold uppercase tracking-wide text-muted">
@@ -506,7 +313,7 @@ function Services() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {services.map((svc) => (
+                {rows.map((svc) => (
                   <tr key={svc.id}>
                     <td className="py-2.5 pr-4 font-medium text-ink">{svc.name}</td>
                     <td className="py-2.5 pr-4 text-muted">
@@ -546,7 +353,7 @@ function Services() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </div>}</DataList>
         )}
 
         <div className="mt-6 border-t border-border pt-6">
@@ -696,7 +503,7 @@ function Services() {
               {svcSuccess && <Alert tone="success">{svcSuccess}</Alert>}
 
               <div className="flex items-center gap-2">
-                <Button type="submit" disabled={svcSaving || imageUploading}>
+                <Button type="submit" disabled={svcSaving || imageUploading || !currencyCode || categoriesLoading}>
                   {svcSaving ? 'Guardando...' : svcEditingId ? 'Guardar cambios' : 'Crear servicio'}
                 </Button>
                 {svcEditingId && (

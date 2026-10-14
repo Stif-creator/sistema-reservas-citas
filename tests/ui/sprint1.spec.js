@@ -34,10 +34,12 @@ test('administrator registers professionals, assigns services/hours, manages rol
   await page.getByRole('button', { name: 'Guardar horario', exact: true }).click()
   await expect(page.getByText('Horario guardado.', { exact: true })).toBeVisible()
 
-  await page.getByRole('link', { name: 'Servicios', exact: true }).click()
+  await page.getByRole('link', { name: 'Categorías', exact: true }).click()
   await page.locator('#catName').fill('Bienestar')
   await page.getByRole('button', { name: 'Crear categoría' }).click()
   await expect(page.getByText('Categoría creada.', { exact: true })).toBeVisible()
+  await page.getByRole('link', { name: 'Servicios', exact: true }).click()
+  await expect(page.locator('#catName')).toHaveCount(0)
   await page.locator('#svcName').fill('Consulta')
   await page.locator('#svcCategoryId').selectOption({ label: 'Bienestar' })
   await page.locator('#svcPrice').fill('100')

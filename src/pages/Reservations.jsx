@@ -1,3 +1,4 @@
+import DataList from '../components/ui/DataList'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/auth-context'
@@ -17,7 +18,6 @@ export default function Reservations({ detail = false, manual = false }) {
   const { business, items, loading, error } = useBusinessReservations()
   const { reservationId } = useParams()
   const navigate = useNavigate()
-  const [search, setSearch] = useState('')
   const [date, setDate] = useState('')
   const [status, setStatus] = useState('')
   const [editing, setEditing] = useState(false)
@@ -35,21 +35,19 @@ export default function Reservations({ detail = false, manual = false }) {
       <ReservationActions reservation={item} business={business} onReschedule={membership.role === 'admin' ? () => setEditing(true) : undefined} />
     </>)}
   </div>
-  const filtered = items.filter(item => (!status || item.status === status) && (!date || (Number.isFinite(dateMillis(item.startAt)) && dayKey(dateMillis(item.startAt), zone) === date)) &&
-    `${item.serviceName || ''} ${item.clientName || ''} ${item.professionalName || ''}`.toLowerCase().includes(search.toLowerCase().trim()))
+  const filtered = items.filter(item => (!status || item.status === status) && (!date || (Number.isFinite(dateMillis(item.startAt)) && dayKey(dateMillis(item.startAt), zone) === date)))
     .sort((a, b) => dateMillis(b.startAt) - dateMillis(a.startAt))
   return <div className="space-y-6 booking-scope">
     <PageHeader title="Reservas" description={membership.role === 'professional' ? 'Gestiona el estado de tus citas asignadas.' : 'Consulta y gestiona las citas de tu negocio.'}
       actions={membership.role === 'admin' && bookingEnabled && <Link className="booking-button" to="/reservas/nueva">Reserva manual</Link>} />
     {!bookingEnabled && <Alert>Las reservas en línea todavía no están habilitadas.</Alert>}
     <Card><div className="mb-6 grid gap-4 md:grid-cols-3">
-      <label className="booking-field">Buscar reservas<input type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Cliente, servicio o profesional" /></label>
       <label className="booking-field">Fecha<input type="date" value={date} onChange={event => setDate(event.target.value)} /></label>
       <label className="booking-field">Estado<select value={status} onChange={event => setStatus(event.target.value)}><option value="">Todos</option>{Object.entries(reservationStatuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
     </div><p className="mb-4 text-xs text-muted">Zona horaria: {zone}</p>
-      {!filtered.length ? <p>No hay reservas para esta selección.</p> : <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr className="border-b border-border"><th className="p-3">Fecha y hora</th><th className="p-3">Servicio</th><th className="p-3">Cliente</th><th className="p-3">Profesional</th><th className="p-3">Estado</th><th className="p-3">Acción</th></tr></thead><tbody>
-        {filtered.map(item => <tr key={item.id} className="border-b border-border"><td className="p-3">{formatAppointmentDate(item.startAt, zone)}<br />{formatAppointmentDate(item.startAt, zone, true)}</td><td className="p-3">{item.serviceName || 'Servicio'}</td><td className="p-3">{item.clientName || 'Cliente'}</td><td className="p-3">{item.professionalName || 'Profesional'}</td><td className="p-3">{reservationStatuses[item.status] || 'Por confirmar'}</td><td className="p-3"><Link className="text-primary underline" to={`/reservas/${encodeURIComponent(item.id)}`}>Ver detalle</Link></td></tr>)}
-      </tbody></table></div>}
+      {!filtered.length ? <p>No hay reservas para esta selección.</p> : <DataList items={filtered} label="Reservas" resetKey={`${date}:${status}`} searchText={r => `${r.serviceName} ${r.clientName} ${r.professionalName} ${r.clientPhone || ""} ${reservationStatuses[r.status]} ${formatAppointmentDate(r.startAt,zone)}`}>{rows => <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr className="border-b border-border"><th className="p-3">Fecha y hora</th><th className="p-3">Servicio</th><th className="p-3">Cliente</th><th className="p-3">Profesional</th><th className="p-3">Estado</th><th className="p-3">Acción</th></tr></thead><tbody>
+        {rows.map(item => <tr key={item.id} className="border-b border-border"><td className="p-3">{formatAppointmentDate(item.startAt, zone)}<br />{formatAppointmentDate(item.startAt, zone, true)}</td><td className="p-3">{item.serviceName || 'Servicio'}</td><td className="p-3">{item.clientName || 'Cliente'}</td><td className="p-3">{item.professionalName || 'Profesional'}</td><td className="p-3">{reservationStatuses[item.status] || 'Por confirmar'}</td><td className="p-3"><Link className="text-primary underline" to={`/reservas/${encodeURIComponent(item.id)}`}>Ver detalle</Link></td></tr>)}
+      </tbody></table></div>}</DataList>}
     </Card>
   </div>
 }

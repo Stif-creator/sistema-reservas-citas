@@ -20,7 +20,8 @@ Referencia: documento original «Sistema genérico de gestión y reservas de cit
 
 ## Comportamiento y límites explícitos
 
-- Los avisos son internos. La campana recibe cambios en tiempo real y actualiza vencimientos cada 30 segundos; el listado se actualiza cada minuto o al recuperar foco. Los recordatorios aparecen desde su anticipación hasta el inicio de la cita. No se envían correos, SMS ni notificaciones con el navegador cerrado.
+- Los avisos son internos. La campana y el listado reciben cambios directamente de Firestore en tiempo real y actualizan vencimientos cada 30 segundos. Los recordatorios aparecen desde su anticipación hasta el inicio de la cita. No se envían correos, SMS ni notificaciones con el navegador cerrado.
+- Clientes e historial, avisos y el selector de servicios de Promociones se consultan directamente en Firestore con las reglas del usuario. No dependen del arranque de Render. Las escrituras siguen pasando por la API. Las consultas HTTP reintentan errores temporales 502/503/504 dentro del límite de espera; las escrituras no se reenvían automáticamente.
 - Los recordatorios se guardan con `visibleAt` y `expiresAt`: no requieren un cron de pago ni un servidor siempre encendido. Las citas anteriores a este cambio reciben recordatorio cuando se configura la anticipación o se modifican.
 - El borrador público no reserva el horario. Tras el acceso, el usuario revisa y confirma nuevamente. Si el navegador no permite sessionStorage, debe repetir la selección.
 - La cuenta debe pertenecer al negocio elegido. No se añadió un sistema de membresías múltiples automático.

@@ -153,6 +153,8 @@ Después configura `VITE_BOOKING_PROVIDER=functions` y `VITE_BOOKING_ENABLED=tru
 
 ## Sprint 3
 
+Clientes e historial, Avisos y los servicios del selector de Promociones se cargan directamente desde Firestore. Guardar cambios requiere la API de Render. Si aparece HTTP 502/503/504, revisa el despliegue actual y `/health`; no implica que no existan clientes, avisos o servicios. Las lecturas HTTP reintentan fallos temporales sin duplicar escrituras. El mensaje de reintentar una reserva sin duplicarla se reserva para operaciones de cita con identificador de solicitud.
+
 La implementacion de HU-13 a HU-25 y sus limites se detallan en [Verificacion del Sprint 3](docs/sprint-3-verificacion.md).
 
 - Portal: profesionales, opiniones, promociones, mapa en Contacto y reserva sin sesion hasta confirmar.
@@ -227,3 +229,8 @@ Firebase conserva las cuentas y los documentos; Cloudinary conserva los archivos
 El servidor verifica sesión, cuenta activa y pertenencia al negocio; solo administradores pueden subir imágenes del negocio. Cada usuario tiene un límite de 30 intentos de subida por hora. Las imágenes retiradas, reemplazadas o subidas en formularios cancelados permanecen en Cloudinary; se pueden eliminar desde su biblioteca después de comprobar que no están en uso. Las pruebas automatizadas simulan Cloudinary; la prueba real requiere completar la configuración anterior.
 
 Para ejecutar también la API localmente, agrega las tres variables a `.env.server` (archivo privado ignorado por Git) y ejecuta `npm run server`. Si en el futuro cambias las reservas a Cloud Functions, conserva Render y configura `VITE_MEDIA_API_URL` con su dirección hasta migrar también este endpoint.
+# Búsqueda y paginación
+
+Las listas del panel y los catálogos incluyen búsqueda mientras escribes y páginas de 10, 25 o 50 registros. La búsqueda ignora mayúsculas y tildes y filtra todos los registros cargados antes de paginar. Al cambiar la búsqueda o los filtros se vuelve a la primera página. Los datos que llegan por los listeners de Firestore actualizan los resultados sin recargar; esta paginación visual no reduce por sí misma las lecturas de Firestore.
+
+Las categorías se administran en **Categorías** (`/categorias`), accesible solo para administradores. **Servicios** conserva el selector de categoría, pero la creación y edición de categorías están en su página independiente. Los formularios y calendarios conservan sus controles propios.

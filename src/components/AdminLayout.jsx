@@ -1,6 +1,7 @@
 import NotificationLink from './NotificationLink'
 import { useEffect, useRef, useState } from 'react'
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
+import { ListSearchContext } from '../context/list-search-context'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useAuth } from '../context/auth-context'
@@ -36,6 +37,7 @@ const BUSINESS_LINKS = [
   { to: '/avisos', label: 'Avisos', icon: Bell, roles: ['admin', 'professional'] },
   { to: '/usuarios', label: 'Usuarios', icon: Users, roles: ['admin'] },
   { to: '/disponibilidad', label: 'Disponibilidad', icon: Calendar, roles: ['admin', 'professional'] },
+  { to: '/categorias', label: 'Categorías', icon: Scissors, roles: ['admin'] },
   { to: '/servicios', label: 'Servicios', icon: Scissors, roles: ['admin'] },
   {
     to: '/profesionales',
@@ -69,6 +71,9 @@ function initialsFor(text) {
 function AdminLayout() {
   const { membership, userDoc, logout } = useAuth()
   const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const [listSearch, setListSearch] = useState({ path: '', value: '' })
+  const searchValue = listSearch.path === pathname ? listSearch.value : ''
   const [businessName, setBusinessName] = useState('')
   const [layoutError, setLayoutError] = useState('')
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
@@ -239,8 +244,11 @@ function AdminLayout() {
               className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted"
             />
             <input
-              type="text"
-              placeholder="Buscar..."
+              type="search"
+              aria-label="Buscar en las listas de esta página"
+              placeholder="Buscar en esta página..."
+              value={searchValue}
+              onChange={event => setListSearch({ path: pathname, value: event.target.value })}
               className="w-full rounded-lg border border-border bg-slate-50 py-2 pl-9 pr-3 text-sm text-ink placeholder:text-muted focus:border-primary focus:bg-white focus:outline-none"
             />
           </div>
@@ -291,7 +299,9 @@ function AdminLayout() {
               {layoutError}
             </p>
           )}
-          <Outlet key={`${membership.businessId}:${membership.role}:${membership.userId}`} />
+          <ListSearchContext.Provider value={searchValue}>
+            <Outlet key={`${membership.businessId}:${membership.role}:${membership.userId}`} />
+          </ListSearchContext.Provider>
         </main>
       </div>
     </div>

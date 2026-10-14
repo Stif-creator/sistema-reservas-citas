@@ -1,3 +1,4 @@
+import DataList from '../components/ui/DataList'
 import PublicCatalogExtras from '../components/PublicCatalogExtras'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -172,8 +173,8 @@ export default function Home() {
               )}
             </div>
           ) : (
-            <div className="service-grid">
-              {items.map((item) => {
+            <DataList label={business ? "Servicios" : "Negocios"} items={items} searchText={item => `${item.name} ${item.description || ""}`} resetKey={business?.id || "all"}>{rows => <div className="service-grid">
+              {rows.map((item) => {
                 const url = safeImageUrl(business ? item.image?.url : item.cover?.url)
                 return (
                   <article className="service-card" key={item.id}>
@@ -212,7 +213,7 @@ export default function Home() {
                   </article>
                 )
               })}
-            </div>
+            </div>}</DataList>
           )}
           {business && <Link className="public-button" to={`${base}/reservar`}>Reservar cita</Link>}
         </section>

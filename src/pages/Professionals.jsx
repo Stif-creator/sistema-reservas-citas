@@ -1,3 +1,4 @@
+import DataList from '../components/ui/DataList'
 import ImageUploadField from '../components/ImageUploadField'
 import { useEffect, useRef, useState } from 'react'
 import {
@@ -440,8 +441,8 @@ function Professionals() {
           Todavía no hay profesionales registrados en este negocio.
         </p>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {professionals.filter((prof) => professionalUsers.includes(prof.userId)).map((prof) => (
+        <DataList label="Profesionales" items={professionals.filter(prof => professionalUsers.includes(prof.userId))}>{rows => <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {rows.map((prof) => (
             <ProfessionalCard
               key={prof.id}
               professional={prof}
@@ -449,7 +450,7 @@ function Professionals() {
               onToggleActive={toggleProfessionalActive}
             />
           ))}
-        </div>
+        </div>}</DataList>
       )}
 
       {editingProfessional && (
