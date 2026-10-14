@@ -1,3 +1,4 @@
+import ImageUploadField from '../components/ImageUploadField'
 import { useEffect, useState } from 'react'
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase/config'
@@ -27,6 +28,7 @@ function BusinessSettings() {
   const [description, setDescription] = useState('')
   const [about, setAbout] = useState(defaultAbout)
   const [logoUrl, setLogoUrl] = useState('')
+  const [imageUploading, setImageUploading] = useState(false)
   const [coverUrl, setCoverUrl] = useState('')
   const [primaryColor, setPrimaryColor] = useState('#1672ed')
   const [secondaryColor, setSecondaryColor] = useState('#eaf3ff')
@@ -119,6 +121,7 @@ function BusinessSettings() {
 
   async function handleSubmit(e) {
     e.preventDefault()
+    if (imageUploading) return
     setError('')
     setSuccess('')
 
@@ -252,37 +255,9 @@ function BusinessSettings() {
 
         <Card title="Imágenes">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="URL del logo" htmlFor="logoUrl">
-              <input
-                id="logoUrl"
-                value={logoUrl}
-                onChange={(e) => setLogoUrl(e.target.value)}
-                className={fieldControlClasses(false)}
-              />
-              {logoUrl && (
-                <img
-                  src={logoUrl}
-                  alt="Vista previa del logo"
-                  className="mt-2 h-16 w-16 rounded-lg border border-border object-cover"
-                />
-              )}
-            </Field>
+            <ImageUploadField label="Logo" value={logoUrl} onChange={setLogoUrl} businessId={businessId} kind="logo" disabled={saving || imageUploading} onBusyChange={setImageUploading} />
 
-            <Field label="URL de la portada" htmlFor="coverUrl">
-              <input
-                id="coverUrl"
-                value={coverUrl}
-                onChange={(e) => setCoverUrl(e.target.value)}
-                className={fieldControlClasses(false)}
-              />
-              {coverUrl && (
-                <img
-                  src={coverUrl}
-                  alt="Vista previa de la portada"
-                  className="mt-2 h-24 w-full rounded-lg border border-border object-cover"
-                />
-              )}
-            </Field>
+            <ImageUploadField label="Portada" value={coverUrl} onChange={setCoverUrl} businessId={businessId} kind="cover" disabled={saving || imageUploading} onBusyChange={setImageUploading} />
           </div>
         </Card>
 
@@ -404,7 +379,7 @@ function BusinessSettings() {
         {error && <Alert tone="error">{error}</Alert>}
         {success && <Alert tone="success">{success}</Alert>}
 
-        <Button type="submit" disabled={saving}>
+        <Button type="submit" disabled={saving || imageUploading}>
           {saving ? 'Guardando...' : 'Guardar cambios'}
         </Button>
       </form>

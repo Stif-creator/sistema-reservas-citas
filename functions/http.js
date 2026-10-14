@@ -5,7 +5,7 @@ const statusCodes = { 'invalid-argument': 400, unauthenticated: 401, 'permission
   'not-found': 404, 'already-exists': 409, 'failed-precondition': 409, aborted: 409,
   'resource-exhausted': 429, unavailable: 503, 'deadline-exceeded': 504 }
 
-export function createBookingServer({ allowedOrigins, verifyToken, execute }) {
+export function createBookingServer({ allowedOrigins, verifyToken, execute, upload }) {
   const origins = new Set(allowedOrigins)
   return createServer({ requestTimeout: 30000, headersTimeout: 15000 }, async (req, res) => {
     const send = (status, body) => {
@@ -16,7 +16,8 @@ export function createBookingServer({ allowedOrigins, verifyToken, execute }) {
     res.setHeader('X-Content-Type-Options', 'nosniff')
     res.setHeader('Vary', 'Origin')
     if (req.url === '/health' && req.method === 'GET') return send(200, { ok: true })
-    if (req.url !== '/booking') return send(404, { error: { code: 'not-found', message: 'Ruta no encontrada.' } })
+    const isImage = req.url === '/images' && typeof upload === 'function'
+    if (req.url !== '/booking' && !isImage) return send(404, { error: { code: 'not-found', message: 'Ruta no encontrada.' } })
     if (req.headers.origin && !origins.has(req.headers.origin)) return send(403, { error: { code: 'permission-denied', message: 'Origen no permitido.' } })
     if (req.headers.origin) res.setHeader('Access-Control-Allow-Origin', req.headers.origin)
     if (req.method === 'OPTIONS') {
@@ -39,14 +40,14 @@ export function createBookingServer({ allowedOrigins, verifyToken, execute }) {
       const chunks = []; let size = 0
       for await (const chunk of req) {
         size += chunk.length
-        if (size > 16384) throw new BookingError('invalid-argument', 'La solicitud es demasiado grande.')
+        if (size > (isImage ? 2900000 : 16384)) throw new BookingError('invalid-argument', 'La solicitud es demasiado grande.')
         chunks.push(chunk)
       }
       let data
       try { data = JSON.parse(Buffer.concat(chunks).toString('utf8')) }
       catch { throw new BookingError('invalid-argument', 'Solicitud JSON inválida.') }
       if (!data || typeof data !== 'object' || Array.isArray(data)) throw new BookingError('invalid-argument', 'Solicitud inválida.')
-      send(200, { data: await execute(identity.uid, data) })
+      send(200, { data: await (isImage ? upload : execute)(identity.uid, data) })
     } catch (error) {
       const known = error instanceof BookingError
       if (!known) console.error('Booking HTTP failed:', error.code || 'unknown')

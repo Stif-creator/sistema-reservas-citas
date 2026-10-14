@@ -22,6 +22,28 @@ ui-debug.log
 *service-account*.json
 *firebase-adminsdk*.json
 
+# Private credentials and local data (at any directory level)
+.envrc
+.npmrc
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+serviceAccount*.json
+*serviceAccountKey*.json
+credentials.json
+application_default_credentials.json
+secrets/
+.secrets/
+credentials/
+backups/
+
+# Generated Firebase cache and emulator exports
+.firebase/
+firebase-export*/
+firestore-export*/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -3,6 +3,7 @@ import { getAuth } from 'firebase-admin/auth'
 import { getFirestore } from 'firebase-admin/firestore'
 import { executeBooking } from './booking.js'
 import { createBookingServer } from './http.js'
+import { uploadImage } from './images.js'
 
 const projectId = process.env.GCLOUD_PROJECT
 const emulator = process.env.BOOKING_USE_EMULATORS === 'true'
@@ -19,6 +20,7 @@ initializeApp(emulator ? { projectId } : { projectId, credential: applicationDef
 const server = createBookingServer({ allowedOrigins,
   verifyToken: token => getAuth().verifyIdToken(token, true),
   execute: (uid, data) => executeBooking(getFirestore(), uid, data),
+  upload: (uid, data) => uploadImage(getFirestore(), uid, data),
 })
 server.listen(Number(process.env.PORT || 3001), '0.0.0.0', () => console.log('Booking API lista'))
 for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => {

@@ -1,3 +1,4 @@
+import ImageUploadField from '../components/ImageUploadField'
 import { useEffect, useState } from 'react'
 import {
   collection,
@@ -54,6 +55,7 @@ function Services() {
   const [svcBufferBefore, setSvcBufferBefore] = useState('')
   const [svcBufferAfter, setSvcBufferAfter] = useState('')
   const [svcImageUrl, setSvcImageUrl] = useState('')
+  const [imageUploading, setImageUploading] = useState(false)
   const [svcFieldErrors, setSvcFieldErrors] = useState({})
   const [svcError, setSvcError] = useState('')
   const [svcSuccess, setSvcSuccess] = useState('')
@@ -293,6 +295,7 @@ function Services() {
 
   async function handleServiceSubmit(e) {
     e.preventDefault()
+    if (imageUploading) return
     setSvcError('')
     setSvcSuccess('')
 
@@ -524,7 +527,7 @@ function Services() {
                           variant="ghost"
                           className="px-2 py-1"
                           onClick={() => loadServiceForEdit(svc)}
-                          disabled={svcSaving}
+                          disabled={svcSaving || imageUploading}
                         >
                           <Pencil size={14} />
                           Editar
@@ -533,7 +536,7 @@ function Services() {
                           variant="ghost"
                           className="px-2 py-1"
                           onClick={() => toggleServiceActive(svc)}
-                          disabled={svcSaving}
+                          disabled={svcSaving || imageUploading}
                         >
                           {svc.isActive ? 'Desactivar' : 'Activar'}
                         </Button>
@@ -687,31 +690,17 @@ function Services() {
                 </Field>
               </div>
 
-              <Field label="URL de la imagen" htmlFor="svcImageUrl">
-                <input
-                  id="svcImageUrl"
-                  value={svcImageUrl}
-                  onChange={(e) => setSvcImageUrl(e.target.value)}
-                  className={fieldControlClasses(false)}
-                />
-                {svcImageUrl && (
-                  <img
-                    src={svcImageUrl}
-                    alt="Vista previa del servicio"
-                    className="mt-2 h-16 w-16 rounded-lg border border-border object-cover"
-                  />
-                )}
-              </Field>
+              <ImageUploadField label="Imagen del servicio" value={svcImageUrl} onChange={setSvcImageUrl} businessId={businessId} kind="service" disabled={svcSaving || imageUploading} onBusyChange={setImageUploading} />
 
               {svcError && <Alert tone="error">{svcError}</Alert>}
               {svcSuccess && <Alert tone="success">{svcSuccess}</Alert>}
 
               <div className="flex items-center gap-2">
-                <Button type="submit" disabled={svcSaving}>
+                <Button type="submit" disabled={svcSaving || imageUploading}>
                   {svcSaving ? 'Guardando...' : svcEditingId ? 'Guardar cambios' : 'Crear servicio'}
                 </Button>
                 {svcEditingId && (
-                  <Button type="button" variant="secondary" onClick={resetServiceForm} disabled={svcSaving}>
+                  <Button type="button" variant="secondary" onClick={resetServiceForm} disabled={svcSaving || imageUploading}>
                     Cancelar edición
                   </Button>
                 )}

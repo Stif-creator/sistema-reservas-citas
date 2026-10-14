@@ -1,10 +1,13 @@
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore'
+import { db } from '../../firebase/config'
+import ImageUploadField from '../../components/ImageUploadField'
 import { useState } from 'react'
 import { KeyRound, Mail, ShieldCheck } from 'lucide-react'
 import { useAuth } from '../../context/auth-context'
 import { safeImageUrl } from '../../lib/brand'
 
 export default function ClientProfile() {
-  const { userDoc, resetPassword } = useAuth()
+  const { userDoc, resetPassword, currentUser, membership } = useAuth()
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -25,6 +28,7 @@ export default function ClientProfile() {
         <div><dt>Teléfono</dt><dd>{userDoc.phone || 'Sin teléfono registrado'}</dd></div>
       </dl><p className="client-profile-note"><ShieldCheck size={16} />Esta información pertenece a tu cuenta personal.</p></div>
     </section>
+    <section className="client-panel"><ImageUploadField label="Foto de perfil" value={userDoc.photoUrl} businessId={membership?.businessId} kind="profile" immediate onChange={url => updateDoc(doc(db, 'users', currentUser.uid), { photoUrl: url || null, updatedAt: serverTimestamp() })} /></section>
     <section className="client-security"><h2>Seguridad</h2><div className="client-panel"><KeyRound size={24} /><div><h3>Contraseña de acceso</h3><p>Recibe un enlace en tu correo para cambiarla de forma segura.</p></div><button className="public-button secondary" disabled={busy || !!message} onClick={reset}><Mail size={16} />{busy ? 'Enviando…' : message ? 'Enlace enviado' : 'Cambiar contraseña'}</button></div>
       {message && <p className="public-info" role="status">{message}</p>}{error && <p className="public-alert" role="alert">{error}</p>}
     </section>

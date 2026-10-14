@@ -1,3 +1,4 @@
+import ImageUploadField from '../components/ImageUploadField'
 import { useEffect, useRef, useState } from 'react'
 import {
   arrayRemove,
@@ -153,6 +154,7 @@ function Professionals() {
   const [bio, setBio] = useState('')
   const [phone, setPhone] = useState('')
   const [photoUrl, setPhotoUrl] = useState('')
+  const [imageUploading, setImageUploading] = useState(false)
   const [profileFieldErrors, setProfileFieldErrors] = useState({})
   const [profileError, setProfileError] = useState('')
   const [profileSuccess, setProfileSuccess] = useState('')
@@ -228,6 +230,7 @@ function Professionals() {
   const editingProfessional = professionals.find((p) => p.id === editingId) ?? null
 
   function loadProfessionalForEdit(prof) {
+    if (imageUploading) return
     setEditingId(prof.id)
 
     setJobTitle(prof.jobTitle ?? '')
@@ -250,6 +253,7 @@ function Professionals() {
   }
 
   function closeEditor() {
+    if (imageUploading) return
     setEditingId(null)
   }
 
@@ -289,6 +293,7 @@ function Professionals() {
 
   async function handleProfileSubmit(e) {
     e.preventDefault()
+    if (imageUploading) return
     setProfileError('')
     setProfileSuccess('')
 
@@ -509,21 +514,7 @@ function Professionals() {
                     />
                   </Field>
 
-                  <Field label="URL de la foto" htmlFor="photoUrl">
-                    <input
-                      id="photoUrl"
-                      value={photoUrl}
-                      onChange={(e) => setPhotoUrl(e.target.value)}
-                      className={fieldControlClasses(false)}
-                    />
-                    {photoUrl && (
-                      <img
-                        src={photoUrl}
-                        alt="Vista previa de la foto"
-                        className="mt-2 h-16 w-16 rounded-full border border-border object-cover"
-                      />
-                    )}
-                  </Field>
+                  <ImageUploadField label="Foto del profesional" value={photoUrl} onChange={setPhotoUrl} businessId={businessId} kind="professional" disabled={profileSaving || imageUploading} onBusyChange={setImageUploading} />
 
                   <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5">
                     <span className="text-sm text-ink">Profesional activo</span>
@@ -547,7 +538,7 @@ function Professionals() {
                   {profileError && <Alert tone="error">{profileError}</Alert>}
                   {profileSuccess && <Alert tone="success">{profileSuccess}</Alert>}
 
-                  <Button type="submit" disabled={profileSaving}>
+                  <Button type="submit" disabled={profileSaving || imageUploading}>
                     {profileSaving ? 'Guardando...' : 'Guardar perfil'}
                   </Button>
                 </form>

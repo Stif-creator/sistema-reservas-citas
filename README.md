@@ -1,6 +1,6 @@
 # CitasPro
 
-Aplicación React + Vite con Firebase Authentication, Firestore y Firebase Hosting. El servidor de reservas funciona en Node.js (Render gratuito), con Cloud Functions como alternativa futura. Las imágenes se configuran mediante URLs; no se necesita Firebase Storage. Incluye páginas públicas por negocio, registro de clientes y profesionales, servicios, horarios, bloqueos, reservas y agenda.
+Aplicación React + Vite con Firebase Authentication, Firestore y Firebase Hosting. El servidor de reservas funciona en Node.js (Render gratuito), con Cloud Functions como alternativa futura. Las imágenes se suben desde archivos locales mediante Cloudinary; no se necesita Firebase Storage. Incluye páginas públicas por negocio, registro de clientes y profesionales, servicios, horarios, bloqueos, reservas y agenda.
 
 ## Desarrollo
 
@@ -39,7 +39,7 @@ Los profesionales que se registran por su cuenta quedan con membresía `pending`
 - **Configuración y servicios:** se guardan los datos del negocio, categorías, servicios con precio y duración, y horarios semanales por día del negocio y del profesional.
 - **Bloqueos y disponibilidad (`/bloqueos`, `/disponibilidad`):** los administradores consultan cualquier profesional del negocio; los profesionales consultan únicamente su propia disponibilidad. El cálculo cruza los horarios semanales, vigencia, duración, márgenes, zona horaria y límites de anticipación del negocio. Excluye bloqueos individuales y generales, incluso de varios días. Crear o eliminar un bloqueo actualiza la consulta abierta. No expone motivos de bloqueos ni perfiles privados a visitantes o clientes.
 
-La consulta de disponibilidad permite verificar HU-6 y también excluye las citas ocupadas. El logo se configura mediante URL.
+La consulta de disponibilidad permite verificar HU-6 y también excluye las citas ocupadas. El logo se sube desde un archivo local.
 
 ## Sprint 2 — Reservas y agenda
 
@@ -137,7 +137,7 @@ Repositorio: [Stif-creator/sistema-reservas-citas](https://github.com/Stif-creat
 
 Render gratuito se suspende tras 15 minutos sin tráfico y puede tardar alrededor de un minuto en despertar. La interfaz espera hasta 120 segundos; si no recibe respuesta conserva la clave de la operación para poder reintentar sin duplicarla. Los planes gratuitos tienen cuotas y no garantizan disponibilidad continua. Referencias: [Render gratuito](https://render.com/docs/free), [configuración de Render](https://render.com/docs/blueprint-spec), [Firebase Admin SDK](https://firebase.google.com/docs/admin/setup) y [verificación de tokens](https://firebase.google.com/docs/auth/admin/verify-id-tokens).
 
-Para ejecutar la API localmente contra Firebase real, copia `functions/.env.example` a `.env.server` en la ra?z, completa la ruta privada de credenciales y ejecuta `npm run server` en otra terminal. Configura `VITE_BOOKING_API_URL=http://localhost:3001` en el frontend. Esta modalidad sí utiliza datos reales; `npm run demo` es la alternativa aislada.
+Para ejecutar la API localmente contra Firebase real, copia `functions/.env.example` a `.env.server` en la raíz, completa la ruta privada de credenciales y ejecuta `npm run server` en otra terminal. Configura `VITE_BOOKING_API_URL=http://localhost:3001` en el frontend. Esta modalidad sí utiliza datos reales; `npm run demo` es la alternativa aislada.
 
 ### Volver a Cloud Functions después de configurar Blaze
 
@@ -195,3 +195,21 @@ La suite cubre horarios vacíos/superpuestos, zonas horarias, contraste, aislami
 `tests/booking.test.js` verifica concurrencia, reintentos, cruces, márgenes, permisos, estados, reservas manuales y reprogramaciones atómicas. `tests/ui/sprint2.spec.js` recorre la reserva del cliente, confirmación, reprogramación, cancelación, reserva manual, cambios por el profesional asignado y las tres vistas de agenda. Revisa `npm audit` y `npm audit --prefix functions` al actualizar dependencias.
 
 La conexión a emuladores solo se habilita en desarrollo. `npm run demo` configura todas las variables necesarias sin editar `.env`.
+
+
+## Fotos desde el dispositivo (sin Blaze)
+
+1. Entra en https://cloudinary.com/users/register_free y crea una cuenta gratuita de **Image & Video API**. No necesitas activar facturación en Firebase. Consulta las cuotas vigentes en https://cloudinary.com/pricing.
+2. Abre la consola de Cloudinary y busca **API Keys** en la configuración del entorno de producto. Copia `Cloud name`, `API Key` y `API Secret`. No publiques el secreto ni lo pongas en variables `VITE_`.
+3. En Render, abre **citaspro-booking > Environment > Add Environment Variable** y agrega `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` y `CLOUDINARY_API_SECRET` con sus valores. Guarda los cambios y redespliega. No hace falta un upload preset: el servidor firma las subidas.
+4. Sube los cambios de código a `main` cuando estás listo. Render debe desplegar la versión que incluye `/images`; si no se despliega automáticamente, usa **Manual Deploy > Deploy latest commit**. Las credenciales existentes de Firebase y `ALLOWED_ORIGINS` se conservan.
+5. En desarrollo, la dirección `VITE_BOOKING_API_URL=https://citaspro-booking.onrender.com` tambión sirve para las fotos. Reinicia `npm run dev` si cambias variables. `VITE_MEDIA_API_URL` permite usar otra API de imágenes; déjala vacía para reutilizar Render.
+6. Para actualizar el sitio publicado en Firebase Hosting: `npm run build` y después `npx firebase deploy --only hosting --project sistema-reservas-jf745-2026`. Un despliegue de Render solo actualiza el servidor.
+
+Prueba con una imagen JPG, PNG o WebP de hasta 2 MB: Configuración (logo/portada), Servicios y Profesionales. Espera la confirmación de subida, guarda el formulario y recarga. En Mi perfil la foto se guarda inmediatamente. Comprueba tambión un archivo no permitido y uno mayor de 2 MB: deben rechazarse sin sustituir la foto anterior.
+
+Firebase conserva las cuentas y los documentos; Cloudinary conserva los archivos y Firestore guarda automáticamente su dirección. El usuario ya no introduce URLs. Las fotos anteriores siguen funcionando. Las imágenes son públicas: utiliza fotos destinadas a mostrarse en la web, no documentos privados. Render no guarda archivos en su disco temporal.
+
+El servidor verifica sesión, cuenta activa y pertenencia al negocio; solo administradores pueden subir imágenes del negocio. Cada usuario tiene un límite de 30 intentos de subida por hora. Las imágenes retiradas, reemplazadas o subidas en formularios cancelados permanecen en Cloudinary; se pueden eliminar desde su biblioteca después de comprobar que no estón en uso. Las pruebas automatizadas simulan Cloudinary; la prueba real requiere completar la configuración anterior.
+
+Para ejecutar tambión la API localmente, agrega las tres variables a `.env.server` (archivo privado ignorado por Git) y ejecuta `npm run server`. Si en el futuro cambias las reservas a Cloud Functions, conserva Render y configura `VITE_MEDIA_API_URL` con su dirección hasta migrar tambión este endpoint.

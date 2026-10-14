@@ -1,0 +1,52 @@
+{
+  "name": "Sonrisa Andina · Consultorio Dental Demo",
+  "description": "Un espacio dedicado al cuidado de tu sonrisa, con atención cercana y visitas organizadas mediante cita previa. Negocio ficticio creado para demostrar el sistema de reservas.",
+  "status": "active",
+  "appearance": {
+    "primaryColor": "#087E8B",
+    "secondaryColor": "#E6F5F4"
+  },
+  "logo": { "url": "" },
+  "cover": {
+    "url": "https://images.unsplash.com/photo-1629909613638-0e4a1fad8f81?auto=format&fit=crop&w=1600&q=85",
+    "alt": "Imagen ilustrativa de un consultorio dental luminoso con sillón azul",
+    "author": "Benyamin Bohlouli",
+    "sourceUrl": "https://unsplash.com/photos/white-and-blue-hospital-bed-hmVZ7StKY7I"
+  },
+  "about": {
+    "title": "Una sonrisa saludable empieza con confianza",
+    "story": "Sonrisa Andina es un consultorio dental ficticio pensado para mostrar una experiencia de atención organizada y cercana. Nuestra propuesta es que cada visita comience con una conversación: escuchar tus inquietudes, explicar los siguientes pasos y reservar el tiempo necesario para tu atención.\n\nEste perfil, sus horarios y su ubicación son datos de demostración. La fotografía es ilustrativa y no corresponde a un establecimiento propio.",
+    "mission": "Promover el cuidado de la salud bucal mediante una atención clara, respetuosa y organizada, valorando el tiempo y la tranquilidad de cada persona.",
+    "values": "Trato cercano y respetuoso\nInformación clara para cada paciente\nPuntualidad y organización\nPrevención y cuidado continuo"
+  },
+  "contact": {
+    "phone": "",
+    "whatsapp": "",
+    "email": ""
+  },
+  "location": {
+    "addressLine": "Zona Sur · Ubicación de demostración, sin atención al público",
+    "city": "La Paz",
+    "stateRegion": "La Paz",
+    "countryCode": "BO"
+  },
+  "weeklyHours": {
+    "1": [{ "start": "09:00", "end": "13:00" }, { "start": "14:30", "end": "18:30" }],
+    "2": [{ "start": "09:00", "end": "13:00" }, { "start": "14:30", "end": "18:30" }],
+    "3": [{ "start": "09:00", "end": "13:00" }, { "start": "14:30", "end": "18:30" }],
+    "4": [{ "start": "09:00", "end": "13:00" }, { "start": "14:30", "end": "18:30" }],
+    "5": [{ "start": "09:00", "end": "13:00" }, { "start": "14:30", "end": "18:30" }],
+    "6": [{ "start": "09:00", "end": "13:00" }],
+    "7": []
+  },
+  "settings": {
+    "publicPageEnabled": true,
+    "currencyCode": "BOB",
+    "timezone": "America/La_Paz",
+    "bookingIntervalMinutes": 30,
+    "minAdvanceMinutes": 120,
+    "maxAdvanceDays": 60,
+    "cancellationLimitHours": 24,
+    "autoConfirmBookings": false
+  }
+}

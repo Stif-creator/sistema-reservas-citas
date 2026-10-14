@@ -45,3 +45,20 @@ test('HTTP: autenticación, CORS, identidad verificada y errores sin secretos', 
   assert.equal(crash.status, 500)
   assert.ok(!(await crash.text()).includes('secret'))
 })
+
+test('HTTP images: token required, image payload accepted and booking limit preserved', async t => {
+  let calls = 0
+  const server = createBookingServer({ allowedOrigins: ['https://app.example'], verifyToken: async () => ({ uid: 'verified' }), execute: async () => ({}), upload: async (uid, data) => {
+    assert.equal(uid, 'verified'); assert.equal(data.image.length, 20000); calls++
+    return { url: 'https://example.test/image.png' }
+  } })
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
+  t.after(() => new Promise(resolve => server.close(resolve)))
+  const base = `http://127.0.0.1:${server.address().port}`
+  const post = (path, size, auth = true) => fetch(base + path, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(auth ? { Authorization: 'Bearer valid' } : {}) }, body: JSON.stringify({ image: 'a'.repeat(size) }) })
+  assert.equal((await post('/images', 20000, false)).status, 401)
+  assert.equal((await post('/images', 20000)).status, 200)
+  assert.equal((await post('/booking', 20000)).status, 400)
+  assert.equal((await post('/images', 2900001)).status, 400)
+  assert.equal(calls, 1)
+})
