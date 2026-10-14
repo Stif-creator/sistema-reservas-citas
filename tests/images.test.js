@@ -38,3 +38,23 @@ test('images: signed upload, own profile and shared quota', async () => {
 test('images: provider errors do not expose credentials', async () => {
   await assert.rejects(uploadImage(database(), 'u', { businessId: 'b', kind: 'cover', image }, { env, request: async () => { throw new Error('private secret') } }), error => error.code === 'unavailable' && !error.message.includes('secret'))
 })
+
+test('images: actionable provider errors never expose upstream secrets', async () => {
+  for (const [status, code] of [[401, 'failed-precondition'], [403, 'failed-precondition'], [404, 'failed-precondition'], [429, 'resource-exhausted'], [500, 'unavailable']]) {
+    await assert.rejects(uploadImage(database(), 'u', { businessId: 'b', kind: 'logo', image }, {
+      env, request: async () => ({ ok: false, status, json: async () => ({ error: { message: 'private API key and signature' } }) }),
+    }), error => error.code === code && !error.message.includes('private'))
+  }
+})
+test('images: trim whitespace copied with credentials', async () => {
+  await uploadImage(database(), 'u', { businessId: 'b', kind: 'logo', image }, {
+    env: Object.fromEntries(Object.entries(env).map(([key, value]) => [key, ` ${value}\n`])),
+    request: async (url, { body }) => {
+      assert.equal(url, 'https://api.cloudinary.com/v1_1/test-cloud/image/upload')
+      assert.equal(body.get('api_key'), 'key')
+      const signed = `overwrite=false&public_id=${body.get('public_id')}&timestamp=${body.get('timestamp')}private`
+      assert.equal(body.get('signature'), createHash('sha256').update(signed).digest('hex'))
+      return { ok: true, json: async () => ({ public_id: body.get('public_id'), secure_url: 'https://res.cloudinary.com/test-cloud/image/upload/test.png' }) }
+    },
+  })
+})
