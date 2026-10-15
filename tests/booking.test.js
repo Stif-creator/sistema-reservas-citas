@@ -99,8 +99,14 @@ test('Sprint 3 notifications are atomic and reminders follow settings, reschedul
   await f.call(f.users.client, { action:'reschedule', reservationId:result.id, revision:1, date:f.date, startAt:f.time('11:00'), expectedPrice:100, expectedDuration:30, requestId:randomUUID() })
   reminder = (await db.doc(`notifications/reminder_${result.id}`).get()).data()
   assert.equal(reminder.visibleAt.toMillis(), f.time('11:00') - 48*3600000)
+  for (const hours of [24, 1]) {
+    const scheduled = (await db.doc(`notifications/reminder_${result.id}_${hours}h`).get()).data()
+    assert.equal(scheduled.visibleAt.toMillis(), f.time('11:00') - hours * 3600000)
+    assert.equal(scheduled.expiresAt.toMillis(), f.time('11:00'))
+  }
   await f.call(f.users.client, { action:'status', reservationId:result.id, revision:2, status:'cancelled', requestId:randomUUID() })
   assert.equal((await db.doc(`notifications/reminder_${result.id}`).get()).exists, false)
+  for (const hours of [24, 1]) assert.equal((await db.doc(`notifications/reminder_${result.id}_${hours}h`).get()).exists, false)
 })
 
 test('Sprint 3 reviews require own completed reservation; promotions alter server price only while valid', async () => {
@@ -116,9 +122,17 @@ test('Sprint 3 reviews require own completed reservation; promotions alter serve
   await db.doc(`reservations/${r.id}`).update({ status:'completed' })
   await rejects(f.call(f.users.other, review), 'permission-denied')
   await rejects(f.call(f.users.client, { ...review, rating:6 }), 'invalid-argument')
+  await rejects(f.call(f.users.client, { ...review, professionalRating:0 }), 'invalid-argument')
   await f.call(f.users.client, review)
-  await f.call(f.users.client, { ...review, rating:4 })
+  await f.call(f.users.client, { ...review, rating:4, professionalRating:3, professionalId:'forged-professional' })
   assert.equal((await f.call(f.users.client, { action:'hub' })).reviews.length, 1)
+  const published = (await f.call(f.users.client, { action:'options' })).reviews[0]
+  const original = (await db.doc(`reservations/${r.id}`).get()).data()
+  assert.equal(published.serviceId, f.serviceId)
+  assert.equal(published.professionalId, original.professionalId)
+  assert.equal(published.professionalRating, 3)
+  assert.equal(published.rating, 4)
+  assert.equal(published.clientUserId, undefined)
   await f.call(f.users.admin, { ...promo, isActive:false })
   assert.equal((await f.call(f.users.client, { action:'options' })).services[0].price, 100)
 })
@@ -222,4 +236,14 @@ test('server rejects stale quotes, other businesses, disabled accounts and forge
   await rejects(f.call(f.users.client, f.create({ date: '2026-02-31' })), 'already-exists')
   await db.doc(`memberships/${f.businessId}_${f.users.client}`).update({ status: 'inactive' })
   await rejects(f.call(f.users.client, f.create()), 'permission-denied')
+})
+
+
+test('superadmin server access is verified from protected profile, without a tenant membership', async () => {
+  const f = await fixture(), uid = `platform-${randomUUID()}`
+  await db.doc(`users/${uid}`).set({ status: 'active', globalRole: 'superadmin' })
+  const result = await f.call(uid, { action: 'options' })
+  assert.equal(result.services.length, 1)
+  await db.doc(`users/${uid}`).update({ globalRole: 'user' })
+  await rejects(f.call(uid, { action: 'options' }), 'permission-denied')
 })

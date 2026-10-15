@@ -21,8 +21,10 @@ export async function uploadImage(db, uid, input, { env = process.env, request =
   const { businessId, kind } = input
   if (typeof businessId !== 'string' || !/^[^/\s]{1,200}$/.test(businessId) || !['logo', 'cover', 'service', 'professional', 'profile'].includes(kind)) fail('invalid-argument', 'Destino de imagen inválido.')
   const [user, member, business] = await Promise.all([db.doc(`users/${uid}`).get(), db.doc(`memberships/${businessId}_${uid}`).get(), db.doc(`businesses/${businessId}`).get()])
-  if (user.data()?.status !== 'active' || member.data()?.status !== 'active' || business.data()?.status !== 'active' ||
-    (kind !== 'profile' && member.data()?.role !== 'admin')) fail('permission-denied', 'No tienes permiso para subir esta imagen.')
+  const superadmin = user.data()?.status === 'active' && user.data()?.globalRole === 'superadmin'
+  if (business.data()?.status !== 'active') fail('permission-denied', 'El negocio no está activo.')
+  if (!superadmin && (user.data()?.status !== 'active' || member.data()?.status !== 'active' || business.data()?.status !== 'active' ||
+    (kind !== 'profile' && member.data()?.role !== 'admin'))) fail('permission-denied', 'No tienes permiso para subir esta imagen.')
   const { bytes, mime } = decodeImage(input.image)
   const cloud = env.CLOUDINARY_CLOUD_NAME?.trim(), key = env.CLOUDINARY_API_KEY?.trim(), secret = env.CLOUDINARY_API_SECRET?.trim()
   if (!cloud || !/^[a-zA-Z0-9_-]+$/.test(cloud) || !key || !secret) fail('failed-precondition', 'La subida de imágenes aún no está configurada. Contacta al administrador.')

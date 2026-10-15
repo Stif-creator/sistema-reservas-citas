@@ -441,7 +441,8 @@ test('registration provisions owner, client and pending professional in dependen
         createdAt: serverTimestamp(),
       })
     )
-    if (role === 'admin')
+    if (role === 'admin') {
+      await assertFails(setDoc(doc(db, 'businesses', bid), { id: bid, ownerUserId: uid, name: 'Forged colors', status: 'active', appearance: { primaryColor: '#000000' }, createdAt: serverTimestamp() }))
       await assertSucceeds(
         setDoc(doc(db, 'businesses', bid), {
           id: bid,
@@ -452,6 +453,7 @@ test('registration provisions owner, client and pending professional in dependen
           createdAt: serverTimestamp(),
         })
       )
+    }
     await assertSucceeds(
       setDoc(doc(db, 'memberships', `${bid}_${uid}`), {
         userId: uid,
@@ -476,4 +478,19 @@ test('registration provisions owner, client and pending professional in dependen
     await assertSucceeds(updateDoc(doc(db, 'users', uid), { onboardingComplete: true }))
     await assertFails(deleteDoc(doc(db, 'users', uid)))
   }
+})
+
+
+test('only a trusted superadmin can change colors across businesses; clients cannot promote themselves', async () => {
+  await env.withSecurityRulesDisabled(context => setDoc(doc(context.firestore(), 'users', 'platform'), { status: 'active', globalRole: 'superadmin', businessIds: ['studio'] }))
+  const owner = dbFor('owner'), platform = dbFor('platform')
+  await assertFails(updateDoc(doc(owner, 'businesses', 'studio'), { 'appearance.primaryColor': '#123456' }))
+  await assertSucceeds(updateDoc(doc(owner, 'businesses', 'studio'), { description: 'Updated business description' }))
+  await assertFails(updateDoc(doc(owner, 'users', 'owner'), { globalRole: 'superadmin' }))
+  await assertFails(updateDoc(doc(dbFor('client'), 'users', 'client'), { globalRole: 'superadmin' }))
+  await assertSucceeds(getDocs(collection(platform, 'businesses')))
+  await assertSucceeds(updateDoc(doc(platform, 'businesses', 'private'), { appearance: { primaryColor: '#123456', secondaryColor: '#abcdef' } }))
+  await assertSucceeds(getDocs(query(collection(platform, 'reservations'), where('businessId', '==', 'studio'))))
+  await env.withSecurityRulesDisabled(context => updateDoc(doc(context.firestore(), 'users', 'platform'), { status: 'inactive' }))
+  await assertFails(updateDoc(doc(platform, 'businesses', 'private'), { name: 'Denied' }))
 })

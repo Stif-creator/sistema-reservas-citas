@@ -142,7 +142,7 @@ export default function Categories() {
   }
 
   return <div className="space-y-6"><PageHeader title="Categorías" description="Organiza las categorías de tus servicios." />
-      <Card title="Categorías">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2 items-start [&>*]:min-w-0"><Card title="Categorías">
         {categoriesListError && (
           <Alert tone="error">Error al cargar categorías: {categoriesListError}</Alert>
         )}
@@ -197,10 +197,11 @@ export default function Categories() {
           </div>}</DataList>
         )}
 
+      </Card><Card title="Gestionar categoría">
         <form
           onSubmit={handleCategorySubmit}
           noValidate
-          className="mt-6 space-y-4 border-t border-border pt-6"
+          className="space-y-4"
         >
           <h4 className="text-sm font-semibold text-ink">
             {catEditingId ? 'Editar categoría' : 'Nueva categoría'}
@@ -243,7 +244,7 @@ export default function Categories() {
             )}
           </div>
         </form>
-      </Card>
+      </Card></div>
 
   </div>
 }

@@ -28,6 +28,8 @@ export function AuthProvider({ children }) {
   const [userDoc, setUserDoc] = useState(null)
   const [membership, setMembership] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [selectedBusiness, setSelectedBusiness] = useState('')
+  const isSuperadmin = userDoc?.globalRole === 'superadmin' && userDoc?.status === 'active'
 
   const [authError, setAuthError] = useState('')
   const generation = useRef(0)
@@ -51,7 +53,7 @@ export function AuthProvider({ children }) {
       if (version !== generation.current || auth.currentUser?.uid !== uid) return
       setUserDoc(data)
       setMembership(memberSnap?.exists() ? memberSnap.data() : null)
-      if (!data || data.onboardingComplete === false || !memberSnap?.exists())
+      if (!data || data.onboardingComplete === false || (!memberSnap?.exists() && data.globalRole !== 'superadmin'))
         setAuthError('Tu cuenta no tiene un perfil completo. Contacta al administrador.')
     } catch (err) {
       if (version === generation.current)
@@ -66,6 +68,7 @@ export function AuthProvider({ children }) {
     const sessionGeneration = generation
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       ++generation.current
+      setSelectedBusiness('')
       setCurrentUser(user)
       setUserDoc(null)
       setMembership(null)
@@ -308,7 +311,9 @@ export function AuthProvider({ children }) {
   const value = {
     currentUser,
     userDoc,
-    membership,
+    membership: isSuperadmin ? { businessId: selectedBusiness || userDoc.businessIds?.[0], userId: currentUser?.uid, role: 'admin', status: 'active' } : membership,
+    isSuperadmin,
+    selectBusiness: setSelectedBusiness,
     loading,
     authError,
     reloadProfile,

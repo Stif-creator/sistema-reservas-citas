@@ -1,3 +1,4 @@
+import NextAppointment from '../../components/client/NextAppointment'
 import { Link } from 'react-router-dom'
 import { ArrowRight, CalendarDays, Clock3, ShieldCheck, Sparkles } from 'lucide-react'
 import { useClientBusiness } from '../../context/client-context'
@@ -25,6 +26,7 @@ export default function ClientHome() {
         </div>
       </div>
     </section>
+    <NextAppointment />
     <div className="public-container client-benefits">
       {[[Clock3, 'A tu ritmo', 'Explora y elige tu servicio'], [CalendarDays, 'Tu espacio personal', 'Consulta tus citas'], [ShieldCheck, 'Acceso privado', 'Tu cuenta, siempre contigo']].map(([Icon, title, detail]) => <div key={title}><Icon size={23} /><span><strong>{title}</strong><small>{detail}</small></span></div>)}
     </div>

@@ -1,3 +1,4 @@
+import AccountSecurity from '../pages/AccountSecurity'
 import { Routes, Route } from 'react-router-dom'
 import { lazy, Suspense } from 'react'
 import ProtectedRoute from '../components/ProtectedRoute'
@@ -91,7 +92,7 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         >
-          <Route path="/dashboard" element={<Dashboard />} /><Route path="/avisos" element={<Notifications />} /><Route path="/clientes" element={<ProtectedRoute allowedRoles={['admin']}><Clients /></ProtectedRoute>} /><Route path="/promociones" element={<ProtectedRoute allowedRoles={['admin']}><Promotions /></ProtectedRoute>} />
+          <Route path="/seguridad" element={<AccountSecurity />} /><Route path="/dashboard" element={<Dashboard />} /><Route path="/avisos" element={<Notifications />} /><Route path="/clientes" element={<ProtectedRoute allowedRoles={['admin']}><Clients /></ProtectedRoute>} /><Route path="/promociones" element={<ProtectedRoute allowedRoles={['admin']}><Promotions /></ProtectedRoute>} />
           <Route path="/reservas" element={<ProtectedRoute allowedRoles={['admin', 'professional']}><Reservations /></ProtectedRoute>} />
           <Route path="/reservas/nueva" element={<ProtectedRoute allowedRoles={['admin']}><Reservations manual /></ProtectedRoute>} />
           <Route path="/reservas/:reservationId" element={<ProtectedRoute allowedRoles={['admin', 'professional']}><Reservations detail /></ProtectedRoute>} />

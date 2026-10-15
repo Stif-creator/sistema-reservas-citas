@@ -151,8 +151,8 @@ test('administrator registers professionals, assigns services/hours, manages rol
     await expect(professional).toHaveURL(/\/dashboard$/)
     await professional.getByRole('link', { name: 'Disponibilidad', exact: true }).click()
     await professional.getByLabel('Servicio', { exact: true }).selectOption({ label: 'Consulta' })
-    await professional.getByLabel('Fecha', { exact: true }).fill(date)
-    const available = professional.getByRole('list', { name: 'Horarios disponibles' })
+    await professional.getByLabel('Fecha de inicio', { exact: true }).fill(date)
+    const available = professional.getByRole('list', { name: /^Horarios disponibles/ })
     await expect(available.getByText('10:00', { exact: true })).toBeVisible()
 
     await page.getByRole('link', { name: 'Bloqueos', exact: true }).click()
@@ -188,7 +188,7 @@ test('administrator registers professionals, assigns services/hours, manages rol
     await expect(professional.getByRole('heading', { name: 'Hola, Luis' })).toBeVisible()
     await professional.getByRole('link', { name: 'Disponibilidad', exact: true }).click()
     await professional.getByLabel('Servicio', { exact: true }).selectOption({ label: 'Consulta' })
-    await professional.getByLabel('Fecha', { exact: true }).fill(date)
-    await expect(professional.getByRole('list', { name: 'Horarios disponibles' }).getByText('10:00', { exact: true })).toBeVisible()
+    await professional.getByLabel('Fecha de inicio', { exact: true }).fill(date)
+    await expect(professional.getByRole('list', { name: /^Horarios disponibles/ }).getByText('10:00', { exact: true })).toBeVisible()
   } finally { await context.close().catch(() => {}) }
 })

@@ -1,3 +1,4 @@
+import SuperadminBusinesses from './SuperadminBusinesses'
 import NotificationLink from './NotificationLink'
 import './admin.css'
 import { useEffect, useRef, useState } from 'react'
@@ -33,6 +34,7 @@ const GENERAL_LINKS = [
 // Cada enlace declara los roles autorizados; las rutas y Firestore también
 // aplican estas restricciones.
 const BUSINESS_LINKS = [
+  { to: '/seguridad', label: 'Mi seguridad', icon: Settings, roles: ['admin', 'professional'] },
   { to: '/clientes', label: 'Clientes', icon: Users, roles: ['admin'] },
   { to: '/promociones', label: 'Promociones', icon: Scissors, roles: ['admin'] },
   { to: '/avisos', label: 'Avisos', icon: Bell, roles: ['admin', 'professional'] },
@@ -70,7 +72,7 @@ function initialsFor(text) {
 }
 
 function AdminLayout() {
-  const { membership, userDoc, logout } = useAuth()
+  const { membership, userDoc, logout, isSuperadmin } = useAuth()
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const [listSearch, setListSearch] = useState({ path: '', value: '' })
@@ -143,7 +145,7 @@ function AdminLayout() {
         </button>
       </div>
 
-      <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-5">
+      <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-5"><SuperadminBusinesses />
         <div>
           <p className="px-3 pb-2 text-xs font-semibold uppercase tracking-wide text-muted">
             General
@@ -193,7 +195,7 @@ function AdminLayout() {
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-ink">{userName || 'Cargando...'}</p>
             <p className="truncate text-xs capitalize text-muted">
-              {membership?.role ?? 'Sin rol'}
+              {isSuperadmin ? 'Superadministrador' : membership?.role ?? 'Sin rol'}
             </p>
           </div>
           <button
@@ -278,7 +280,7 @@ function AdminLayout() {
                   <div className="border-b border-border px-3 py-2">
                     <p className="truncate text-sm font-medium text-ink">{userName}</p>
                     <p className="truncate text-xs capitalize text-muted">
-                      {membership?.role ?? 'Sin rol'}
+                      {isSuperadmin ? 'Superadministrador' : membership?.role ?? 'Sin rol'}
                     </p>
                   </div>
                   <button

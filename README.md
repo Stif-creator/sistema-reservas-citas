@@ -234,3 +234,47 @@ Para ejecutar también la API localmente, agrega las tres variables a `.env.serv
 Las listas del panel y los catálogos incluyen búsqueda mientras escribes y páginas de 10, 25 o 50 registros. La búsqueda ignora mayúsculas y tildes y filtra todos los registros cargados antes de paginar. Al cambiar la búsqueda o los filtros se vuelve a la primera página. Los datos que llegan por los listeners de Firestore actualizan los resultados sin recargar; esta paginación visual no reduce por sí misma las lecturas de Firestore.
 
 Las categorías se administran en **Categorías** (`/categorias`), accesible solo para administradores. **Servicios** conserva el selector de categoría, pero la creación y edición de categorías están en su página independiente. Los formularios y calendarios conservan sus controles propios.
+# Favoritos y valoraciones del catálogo
+
+El cliente puede guardar y quitar favoritos desde las tarjetas y el detalle de Servicios, filtrar por profesional o ver solo sus favoritos. El detalle muestra el promedio del servicio, sus comentarios y la calificación de los profesionales que lo realizan. Las listas conservan búsqueda y paginación, y los colores siguen la configuración del negocio.
+
+Las valoraciones se publican desde una reserva propia marcada como finalizada. El servidor valida ese estado y obtiene el servicio y profesional de la reserva; permite una reseña por cita y actualiza la misma si se vuelve a publicar. Se califican por separado el servicio y el profesional. Las reseñas antiguas que no guardaban profesional no cuentan en su promedio, aunque siguen contando para el servicio.
+
+Los cambios del catálogo requieren subir los cambios a GitHub y desplegar la API en Render, además de compilar y publicar Firebase Hosting. Consulta también la sección siguiente: la nueva separación de permisos requiere actualizar las reglas de Firestore.
+
+# Superadministrador, disponibilidad y avisos internos
+
+La actualización de permisos **sí requiere publicar las reglas nuevas**. El rol global `superadmin` se verifica en el perfil protegido de Firestore y en la API; no puede asignarse desde el registro, Usuarios ni una petición del navegador. El superadministrador puede seleccionar cualquier negocio desde el menú lateral y gestionar su configuración, servicios, profesionales, clientes, reservas y colores. El administrador mantiene la gestión de su propio negocio, pero los colores quedan bloqueados tanto en pantalla como en las reglas. Los nuevos negocios parten de los colores predeterminados. No se implementan pagos ni cobros.
+
+Para habilitar la cuenta de plataforma, un responsable con acceso administrativo a Firebase debe modificar **únicamente** `users/{UID}/globalRole` a `superadmin` en la consola de Firestore. Debe ser una cuenta activa y registrada con negocio asociado; el UID se consulta en Authentication. No cambies el rol de la membresía a `superadmin`: sus roles siguen siendo `admin`, `professional` y `client`. Después, cierra sesión y vuelve a ingresar. Para revocar el privilegio, devuelve `globalRole` a `user`.
+
+Alternativa desde un equipo de confianza con credenciales de Firebase Admin configuradas en `.env.server`:
+
+```powershell
+node --env-file=.env.server functions/grant-superadmin.js correo-del-responsable@example.com --grant
+```
+
+Usa `--revoke` para retirar el privilegio. El script registra el cambio en auditoría. No subas `.env.server` ni las credenciales a GitHub. La aplicación no concede este privilegio automáticamente a ninguna cuenta.
+
+- **Recordatorios:** cada reserva nueva o reprogramada tiene avisos a 24 horas y 1 hora; se conserva la anticipación adicional configurable. Cancelar o finalizar elimina sus recordatorios pendientes. Para aplicar los avisos nuevos a reservas anteriores, entra en Promociones y recordatorios y pulsa **Guardar anticipación** una vez por negocio. Si la anticipación coincide con 24 o 1, no se duplica ese aviso.
+- **Cuenta regresiva:** aparece en el inicio del cliente y en Mis reservas, y se actualiza cada 30 segundos. Solo considera citas pendientes o confirmadas que todavía no empezaron.
+- **Avisos:** se muestran dentro de la aplicación y se pueden marcar como leídos. Se revisan cada 30 segundos mientras está abierta. No se envían mensajes con la aplicación cerrada. Firestore guarda la fecha de visibilidad desde la reserva; no se necesita Cloud Functions, cron ni Blaze. Siguen aplicándose las cuotas gratuitas de Firestore y del alojamiento.
+- **Disponibilidad:** fecha inicial y final, ambas incluidas, hasta 31 días por consulta. Sin fecha final se consulta un solo día. Respeta horarios, vigencia, zona horaria, servicios asignados, reservas y bloqueos.
+- **Profesionales:** el formulario genera una contraseña inicial aleatoria; tras crear la cuenta, muestra el correo y la contraseña para compartirlos directamente con el profesional. No se guarda la contraseña en Firestore. El profesional puede cambiarla desde **Mi seguridad**, verificando su contraseña actual, o recuperarla desde el inicio de sesión.
+- **Categorías:** listado con búsqueda y paginación separado del formulario en dos columnas; en móvil se apilan.
+- **Indicadores:** citas de los últimos siete días, sin cancelaciones, y distribución por estado de todas las reservas. Los gráficos usan registros reales y la zona horaria del negocio. Usuarios conserva filtros por rol y estado, búsqueda y paginación.
+
+Publicación de esta actualización:
+
+1. Sube los cambios revisados a GitHub y despliega el último commit de `main` en Render. Comprueba `/health`.
+2. Desde la raíz del proyecto, publica las reglas, compila y publica la web:
+
+```powershell
+npx firebase deploy --only firestore:rules
+npm run build
+npx firebase deploy --only hosting
+```
+
+3. Activa la cuenta de superadministrador como se explica arriba y actualiza los recordatorios de las reservas anteriores desde Promociones y recordatorios.
+
+No ejecutes un despliegue general de Firebase ni `--only functions`: esta modalidad usa la API de Render y no requiere facturación de Firebase.

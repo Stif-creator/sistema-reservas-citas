@@ -36,7 +36,7 @@ export async function executeEngagement(db, uid, input, actor) {
     ])
     return serial({ favorites, waiting, notifications: notifications.filter(n => ms(n.visibleAt) <= Date.now() && (!n.expiresAt || ms(n.expiresAt) > Date.now())).sort((a, b) => ms(b.visibleAt) - ms(a.visibleAt)),
       promotions: actor.member.role === 'admin' ? promotions : promotions.filter(p => p.isActive && ms(p.startAt) <= Date.now() && ms(p.endAt) > Date.now()),
-      reviews: reviews.filter(r => r.status === 'published').map(r => ({ id: r.id, rating: r.rating, comment: r.comment, authorName: r.authorName, serviceName: r.serviceName })), reminderHours: reminder.data()?.hours ?? 24 })
+      reviews: reviews.filter(r => r.status === 'published').map(r => ({ id: r.id, serviceId: r.serviceId || null, professionalId: r.professionalId || null, professionalName: r.professionalName || null, professionalRating: r.professionalRating || null, rating: r.rating, comment: r.comment, authorName: r.authorName, serviceName: r.serviceName })), reminderHours: reminder.data()?.hours ?? 24 })
   }
   if (action === 'notificationRead') {
     if (!id(input.id)) fail('invalid-argument', 'Aviso inválido.')
@@ -76,11 +76,13 @@ export async function executeEngagement(db, uid, input, actor) {
   if (action === 'review') {
     client()
     if (!id(input.reservationId) || !Number.isInteger(input.rating) || input.rating < 1 || input.rating > 5 || !text(input.comment, 1000)) fail('invalid-argument', 'Indica una valoración de 1 a 5 y un comentario.')
+    const professionalRating = input.professionalRating ?? input.rating
+    if (!Number.isInteger(professionalRating) || professionalRating < 1 || professionalRating > 5) fail('invalid-argument', 'Califica al profesional de 1 a 5.')
     const ref = db.doc(`reviews/${input.reservationId}`)
     await db.runTransaction(async tx => {
       const r = record(await tx.get(db.doc(`reservations/${input.reservationId}`)))
       if (r?.businessId !== businessId || r.clientUserId !== uid || r.status !== 'completed') fail('permission-denied', 'Solo puedes valorar una cita propia finalizada.')
-      tx.set(ref, { businessId, clientUserId: uid, reservationId: r.id, serviceId: r.serviceId, serviceName: r.serviceName, rating: input.rating, comment: text(input.comment, 1000), authorName: actor.user.firstName || 'Cliente', status: 'published', isPublic: true, updatedAt: stamp })
+      tx.set(ref, { businessId, clientUserId: uid, reservationId: r.id, serviceId: r.serviceId, serviceName: r.serviceName, professionalId: r.professionalId || null, professionalName: r.professionalName || null, professionalRating, rating: input.rating, comment: text(input.comment, 1000), authorName: actor.user.firstName || 'Cliente', status: 'published', isPublic: true, updatedAt: stamp })
     })
     return { ok: true }
   }
@@ -107,7 +109,7 @@ export async function executeEngagement(db, uid, input, actor) {
     await db.doc(`reminderSettings/${businessId}`).set({ businessId, hours: input.hours, updatedAt: stamp })
     for (const r of reservations) if (r.clientUserId && ['pending', 'confirmed'].includes(r.status) && ms(r.startAt) > Date.now()) await db.runTransaction(async tx => {
       const [fresh, settings] = await Promise.all([tx.get(db.doc(`reservations/${r.id}`)).then(record), tx.get(db.doc(`reminderSettings/${businessId}`)).then(record)])
-      if (fresh && ['pending', 'confirmed'].includes(fresh.status) && ms(fresh.startAt) > Date.now()) tx.set(db.doc(`notifications/reminder_${r.id}`), reminderFor(fresh, settings.hours, stamp))
+      if (fresh && ['pending', 'confirmed'].includes(fresh.status) && ms(fresh.startAt) > Date.now()) scheduleReminders(db, tx, fresh, settings.hours, stamp)
     })
     return { ok: true }
   }
@@ -126,7 +128,7 @@ export async function executeEngagement(db, uid, input, actor) {
 }
 
 export function reminderFor(r, hours, stamp) {
-  return { businessId: r.businessId, recipientUserId: r.clientUserId, reservationId: r.id, type: 'reminder', title: `Recordatorio: ${r.serviceName}`, message: 'Tu cita se aproxima. Consulta la fecha y hora en el detalle.', visibleAt: Timestamp.fromMillis(Math.max(stamp.toMillis(), ms(r.startAt) - hours * 3600000)), expiresAt: r.startAt, read: false, createdAt: stamp }
+  return { businessId: r.businessId, recipientUserId: r.clientUserId, reservationId: r.id, type: 'reminder', title: `Recordatorio: ${r.serviceName}`, message: hours === 1 ? 'Tu cita es en menos de una hora. Consulta el detalle.' : `Tu cita se aproxima: recordatorio de ${hours} horas. Consulta el detalle.`, visibleAt: Timestamp.fromMillis(Math.max(stamp.toMillis(), ms(r.startAt) - hours * 3600000)), expiresAt: r.startAt, read: false, createdAt: stamp }
 }
 
 export function bookingNotices(db, tx, reservation, revision, action, hours, stamp, ownerId) {
@@ -134,7 +136,14 @@ export function bookingNotices(db, tx, reservation, revision, action, hours, sta
   for (const recipientUserId of new Set([reservation.clientUserId, reservation.professionalUserId, ownerId].filter(Boolean))) {
     tx.set(db.doc(`notifications/${reservation.id}_${revision}_${recipientUserId}`), { businessId: reservation.businessId, recipientUserId, reservationId: reservation.id, type: 'change', title: action === 'reschedule' ? 'Cita reprogramada' : `Cita ${labels[reservation.status]}`, message: `${reservation.serviceName} · ${reservation.professionalName}`, read: false, visibleAt: stamp, createdAt: stamp })
   }
-  const ref = db.doc(`notifications/reminder_${reservation.id}`)
-  if (reservation.clientUserId && ['pending', 'confirmed'].includes(reservation.status)) tx.set(ref, reminderFor(reservation, hours, stamp))
-  else tx.delete(ref)
+  scheduleReminders(db, tx, reservation, hours, stamp)
+}
+
+export function scheduleReminders(db, tx, reservation, hours, stamp) {
+  const active = reservation.clientUserId && ['pending', 'confirmed'].includes(reservation.status) && ms(reservation.startAt) > stamp.toMillis()
+  for (const [suffix, anticipation] of [['', hours], ['_24h', 24], ['_1h', 1]]) {
+    const ref = db.doc(`notifications/reminder_${reservation.id}${suffix}`)
+    if (active && (!suffix || anticipation !== hours)) tx.set(ref, reminderFor(reservation, anticipation, stamp))
+    else tx.delete(ref)
+  }
 }

@@ -6,6 +6,9 @@ service cloud.firestore {
     function userActive() {
       return signedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'active';
     }
+    function superadmin() {
+      return userActive() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('globalRole', 'user') == 'superadmin';
+    }
     function publicBusiness(bid) {
       let business = get(/databases/$(database)/documents/businesses/$(bid)).data;
       return business.status == 'active' && business.settings.publicPageEnabled == true;
@@ -17,7 +20,7 @@ service cloud.firestore {
       return userActive() && member(bid).status == 'active'
         && get(/databases/$(database)/documents/businesses/$(bid)).data.status == 'active';
     }
-    function admin(bid) { return activeMember(bid) && member(bid).role == 'admin'; }
+    function admin(bid) { return superadmin() || (activeMember(bid) && member(bid).role == 'admin'); }
     function professional(bid) {
       return activeMember(bid) && member(bid).role == 'professional';
     }
@@ -46,7 +49,7 @@ service cloud.firestore {
       return signedIn() && admin(get(/databases/$(database)/documents/memberships/$(id)).data.businessId);
     }
     match /users/{uid} {
-      allow read: if self(uid) || (signedIn() && admin(resource.data.businessIds[0])
+      allow read: if superadmin() || self(uid) || (signedIn() && admin(resource.data.businessIds[0])
         && exists(/databases/$(database)/documents/memberships/$(resource.data.businessIds[0] + '_' + uid)));
       allow create: if signedIn() && request.resource.data.businessIds is list
         && request.resource.data.businessIds.size() == 1
@@ -73,13 +76,14 @@ service cloud.firestore {
     }
     // This collection contains the public business profile. Never store secrets here.
     match /businesses/{bid} {
-      allow read: if (resource.data.status == 'active' && resource.data.settings.publicPageEnabled == true)
+      allow read: if superadmin() || (resource.data.status == 'active' && resource.data.settings.publicPageEnabled == true)
         || (signedIn() && (resource.data.ownerUserId == request.auth.uid || activeMember(bid)));
       allow create: if userActive() && request.resource.data.ownerUserId == request.auth.uid
         && request.resource.data.id == bid && request.resource.data.status == 'active'
+        && (superadmin() || !('appearance' in request.resource.data) || request.resource.data.appearance == { 'primaryColor': '#1672ed', 'secondaryColor': '#eaf3ff' })
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.businessIds == [bid]
         && request.resource.data.createdAt == request.time;
-      allow update: if admin(bid) && request.resource.data.diff(resource.data).affectedKeys()
+      allow update: if admin(bid) && (superadmin() || !request.resource.data.diff(resource.data).affectedKeys().hasAny(['appearance'])) && request.resource.data.diff(resource.data).affectedKeys()
         .hasOnly(['name', 'description', 'about', 'logo', 'cover', 'appearance', 'contact', 'location', 'weeklyHours', 'settings', 'updatedAt']);
       allow delete: if signedIn() && resource.data.ownerUserId == request.auth.uid && recent(resource.data) && provisioning();
     }
@@ -210,11 +214,11 @@ service cloud.firestore {
     function sameBusiness() { return request.resource.data.businessId == resource.data.businessId; }
     function changedOnly(fields) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields); }
     match /reservations/{id} {
-      allow read: if activeMember(resource.data.businessId) && (
+      allow read: if superadmin() || (activeMember(resource.data.businessId) && (
         member(resource.data.businessId).role == 'admin'
         || (member(resource.data.businessId).role == 'professional' && resource.data.professionalUserId == request.auth.uid)
-        || (member(resource.data.businessId).role == 'client' && resource.data.clientUserId == request.auth.uid));
-      // Solo Cloud Functions puede validar y escribir una reserva y su bloqueo
+        || (member(resource.data.businessId).role == 'client' && resource.data.clientUserId == request.auth.uid)));
+      // Solo el servidor autenticado puede validar y escribir una reserva y su bloqueo
       // de concurrencia en la misma transacción.
       allow write: if false;
     }
@@ -226,7 +230,7 @@ service cloud.firestore {
     }
     // Sprint 3 writes are validated by the authenticated server.
     match /notifications/{id} {
-      allow read: if activeMember(resource.data.businessId) && resource.data.recipientUserId == request.auth.uid;
+      allow read: if (superadmin() || activeMember(resource.data.businessId)) && resource.data.recipientUserId == request.auth.uid;
       allow write: if false;
     }
     match /favorites/{id} {

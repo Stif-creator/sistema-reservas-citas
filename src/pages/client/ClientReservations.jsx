@@ -1,3 +1,4 @@
+import { countdown } from '../../lib/countdown'
 import DataList from '../../components/ui/DataList'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -32,7 +33,7 @@ export default function ClientReservations() {
         : <DataList label="Mis reservas" items={filtered} resetKey={filter} searchText={r => `${r.serviceName || r.serviceSnapshot?.name || ""} ${r.professionalName || ""} ${formatAppointmentDate(r.startAt,business.settings?.timezone)} ${reservationStatuses[r.status]}`}>{rows => <div className="client-reservations-list">{rows.map(item => <article key={item.id} className="client-reservation-row">
           <span className="client-reservation-icon"><Sparkles size={24} /></span>
           <div className="client-reservation-name"><h2>{item.serviceName || item.serviceSnapshot?.name || services.find(service => service.id === item.serviceId)?.name || 'Servicio reservado'}</h2><p>{item.professionalName || item.professionalSnapshot?.displayName || 'Profesional asignado'}</p></div>
-          <div className="client-reservation-date"><span><CalendarDays size={14} />{formatAppointmentDate(item.startAt, business.settings?.timezone)}</span><span><Clock3 size={14} />{formatAppointmentDate(item.startAt, business.settings?.timezone, true)}</span></div>
+          <div className="client-reservation-date"><span><CalendarDays size={14} />{formatAppointmentDate(item.startAt, business.settings?.timezone)}</span>{['pending', 'confirmed'].includes(item.status) && dateMillis(item.startAt) > now && <strong>{countdown(dateMillis(item.startAt), now)}</strong>}<span><Clock3 size={14} />{formatAppointmentDate(item.startAt, business.settings?.timezone, true)}</span></div>
           <span className={`client-status status-${Object.hasOwn(reservationStatuses, item.status) ? item.status : 'unknown'}`}>{reservationStatuses[item.status] || 'Por confirmar'}</span>
           <Link className="public-button secondary" to={`/cliente/reservas/${encodeURIComponent(item.id)}`}>Ver detalles</Link>
         </article>)}</div>}</DataList>}

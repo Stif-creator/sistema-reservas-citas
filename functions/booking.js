@@ -25,6 +25,7 @@ async function context(db, reader, uid, businessId) {
     reader.get(db.doc(`memberships/${businessId}_${uid}`)).then(record),
     reader.get(db.doc(`businesses/${businessId}`)).then(record),
   ])
+  if (user?.status === 'active' && user.globalRole === 'superadmin' && business?.status === 'active') return { user, member: { businessId, userId: uid, role: 'admin', status: 'active' }, business, uid }
   if (!user || user.status !== 'active' || !member || member.status !== 'active' || business?.status !== 'active' ||
     !['admin', 'professional', 'client'].includes(member.role)) fail('permission-denied', 'Tu cuenta no tiene acceso activo a este negocio.')
   return { user, member, business, uid }
@@ -130,7 +131,7 @@ export async function executeBooking(db, uid, input) {
     ])
     return {
       services: services.filter(s => s.isActive && (actor.member.role !== 'client' || s.isPublic) && (actor.member.role !== 'professional' || professionals.some(p => p.userId === uid && p.isActive && p.serviceIds?.includes(s.id)))).map(s => { const priced = discountedService(s, promotions); return { id: s.id, name: s.name, promotionTitle: priced.promotionTitle || '', originalPrice: s.price, ...quote(priced, actor.business.settings?.currencyCode) } }),
-      reviews: reviews.filter(r => r.status === 'published' && r.isPublic).map(r => ({ id: r.id, serviceName: r.serviceName, rating: r.rating, comment: r.comment, authorName: r.authorName })),
+      reviews: reviews.filter(r => r.status === 'published' && r.isPublic).map(r => ({ id: r.id, serviceId: r.serviceId || null, serviceName: r.serviceName, professionalId: r.professionalId || null, professionalName: r.professionalName || null, professionalRating: r.professionalRating || null, rating: r.rating, comment: r.comment, authorName: r.authorName })),
       professionals: professionals.filter(p => p.isActive && members.some(m => m.userId === p.userId && m.status === 'active' && m.role === 'professional') &&
         (actor.member.role !== 'professional' || p.userId === uid)).map(p => ({ id: p.id, displayName: p.displayName || 'Profesional', jobTitle: p.jobTitle || '', bio: p.bio || '', photoUrl: p.photo?.url || '', serviceIds: p.serviceIds || [] })),
       clients: clients.filter(c => !c.userId || members.some(m => m.userId === c.userId && m.status === 'active' && m.role === 'client'))

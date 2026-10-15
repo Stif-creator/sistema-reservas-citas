@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { initializeTestEnvironment } from '@firebase/rules-unit-testing'
-import { doc, setDoc } from 'firebase/firestore'
+import { doc, setDoc, updateDoc } from 'firebase/firestore'
 import { readFile } from 'node:fs/promises'
 
 test.use({ actionTimeout:15000, navigationTimeout:20000 })
@@ -38,6 +38,7 @@ test('Sprint 3 public booking resumes after login, preferences, admin clients an
     await setDoc(doc(db, 'clients', `client-${suffix}`), { businessId, userId: accounts.client.uid, firstName: 'María', lastName: 'Prueba', email: accounts.client.email, phone: '70000000' })
     await setDoc(doc(db, 'categories', `category-${suffix}`), { businessId, name: 'Bienestar', isActive: true })
     await setDoc(doc(db, 'services', serviceId), { businessId, name: 'Consulta integral', description: 'Atención personalizada.', price: 100, durationMinutes: 30, currencyCode: 'BOB', categoryId: `category-${suffix}`, isActive: true, isPublic: true })
+    await setDoc(doc(db, 'services', `other-${serviceId}`), { businessId, name: 'Otro servicio', description: 'Otro servicio del catálogo.', price: 120, durationMinutes: 30, currencyCode: 'BOB', categoryId: `category-${suffix}`, isActive: true, isPublic: true })
     await setDoc(doc(db, 'professionals', professionalId), { businessId, userId: accounts.professional.uid, displayName: 'Ana Agenda', jobTitle: 'Especialista', serviceIds: [serviceId], isActive: true, weeklyHours: hours })
   })
   await env.cleanup()
@@ -142,6 +143,35 @@ test('Sprint 3 public booking resumes after login, preferences, admin clients an
     await expect(pro.getByRole('heading', { name:'Mi agenda profesional' })).toBeVisible()
     await pro.getByLabel('Fecha de agenda').fill(date)
     await expect(pro.locator('.agenda-appointment')).toHaveCount(1)
+    await page.goto('/cliente/servicios')
+    await expect(page.locator('.client-service-card')).toHaveCount(2)
+    await page.getByRole('button', { name:'Quitar de favoritos: Consulta integral', exact:true }).click()
+    await expect(page.getByRole('button', { name:'Agregar a favoritos: Consulta integral', exact:true })).toBeVisible()
+    await page.getByRole('button', { name:'Agregar a favoritos: Consulta integral', exact:true }).click()
+    await page.reload()
+    await expect(page.getByRole('button', { name:'Quitar de favoritos: Consulta integral', exact:true })).toBeVisible()
+    await page.getByRole('combobox', { name:'Filtrar servicios por profesional' }).selectOption(professionalId)
+    await expect(page.locator('.client-service-card')).toHaveCount(1)
+    await page.getByRole('combobox', { name:'Filtrar servicios por profesional' }).selectOption('')
+    await page.getByRole('button', { name:'Solo favoritos', exact:true }).click()
+    await expect(page.locator('.client-service-card')).toHaveCount(1)
+    await page.screenshot({ path:'test-results/client-services-social.png', fullPage:true })
+    await page.goto('/cliente/reservas')
+    const detailPath = await page.getByRole('link', { name:'Ver detalles', exact:true }).getAttribute('href')
+    await page.goto(detailPath)
+    await expect(page.getByRole('button', { name:'Publicar valoración' })).toHaveCount(0)
+    const reviewEnv = await initializeTestEnvironment({ projectId:'demo-citaspro', firestore:{ host:'127.0.0.1', port:8080, rules:await readFile('firestore.rules','utf8') } })
+    try { await reviewEnv.withSecurityRulesDisabled(context => updateDoc(doc(context.firestore(),'reservations',detailPath.split('/').pop()), { status:'completed' })) } finally { await reviewEnv.cleanup() }
+    await page.getByLabel('Calificación del servicio').selectOption('4')
+    await page.getByLabel('Calificación del profesional').selectOption('5')
+    await page.getByLabel('Comentario', { exact:true }).fill('Excelente atención y puntualidad.')
+    await page.getByRole('button', { name:'Publicar valoración', exact:true }).click()
+    await expect(page.getByText(/Valoración publicada/)).toBeVisible()
+    await page.goto(`/cliente/servicios/${serviceId}`)
+    await expect(page.locator('.client-detail-social')).toContainText('4,0/5')
+    await expect(page.locator('.client-professional-card')).toContainText('5,0/5')
+    await expect(page.locator('.client-review-card')).toContainText('Excelente atención y puntualidad.')
+    await page.screenshot({ path:'test-results/client-service-reviews.png', fullPage:true })
     await page.goto(`/b/${businessId}`)
     await expect(page.getByRole('heading', { name:'Oferta de prueba' })).toBeVisible()
     await page.setViewportSize({ width:390, height:844 })

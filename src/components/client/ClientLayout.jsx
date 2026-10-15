@@ -1,4 +1,5 @@
 import NotificationLink from '../NotificationLink'
+import useClientCommunity from '../../hooks/useClientCommunity'
 import { useEffect, useState } from 'react'
 import { Link, Outlet, useNavigate } from 'react-router-dom'
 import { collection, doc, onSnapshot, query, where } from 'firebase/firestore'
@@ -26,7 +27,8 @@ export default function ClientLayout() {
 }
 
 function ClientWorkspace({ businessId }) {
-  const { userDoc, logout } = useAuth()
+  const { userDoc, logout, currentUser } = useAuth()
+  const community = useClientCommunity(businessId, currentUser.uid)
   const navigate = useNavigate()
   const [business, setBusiness] = useState(null)
   const [businessReady, setBusinessReady] = useState(false)
@@ -57,7 +59,7 @@ function ClientWorkspace({ businessId }) {
     try { await logout(); navigate('/login', { replace: true }) }
     catch { setSessionError('No pudimos cerrar tu sesión. Inténtalo de nuevo.') }
   }
-  const value = { business, services: catalog.services, categories: catalog.categories,
+  const value = { ...community, business, services: catalog.services, categories: catalog.categories,
     catalogLoading: !catalog.ready.services || !catalog.ready.categories,
     catalogError: catalog.errors.services || catalog.errors.categories || '', endSession }
   return <ClientContext.Provider value={value}>
@@ -69,6 +71,7 @@ function ClientWorkspace({ businessId }) {
       </SiteHeader>
       <main id="contenido" className="client-main" tabIndex={-1}>
         {sessionError && <p className="public-alert public-container" role="alert">{sessionError}</p>}
+        {community.favoriteError && <p className="public-alert public-container" role="alert">{community.favoriteError}</p>}
         {!businessReady ? <p className="client-loading" role="status">Cargando tu negocio…</p>
           : businessError ? <div className="client-empty" role="alert"><h1>{businessError}</h1><button className="public-button secondary" onClick={() => window.location.reload()}>Reintentar</button><button className="public-button secondary" onClick={endSession}>Cerrar sesión</button></div>
           : <Outlet />}

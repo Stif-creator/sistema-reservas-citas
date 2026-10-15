@@ -1,3 +1,4 @@
+import { addDays } from '../lib/calendarDates'
 import { useEffect, useState } from 'react'
 import { and, collection, doc, onSnapshot, or, query, where } from 'firebase/firestore'
 import { db } from '../firebase/config'
@@ -26,6 +27,7 @@ function AvailabilityView({ membership, ownId }) {
   const [professionalId, setProfessionalId] = useState('')
   const [serviceId, setServiceId] = useState('')
   const [date, setDate] = useState('')
+  const [endDate, setEndDate] = useState('')
   const [now, setNow] = useState(Date.now)
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 30000)
@@ -55,7 +57,18 @@ function AvailabilityView({ membership, ownId }) {
   const professional = professionals.find((item) => item.id === (isAdmin ? professionalId : ownId))
   const services = (data.services || []).filter((item) => item.isActive && professional?.serviceIds?.includes(item.id))
   const service = services.find((item) => item.id === serviceId)
-  const slots = loaded && !error && professional && service && date ? availableSlots({ business: data.business, professional, service, date, blocks: data.blocks, reservations: data.reservations, now }) : []
+  const rangeEnd = endDate || date
+  const rangeError = date && (rangeEnd < date || (Date.parse(rangeEnd) - Date.parse(date)) / 86400000 > 30)
+  const dates = []
+  if (date && !rangeError) {
+    for (let index = 0; index < 31; index++) {
+      const day = addDays(date, index)
+      if (day > rangeEnd) break
+      dates.push(day)
+      if (day === rangeEnd) break
+    }
+  }
+  const results = loaded && !error && professional && service ? dates.map(day => ({ day, slots: availableSlots({ business: data.business, professional, service, date: day, blocks: data.blocks, reservations: data.reservations, now }) })) : []
   return <div className="space-y-6">
     <PageHeader title="Disponibilidad" description="Consulta las franjas libres de reservas y bloqueos." />
     {error && <Alert tone="error">{error}</Alert>}
@@ -76,18 +89,15 @@ function AvailabilityView({ membership, ownId }) {
             {services.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
           </select>
         </Field>
-        <Field label="Fecha" htmlFor="availability-date">
+        <Field label="Fecha de inicio" htmlFor="availability-date">
           <input id="availability-date" type="date" value={date} className={fieldControlClasses(false)} onChange={(e) => setDate(e.target.value)} />
         </Field>
+        <Field label="Fecha de fin" htmlFor="availability-end"><input id="availability-end" type="date" min={date} value={endDate} onChange={e => setEndDate(e.target.value)} className={fieldControlClasses(false)} /></Field>
       </div>
+      {rangeError && <Alert tone="error">Selecciona un rango ordenado de hasta 31 días.</Alert>}
       {professional && services.length === 0 && <p className="mt-4 text-sm">Este profesional no tiene servicios activos asignados.</p>}
       <div className="mt-6" aria-live="polite">
-        {professional && service && date && (slots.length ? <>
-          <h3 className="mb-3 font-semibold">Horarios disponibles</h3>
-          <ul aria-label="Horarios disponibles" className="flex flex-wrap gap-2">
-            {slots.map((slot) => <li key={slot.start} className="rounded-lg border border-border px-4 py-2">{slot.label}</li>)}
-          </ul>
-        </> : <p>No hay horarios disponibles para esta selección. Revisa los horarios de atención, la vigencia y los bloqueos.</p>)}
+        {results.map(({ day, slots }) => <section key={day} className="mb-5"><h3 className="mb-3 font-semibold">{day} · Horarios disponibles</h3>{slots.length ? <ul aria-label={`Horarios disponibles ${day}`} className="flex flex-wrap gap-2">{slots.map(slot => <li key={slot.start} className="rounded-lg border border-border px-4 py-2">{slot.label}</li>)}</ul> : <p>No hay horarios disponibles para esta fecha.</p>}</section>)}
       </div>
     </Card>}
   </div>

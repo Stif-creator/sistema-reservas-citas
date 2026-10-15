@@ -21,7 +21,7 @@ const PHONE_REGEX = /^\+?\d{8,}$/
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 function BusinessSettings() {
-  const { membership } = useAuth()
+  const { membership, isSuperadmin } = useAuth()
   const businessId = membership?.businessId
 
   const [loadingBusiness, setLoadingBusiness] = useState(true)
@@ -157,7 +157,7 @@ function BusinessSettings() {
         about: Object.fromEntries(aboutFields.map(([key, , max]) => [key, about[key].trim().slice(0, max)])),
         logo: { url: logoUrl.trim() },
         cover: { url: coverUrl.trim() },
-        appearance: { primaryColor, secondaryColor },
+        ...(isSuperadmin ? { appearance: { primaryColor, secondaryColor } } : {}),
         contact: {
           phone: contactPhone.trim(),
           whatsapp: contactWhatsapp.trim(),
@@ -258,11 +258,11 @@ function BusinessSettings() {
               />
             </Field>
           </div>
-        </Card><Card title="Colores">
+        </Card><Card title="Colores">{!isSuperadmin && <p className="text-sm text-muted mb-3">Los colores los gestiona el superadministrador de la plataforma.</p>}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Color primario" htmlFor="primaryColor">
               <input
-                id="primaryColor"
+                id="primaryColor" disabled={!isSuperadmin}
                 type="color"
                 value={primaryColor}
                 onChange={(e) => setPrimaryColor(e.target.value)}
@@ -272,7 +272,7 @@ function BusinessSettings() {
 
             <Field label="Color secundario" htmlFor="secondaryColor">
               <input
-                id="secondaryColor"
+                id="secondaryColor" disabled={!isSuperadmin}
                 type="color"
                 value={secondaryColor}
                 onChange={(e) => setSecondaryColor(e.target.value)}
