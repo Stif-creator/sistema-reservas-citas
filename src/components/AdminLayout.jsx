@@ -1,4 +1,5 @@
 import NotificationLink from './NotificationLink'
+import './admin.css'
 import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { ListSearchContext } from '../context/list-search-context'
@@ -124,13 +125,14 @@ function AdminLayout() {
 
   const sidebarContent = (
     <>
-      <div className="flex h-16 items-center gap-2 border-b border-border px-5">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-semibold text-white">
-          {initialsFor(businessName) || '…'}
+      <div className="admin-brand flex h-16 items-center gap-2 border-b border-border px-5">
+        <div className="admin-brand-mark" aria-hidden="true">
+          <CalendarCheck size={25} strokeWidth={1.7} />
         </div>
-        <span className="truncate text-sm font-semibold text-ink">
-          {businessName || 'Cargando negocio...'}
-        </span>
+        <div className="min-w-0">
+          <span className="block truncate text-sm font-semibold text-ink" title={businessName}>{businessName || 'Cargando negocio...'}</span>
+          <span className="admin-brand-caption">Gestión de citas</span>
+        </div>
         <button
           type="button"
           onClick={() => setMobileNavOpen(false)}
@@ -208,7 +210,7 @@ function AdminLayout() {
   )
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="admin-shell min-h-screen bg-background">
       {/* Sidebar: fijo en escritorio, off-canvas en móvil */}
       <aside
         className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-border bg-surface transition-transform duration-200 lg:translate-x-0 ${

@@ -288,7 +288,7 @@ function ScheduleBlocks() {
       {zoneError && <Alert>{zoneError}</Alert>}
       {ownProfile.error && <Alert tone="error">{ownProfile.error}</Alert>}
       {timeZone && <p className="text-sm text-muted">Todas las horas corresponden a {timeZone}.</p>}
-      <Card title="Bloqueos programados">
+      <div className="admin-workspace-grid"><Card title="Bloqueos programados">
         {blocksListError && <Alert tone="error">Error al cargar bloqueos: {blocksListError}</Alert>}
         {actionError && <Alert tone="error">{actionError}</Alert>}
 
@@ -344,12 +344,14 @@ function ScheduleBlocks() {
           </div>}</DataList>
         )}
 
+      </Card>
+      <Card title="Crear bloqueo" description="Define el periodo en el que no se recibirán reservas.">
         <form
           onSubmit={handleSubmit}
           noValidate
-          className="mt-6 space-y-4 border-t border-border pt-6"
+          className="space-y-4"
         >
-          <h4 className="text-sm font-semibold text-ink">Nuevo bloqueo</h4>
+
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Título" htmlFor="title" error={fieldErrors.title}>
@@ -462,7 +464,7 @@ function ScheduleBlocks() {
             {saving ? 'Guardando...' : 'Crear bloqueo'}
           </Button>
         </form>
-      </Card>
+      </Card></div>
     </div>
   )
 }

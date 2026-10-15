@@ -1,3 +1,7 @@
+import SettingsPreview from '../components/SettingsPreview'
+import BusinessMap from '../components/BusinessMap'
+import { Building2, Image, Clock3, FileText, Phone, ExternalLink, Save, Info } from 'lucide-react'
+import './business-settings.css'
 import ImageUploadField from '../components/ImageUploadField'
 import { useEffect, useState } from 'react'
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
@@ -24,6 +28,8 @@ function BusinessSettings() {
   const [loadError, setLoadError] = useState('')
   const [loadAttempt, setLoadAttempt] = useState(0)
 
+  const [tab, setTab] = useState('general')
+  const [timeZone, setTimeZone] = useState('')
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [about, setAbout] = useState(defaultAbout)
@@ -65,6 +71,7 @@ function BusinessSettings() {
         if (!snap.exists()) throw new Error('Negocio no encontrado')
         if (snap.exists()) {
           const data = snap.data()
+          setTimeZone(data.settings?.timezone || 'America/La_Paz')
           setName(data.name ?? '')
           setDescription(data.description ?? '')
           setAbout(Object.fromEntries(Object.entries(defaultAbout).map(([key, fallback]) => [key, data.about?.[key] ?? fallback])))
@@ -131,10 +138,11 @@ function BusinessSettings() {
 
     const errors = validate()
     if ((latitude !== '' || longitude !== '') && (latitude === '' || longitude === '' || !Number.isFinite(Number(latitude)) || !Number.isFinite(Number(longitude)) || Math.abs(Number(latitude)) > 85 || Math.abs(Number(longitude)) > 180)) {
-      setError('Ingresa ambas coordenadas: latitud entre -85 y 85 y longitud entre -180 y 180.'); return
+      setTab('contact'); setError('Ingresa ambas coordenadas: latitud entre -85 y 85 y longitud entre -180 y 180.'); return
     }
     setFieldErrors(errors)
     if (Object.keys(errors).length > 0) {
+      setTab(errors.name ? 'general' : 'contact')
       return
     }
 
@@ -213,30 +221,20 @@ function BusinessSettings() {
     return <p className="text-sm text-muted">Cargando configuración del negocio...</p>
   }
 
-  return (
-    <div className="max-w-3xl space-y-6">
-      <PageHeader
-        title="Configuración"
-        description="Datos generales, imágenes, contacto y ubicación de tu negocio."
-      />
-
-      <Card title="Tu página pública">
-        <p className="mb-3 text-sm text-muted">
-          Comparte este enlace con tus clientes. El logo, la portada y los colores se aplican
-          también al inicio de sesión y registro.
-        </p>
-        <a
-          className="break-all text-primary underline"
-          href={`/b/${businessId}`}
-          target="_blank"
-          rel="noreferrer"
-        >
-          {window.location.origin}/b/{businessId}
-        </a>
-      </Card>
-
-      <form onSubmit={handleSubmit} noValidate className="space-y-6">
-        <Card title="Datos generales">
+  const tabs = [['general', 'Datos generales', Building2], ['images', 'Imágenes', Image], ['hours', 'Horarios', Clock3], ['about', 'Página nosotros', FileText], ['contact', 'Contacto', Phone]]
+  return <div className="settings-page">
+    <PageHeader title="Configuración" description="Personaliza la información de tu negocio y tu página pública."
+      actions={<a className="settings-public-link" href={`/b/${businessId}`} target="_blank" rel="noreferrer"><ExternalLink size={15} />Ver página pública</a>} />
+    <div className="settings-tabs" role="tablist" aria-label="Secciones de configuración">
+      {tabs.map(([key, label, Icon]) => <button key={key} type="button" id={`settings-tab-${key}`} role="tab" aria-selected={tab === key} aria-controls={`settings-panel-${key}`} tabIndex={tab === key ? 0 : -1}
+        onClick={() => setTab(key)} onKeyDown={event => {
+          const index = tabs.findIndex(([value]) => value === key)
+          const next = event.key === 'ArrowRight' ? (index + 1) % tabs.length : event.key === 'ArrowLeft' ? (index + tabs.length - 1) % tabs.length : event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : null
+          if (next !== null) { event.preventDefault(); setTab(tabs[next][0]); document.getElementById(`settings-tab-${tabs[next][0]}`)?.focus() }
+        }}><Icon size={19} />{label}</button>)}
+    </div>
+    <form id="settings-business" onSubmit={handleSubmit} noValidate>
+<div id="settings-panel-general" role="tabpanel" aria-labelledby="settings-tab-general" hidden={tab !== 'general'}><div className="settings-columns"><div className="settings-fields"><Card title="Datos generales">
           <div className="space-y-4">
             <Field label="Nombre" htmlFor="name" error={fieldErrors.name}>
               <input
@@ -260,17 +258,7 @@ function BusinessSettings() {
               />
             </Field>
           </div>
-        </Card>
-
-        <Card title="Imágenes">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <ImageUploadField label="Logo" value={logoUrl} onChange={setLogoUrl} businessId={businessId} kind="logo" disabled={saving || imageUploading} onBusyChange={setImageUploading} />
-
-            <ImageUploadField label="Portada" value={coverUrl} onChange={setCoverUrl} businessId={businessId} kind="cover" disabled={saving || imageUploading} onBusyChange={setImageUploading} />
-          </div>
-        </Card>
-
-        <Card title="Colores">
+        </Card><Card title="Colores">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Color primario" htmlFor="primaryColor">
               <input
@@ -292,9 +280,15 @@ function BusinessSettings() {
               />
             </Field>
           </div>
-        </Card>
+        </Card></div><div className="settings-preview-column"><SettingsPreview {...{ tab, name, description, logoUrl, coverUrl, primaryColor, secondaryColor, about, contactPhone, contactWhatsapp, contactEmail, addressLine, city }} /></div></div></div>
+<div id="settings-panel-images" role="tabpanel" aria-labelledby="settings-tab-images" hidden={tab !== 'images'}><div className="settings-columns"><div className="settings-fields"><Card title="Imágenes">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <ImageUploadField label="Logo" value={logoUrl} onChange={setLogoUrl} businessId={businessId} kind="logo" disabled={saving || imageUploading} onBusyChange={setImageUploading} />
 
-        <Card title="Página Nosotros">
+            <ImageUploadField label="Portada" value={coverUrl} onChange={setCoverUrl} businessId={businessId} kind="cover" disabled={saving || imageUploading} onBusyChange={setImageUploading} />
+          </div>
+        </Card></div><div className="settings-preview-column"><SettingsPreview {...{ tab, name, description, logoUrl, coverUrl, primaryColor, secondaryColor, about, contactPhone, contactWhatsapp, contactEmail, addressLine, city }} /></div></div></div>
+<div id="settings-panel-about" role="tabpanel" aria-labelledby="settings-tab-about" hidden={tab !== 'about'}><div className="settings-columns"><div className="settings-fields"><Card title="Página Nosotros">
           <p className="mb-4 text-sm text-muted">Personaliza la historia, misión y valores que se muestran en la página pública y en el panel del cliente. Los campos vacíos utilizan el texto inicial.</p>
           <div className="grid gap-4">
             {aboutFields.map(([key, label, max]) => <Field key={key} label={label} htmlFor={`about-${key}`}>
@@ -302,9 +296,8 @@ function BusinessSettings() {
                 : <textarea id={`about-${key}`} value={about[key]} rows={key === 'story' ? 6 : 3} maxLength={max} onChange={event => setAbout(previous => ({ ...previous, [key]: event.target.value }))} className={fieldControlClasses(false)} />}
             </Field>)}
           </div>
-        </Card>
-
-        <Card title="Contacto">
+        </Card></div><div className="settings-preview-column"><SettingsPreview {...{ tab, name, description, logoUrl, coverUrl, primaryColor, secondaryColor, about, contactPhone, contactWhatsapp, contactEmail, addressLine, city }} /></div></div></div>
+<div id="settings-panel-contact" role="tabpanel" aria-labelledby="settings-tab-contact" hidden={tab !== 'contact'}><div className="settings-columns"><div className="settings-fields"><Card title="Contacto">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Teléfono" htmlFor="contactPhone" error={fieldErrors.contactPhone}>
               <input
@@ -343,9 +336,7 @@ function BusinessSettings() {
               />
             </Field>
           </div>
-        </Card>
-
-        <Card title="Ubicación">
+        </Card><Card title="Ubicación">
           <p className="text-sm text-muted mb-4">Para mostrar el mapa, copia las coordenadas del local desde tu aplicación de mapas. No necesitas contratar una API.</p>
           <div className="grid sm:grid-cols-2 gap-4 mb-4"><Field label="Latitud del mapa" htmlFor="latitude"><input id="latitude" type="number" step="any" value={latitude} onChange={e => setLatitude(e.target.value)} className={fieldControlClasses(false)} /></Field><Field label="Longitud del mapa" htmlFor="longitude"><input id="longitude" type="number" step="any" value={longitude} onChange={e => setLongitude(e.target.value)} className={fieldControlClasses(false)} /></Field></div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -385,17 +376,10 @@ function BusinessSettings() {
               />
             </Field>
           </div>
-        </Card>
-
-        {error && <Alert tone="error">{error}</Alert>}
-        {success && <Alert tone="success">{success}</Alert>}
-
-        <Button type="submit" disabled={saving || imageUploading}>
-          {saving ? 'Guardando...' : 'Guardar cambios'}
-        </Button>
-      </form>
-
-      <form onSubmit={handleHoursSubmit}>
+        </Card></div><div className="settings-preview-column"><SettingsPreview {...{ tab, name, description, logoUrl, coverUrl, primaryColor, secondaryColor, about, contactPhone, contactWhatsapp, contactEmail, addressLine, city }} /><Card title="Ubicación en el mapa">{tab === 'contact' && <BusinessMap business={{ name, location: { latitude: latitude === '' ? null : Number(latitude), longitude: longitude === '' ? null : Number(longitude), addressLine, city } }} />}</Card></div></div></div>
+    </form>
+    <div id="settings-panel-hours" role="tabpanel" aria-labelledby="settings-tab-hours" hidden={tab !== 'hours'}>
+      <div className="settings-columns settings-hours-columns"><div>      <form id="settings-hours" onSubmit={handleHoursSubmit}>
         <Card
           title="Horario de atención"
           description="Define las franjas en las que tu negocio atiende cada día."
@@ -406,14 +390,19 @@ function BusinessSettings() {
             {hoursError && <Alert tone="error">{hoursError}</Alert>}
             {hoursSuccess && <Alert tone="success">{hoursSuccess}</Alert>}
 
-            <Button type="submit" disabled={hoursSaving}>
-              {hoursSaving ? 'Guardando...' : 'Guardar horario'}
-            </Button>
+
           </div>
         </Card>
-      </form>
+      </form></div><Card title="Zona horaria" description="Las horas de atención corresponden a la zona horaria del negocio.">
+        <div className="settings-zone"><Clock3 size={19} />{timeZone}</div>
+        <div className="settings-advice"><h3><Info size={18} /> Recomendaciones</h3><p>Evita superponer franjas de atención.</p><p>Deja tiempo entre citas para preparar tu espacio.</p><p>Mantén tus horarios actualizados para que tus clientes encuentren disponibilidad.</p></div>
+      </Card></div>
     </div>
-  )
+    <div className="settings-savebar"><div><p>Configuración del negocio</p><small>{tab === 'hours' ? 'Guarda el horario de atención.' : 'Guarda para aplicar los cambios en tu página pública.'}</small>
+      {error && <Alert tone="error">{error}</Alert>}{success && <Alert tone="success">{success}</Alert>}</div>
+      <Button type="submit" form={tab === 'hours' ? 'settings-hours' : 'settings-business'} disabled={saving || hoursSaving || imageUploading}><Save size={17} />{saving || hoursSaving ? 'Guardando...' : tab === 'hours' ? 'Guardar horario' : 'Guardar cambios'}</Button>
+    </div>
+  </div>
 }
 
 export default BusinessSettings

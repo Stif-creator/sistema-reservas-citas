@@ -28,6 +28,7 @@ test('administrator registers professionals, assigns services/hours, manages rol
 
   await page.getByRole('link', { name: 'Configuración', exact: true }).click()
   const businessId = (await page.locator('a[target="_blank"]').getAttribute('href')).split('/').pop()
+  await page.getByRole('tab', { name: 'Horarios', exact: true }).click()
   await page.getByRole('button', { name: 'Agregar franja' }).first().click()
   await page.getByLabel('Lunes, inicio de franja 1').fill('09:00')
   await page.getByLabel('Lunes, fin de franja 1').fill('12:00')

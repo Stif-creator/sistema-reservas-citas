@@ -1,0 +1,149 @@
+.admin-shell {
+  --admin-accent: #5546f5;
+  --admin-muted: #657594;
+  color: #17233e;
+  background: radial-gradient(ellipse at 90% 0%, #edf1ff 0, transparent 45%), #f6f9fd;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.admin-shell > aside { background: linear-gradient(180deg, #fff, #fbfcff); border-color: #e6ecf5; box-shadow: 3px 0 20px #22325804; }
+.admin-shell .admin-brand { height: 82px; gap: 11px; }
+.admin-brand-mark { display: grid; place-items: center; flex-shrink: 0; width: 43px; height: 43px; color: #5546f5; border: 1px solid #e0ddff; border-radius: 13px; background: linear-gradient(145deg, #fff, #eeecff); box-shadow: 0 3px 9px #5546f50b; }
+.admin-brand-caption { display: block; margin-top: 2px; font-size: 11px; color: #7885a0; letter-spacing: .02em; }
+.admin-shell aside nav { padding: 22px 14px; }
+.admin-shell aside nav > div > p { font-size: 10px; letter-spacing: .12em; color: #8895ac; padding-bottom: 12px; }
+.admin-shell aside nav a { min-height: 41px; font-size: 12px; border-radius: 9px; margin-block: 3px; color: #5c6d8d; transition: background .15s ease, color .15s ease; }
+.admin-shell aside nav a svg { width: 17px; height: 17px; stroke-width: 1.7; }
+.admin-shell aside nav a:hover { background: #f1f3fc; color: #4338ca; }
+.admin-shell aside nav a[aria-current="page"] { color: #5142ec; background: linear-gradient(90deg, #eae7ff, #f0efff); box-shadow: inset 3px 0 #6554ff; font-weight: 650; }
+.admin-shell aside > div:last-child { background: #f8faff; border-color: #e6ecf5; }
+.admin-shell header { height: 70px; border-color: #e6ecf5; background: #ffffffeb; box-shadow: 0 2px 12px #243b6203; }
+.admin-shell header input[type="search"] { border-color: transparent; background: #f1f5fc; border-radius: 8px; font-size: 12px; padding-block: 10px; }
+.admin-shell header input[type="search"]:focus { background: #fff; border-color: #b6adff; }
+.admin-shell header button { font-size: 12px; }
+.admin-shell main { max-width: 1600px; width: 100%; margin-inline: auto; padding: 30px; }
+.admin-shell main h1 { font-size: clamp(23px, 2vw, 29px); font-weight: 700; letter-spacing: -.035em; line-height: 1.25; color: #14203a; }
+.admin-shell main h2 { font-size: 16px; font-weight: 650; letter-spacing: -.015em; }
+.admin-shell main h3 { font-size: 15px; letter-spacing: -.01em; }
+.admin-shell main h1 + p, .admin-shell main > section > p { color: var(--admin-muted); font-size: 13px; }
+.admin-shell main :is(.shadow-card, .booking-panel) { border-color: #e4eaf5; border-radius: 14px; background: #fff; box-shadow: 0 4px 18px #243b6205, 0 1px 2px #243b6203; }
+.admin-shell main .booking-panel h2 { font-size: 16px; margin-bottom: 14px; }
+.admin-shell main input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), .admin-shell main select, .admin-shell main textarea { border-color: #e0e7f3; border-radius: 8px; background-color: #fcfdff; font-size: 13px; }
+.admin-shell main input:focus-visible, .admin-shell main select:focus-visible, .admin-shell main textarea:focus-visible { outline: 2px solid #aaa1ff; outline-offset: 2px; }
+.admin-shell main :is(.booking-button:not(.secondary):not(.danger), button.bg-primary) { background: linear-gradient(135deg, #7563ff, #5140ef); box-shadow: 0 3px 8px #5746f51a; border-radius: 8px; font-size: 12px; font-weight: 600; }
+.admin-shell main :is(.booking-button.secondary, button.border-border) { border-color: #e0e6f3; border-radius: 8px; font-size: 12px; }
+.admin-shell main :is(button, a):focus-visible { outline: 2px solid #8375f7; outline-offset: 3px; }
+.admin-shell main table { border-collapse: separate; border-spacing: 0; font-size: 12px; }
+.admin-shell main thead { background: #f4f7fc; }
+.admin-shell main th { padding: 13px 16px; color: #60708d; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .045em; white-space: nowrap; border-bottom: 1px solid #e8edf6; }
+.admin-shell main th:first-child { border-radius: 8px 0 0 0; }
+.admin-shell main th:last-child { border-radius: 0 8px 0 0; }
+.admin-shell main td { padding: 15px 16px; border-bottom: 1px solid #edf1f7; color: #435472; }
+.admin-shell main tbody tr:last-child td { border-bottom: 0; }
+.admin-shell main tbody tr:hover { background: #fafbff; }
+.admin-shell main td button { font-size: 12px; }
+.admin-shell .data-list { margin-block: 14px; }
+.admin-shell .data-list-toolbar { padding: 0 0 14px; border-bottom: 1px solid #edf1f7; }
+.admin-shell .data-list-toolbar label { font-size: 11px; color: #697a96; font-weight: 500; }
+.admin-shell .data-list-toolbar input { min-height: 39px; }
+.admin-shell .data-list-footer { padding-top: 15px; border-top: 1px solid #edf1f7; color: #72809a; font-size: 11px; }
+.admin-shell .data-list-footer nav { gap: 10px; }
+.admin-shell .data-list-footer button { color: #5142d6; background: white; border-color: #e0e4f3; font-size: 11px; border-radius: 7px; }
+.admin-shell .data-list-footer button:not(:disabled):hover { background: #f0edff; border-color: #c8c0ff; }
+.admin-shell .booking-choice { padding: 21px; border-color: #e4eaf5; box-shadow: 0 3px 12px #243b6204; gap: 8px; }
+.admin-shell .booking-choice strong { font-size: 14px; color: #243450; }
+.admin-shell .booking-choice > span { color: #72809a; }
+.admin-shell .booking-choice > span:last-child { color: #6553ec; font-weight: 500; }
+.admin-shell .booking-choice:hover { box-shadow: 0 5px 18px #5546f50c; border-color: #bbb2fb; }
+.admin-shell .agenda-toolbar { padding: 16px; background: #fff; border: 1px solid #e4eaf5; border-radius: 12px; }
+.admin-shell .agenda-scroll { border-radius: 14px; box-shadow: 0 4px 18px #243b6205; }
+.admin-shell .agenda-day { background: #fff; }
+.admin-shell .agenda-appointment { border-radius: 8px; box-shadow: 0 2px 5px #25376b06; }
+.admin-shell .dashboard-account { margin-bottom: 26px; }
+.admin-shell .dashboard-account > section { padding: 18px 20px; background: #ffffffb3; }
+.admin-shell .business-stats-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.admin-shell .business-stat { position: relative; display: flex; gap: 14px; align-items: center; padding: 22px; border: 1px solid #e4eaf5; border-radius: 13px; background: #fff; box-shadow: 0 3px 14px #243b6205; }
+.admin-shell .business-stat-icon { display: grid; place-items: center; width: 43px; height: 43px; flex-shrink: 0; color: #6653f5; background: #efecff; border-radius: 12px; }
+.admin-shell .business-stat:nth-child(3n+2) .business-stat-icon { color: #4485d5; background: #edf5ff; }
+.admin-shell .business-stat:nth-child(3n+3) .business-stat-icon { color: #27956f; background: #eaf8f1; }
+.admin-shell .business-stat p { color: #6a7994; font-size: 12px; }
+.admin-shell .business-stat strong { display: block; margin-top: 4px; color: #182440; font-size: 28px; font-weight: 700; line-height: 1.1; }
+.admin-shell .dashboard-upcoming { margin-top: 24px; padding: 22px; border: 1px solid #e4eaf5; border-radius: 14px; background: white; }
+.admin-shell .dashboard-appointment { display: flex; align-items: center; gap: 14px; padding: 15px 4px; border-top: 1px solid #edf1f7; font-size: 12px; color: #5f7090; }
+.admin-shell .dashboard-appointment strong { display: block; color: #253550; font-size: 13px; }
+.admin-shell .dashboard-appointment:hover { background: #fafaff; }
+.admin-shell .dashboard-appointment > svg { color: #7b6cf6; flex-shrink: 0; }
+@media (max-width: 639px) {
+  .admin-shell main { padding: 22px 16px; }
+  .admin-shell header { height: 62px; }
+  .admin-shell main :is(.shadow-card, .booking-panel) { padding: 18px; }
+  .admin-shell .data-list-footer { align-items: flex-start; gap: 12px; }
+  .admin-shell .business-stat { padding: 18px; }
+  .admin-shell .dashboard-appointment { align-items: flex-start; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .admin-shell *, .admin-shell *::before, .admin-shell *::after { transition: none !important; }
+}
+.admin-shell .admin-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.admin-shell .admin-summary-item { display: flex; align-items: center; gap: 16px; padding: 22px; background: white; border: 1px solid #e4eaf5; border-radius: 13px; }
+.admin-shell .admin-summary-item strong { display: block; font-size: 25px; line-height: 1.2; color: #1d2945; }
+.admin-shell .admin-summary-item div > span { font-size: 12px; color: #74819a; }
+.admin-shell .admin-summary-icon, .admin-shell .person-avatar { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 44px; height: 44px; border-radius: 12px; background: #eeebff; color: #6251e9; }
+.admin-shell .person-avatar { border-radius: 50%; font-size: 14px; font-weight: 600; }
+.admin-shell .tone-blue .admin-summary-icon, .admin-shell .person-avatar.tone-blue { background: #eaf2ff; color: #3478d8; }
+.admin-shell .tone-green .admin-summary-icon, .admin-shell .person-avatar.tone-green { background: #e6f7f1; color: #219678; }
+.admin-shell .admin-person { display: flex; align-items: center; gap: 13px; min-width: 210px; }
+.admin-shell .admin-person p:first-child { color: #24314e; }
+.admin-shell .admin-person p + p { margin-top: 3px; }
+.admin-shell main td select { min-width: 125px; }
+.admin-shell .admin-protected { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-size: 11px; color: #6656d8; background: #f3f0ff; padding: 7px 10px; border-radius: 6px; }
+.admin-shell .admin-filter-row { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 18px; }
+.admin-shell .admin-filter-row label { display: grid; gap: 6px; font-size: 12px; color: #65738d; min-width: 180px; }
+.admin-shell .admin-filter-row select { border: 1px solid #e0e7f3; padding: 10px 12px; }
+.admin-shell .admin-role-guide { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; }
+.admin-shell .admin-role-guide li { padding: 18px; background: #f8faff; border: 1px solid #eaf0fa; border-radius: 10px; font-size: 12px; color: #71809c; line-height: 1.8; }
+.admin-shell .admin-role-guide strong { display: block; font-size: 14px; color: #303f61; margin-bottom: 6px; }
+.admin-shell .admin-list-panel { background: white; border: 1px solid #e4eaf5; border-radius: 14px; padding: 24px; }
+.admin-shell .admin-detail-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); align-items: start; gap: 24px; }
+.admin-shell .admin-workspace-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(300px, 1fr); align-items: start; gap: 22px; }
+.admin-shell .admin-workspace-grid > * { min-width: 0; }
+.admin-shell .admin-history-item a { display: block; padding: 16px; border-left: 3px solid #d9d3ff; background: #f9faff; border-radius: 7px; margin-block: 8px; font-size: 12px; color: #596b90; }
+.admin-shell .admin-history-item a:hover { background: #f0edff; color: #5142cf; }
+.admin-shell .admin-service-cell { display: flex; align-items: center; gap: 12px; min-width: 210px; }
+.admin-shell .admin-service-image { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 9px; flex-shrink: 0; background: #f0edff; color: #7561e9; overflow: hidden; }
+.admin-shell .admin-service-image img { width: 100%; height: 100%; object-fit: cover; }
+.admin-shell .admin-service-cell p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 230px; font-size: 11px; color: #8290a7; margin-top: 3px; font-weight: 400; }
+.admin-shell .admin-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.admin-shell .admin-form-grid > :is(h2, p) { grid-column: 1 / -1; }
+.admin-shell .admin-form-grid > p, .admin-shell .booking-fields > p { color: #74819b; font-size: 12px; line-height: 1.8; }
+.admin-shell .admin-promotion { display: grid; grid-template-columns: 74px minmax(0, 1fr) auto; gap: 5px 18px; align-items: center; margin-block: 12px; }
+.admin-shell .admin-promotion h2 { margin: 0; }
+.admin-shell .admin-promotion > p { grid-column: 2; font-size: 12px; color: #7a869d; }
+.admin-shell .admin-promotion > button { grid-column: 3; grid-row: 1 / 3; }
+.admin-shell .admin-discount { grid-row: 1 / 3; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 65px; border-radius: 10px; background: #f0ecff; color: #6c50e5; font-size: 22px; font-weight: 650; }
+.admin-shell .admin-discount small { font-size: 10px; font-weight: 400; }
+.admin-shell .admin-notification { margin-block: 13px; position: relative; padding-left: 78px; }
+.admin-shell .admin-notification-icon { position: absolute; left: 22px; top: 22px; width: 38px; height: 38px; display: grid; place-items: center; background: #efecff; color: #6c57ed; border-radius: 11px; }
+.admin-shell .admin-notification.is-new { border-left: 3px solid #8571f8; }
+.admin-shell .admin-notification h2 small { font-size: 10px; color: #6a53dc; background: #f0ecff; border-radius: 6px; padding: 4px 7px; }
+.admin-shell .admin-notification > p { color: #75819a; font-size: 13px; line-height: 1.8; margin-bottom: 17px; }
+.admin-shell main p[role="alert"] { background: #fff4f3; border: 1px solid #ffdcd7; border-radius: 10px; padding: 14px 18px; color: #ad4037; font-size: 13px; }
+.admin-shell main > .booking-scope > p[role="status"] { background: #eff8f4; border: 1px solid #d6ece2; padding: 13px 18px; border-radius: 9px; color: #327d61; font-size: 13px; }
+.admin-shell .data-list > p[role="status"] { text-align: center; padding: 40px 20px; border: 1px dashed #dce3f0; border-radius: 10px; background: #fbfcff; color: #8a95ab; font-size: 13px; }
+.admin-shell main input[type="file"] { padding: 14px; background: #f9fbff; border: 1px dashed #dce3f1; border-radius: 8px; font-size: 12px; }
+.admin-shell main input[type="file"]::file-selector-button { background: #efebff; color: #6651db; padding: 8px 12px; border: none; border-radius: 6px; margin-right: 12px; cursor: pointer; }
+.admin-shell main input[type="checkbox"], .admin-shell main input[type="radio"] { accent-color: #6652ef; width: 16px; height: 16px; vertical-align: middle; }
+.admin-shell main ul[aria-label="Horarios disponibles"] li { color: #3b876e; border-color: #d6ede4; background: #f0faf6; font-size: 13px; }
+.admin-shell main form > .booking-button { justify-self: start; align-self: start; }
+@media (max-width: 1200px) { .admin-shell .admin-workspace-grid { grid-template-columns: 1fr; } }
+@media (max-width: 767px) {
+  .admin-shell .admin-summary { gap: 10px; }
+  .admin-shell .admin-summary-item { padding: 16px 12px; flex-direction: column; align-items: flex-start; gap: 10px; }
+  .admin-shell .admin-summary-item strong { font-size: 21px; }
+  .admin-shell .admin-summary-item div > span { font-size: 10px; }
+  .admin-shell .admin-role-guide, .admin-shell .admin-detail-grid, .admin-shell .admin-form-grid { grid-template-columns: 1fr; }
+  .admin-shell .admin-list-panel { padding: 18px; }
+  .admin-shell .admin-promotion { grid-template-columns: 60px minmax(0, 1fr); }
+  .admin-shell .admin-promotion > button { grid-column: 1 / -1; grid-row: auto; margin-top: 12px; }
+  .admin-shell .admin-notification { padding: 20px; padding-top: 70px; }
+}

@@ -1,3 +1,5 @@
+import { safeImageUrl } from '../lib/brand'
+import { Scissors } from 'lucide-react'
 import DataList from '../components/ui/DataList'
 import ImageUploadField from '../components/ImageUploadField'
 import { useEffect, useState } from 'react'
@@ -315,7 +317,7 @@ function Services() {
               <tbody className="divide-y divide-border">
                 {rows.map((svc) => (
                   <tr key={svc.id}>
-                    <td className="py-2.5 pr-4 font-medium text-ink">{svc.name}</td>
+                    <td className="py-2.5 pr-4 font-medium text-ink"><div className="admin-service-cell"><span className="admin-service-image">{safeImageUrl(svc.image?.url) ? <img src={svc.image.url} alt="" loading="lazy" /> : <Scissors size={20} />}</span><div><strong>{svc.name}</strong><p title={svc.description}>{svc.description}</p></div></div></td>
                     <td className="py-2.5 pr-4 text-muted">
                       {categories.find((c) => c.id === svc.categoryId)?.name ?? '—'}
                     </td>

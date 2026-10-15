@@ -1,4 +1,7 @@
 import DataList from '../components/ui/DataList'
+import AdminSummary from '../components/ui/AdminSummary'
+import PersonAvatar from '../components/ui/PersonAvatar'
+import { Users as UsersIcon, UserRound, ShieldCheck, LockKeyhole, Save } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { collection, doc, getDoc, onSnapshot, query, where } from 'firebase/firestore'
 import { db } from '../firebase/config'
@@ -18,7 +21,7 @@ function UserRow({ member, locked, save, busy }) {
   const status = draft?.status ?? (member.status === 'pending' ? 'active' : member.status)
   return (
     <tr className="border-b border-border">
-      <td className="p-3"><p className="font-medium">{member.name}</p><p className="text-xs text-muted">{member.email}</p></td>
+      <td className="p-3"><div className="admin-person"><PersonAvatar name={member.name} tone={member.role === 'client' ? 'green' : member.role === 'professional' ? 'blue' : 'purple'} /><div><p className="font-medium">{member.name}</p><p className="text-xs text-muted">{member.email}</p></div></div></td>
       <td className="p-3"><select aria-label={`Rol de ${member.name}`} value={role} disabled={locked || busy}
         className={fieldControlClasses(false)} onChange={(e) => setDraft({ role: e.target.value, status })}>
         {Object.entries(roles).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
@@ -30,9 +33,9 @@ function UserRow({ member, locked, save, busy }) {
           <option value="active">Activo</option><option value="inactive">Inactivo</option>
         </select>
       </td>
-      <td className="p-3">{locked ? <span className="text-sm text-muted">Cuenta protegida</span> :
+      <td className="p-3">{locked ? <span className="admin-protected"><LockKeyhole size={13} />Cuenta protegida</span> :
         <Button disabled={busy || (role === member.role && status === member.status)}
-          onClick={async () => { if (await save(member.userId, role, status)) setDraft(null) }}>Guardar</Button>}</td>
+          onClick={async () => { if (await save(member.userId, role, status)) setDraft(null) }}><Save size={14} />Guardar</Button>}</td>
     </tr>
   )
 }
@@ -46,6 +49,8 @@ export default function Users() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [roleFilter, setRoleFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
   useEffect(() => {
     let active = true
     let generation = 0
@@ -92,18 +97,24 @@ export default function Users() {
   }
   return <div className="space-y-6">
     <PageHeader title="Usuarios" description="Administra los roles y el acceso de las cuentas de tu negocio." />
+    <AdminSummary items={[
+      { label: 'Administradores', value: loading ? '—' : members.filter(m => m.role === 'admin').length, icon: ShieldCheck },
+      { label: 'Profesionales', value: loading ? '—' : members.filter(m => m.role === 'professional').length, icon: UserRound, tone: 'blue' },
+      { label: 'Clientes', value: loading ? '—' : members.filter(m => m.role === 'client').length, icon: UsersIcon, tone: 'green' },
+    ]} />
     {error && <Alert tone="error">{error}</Alert>}
     {success && <Alert tone="success">{success}</Alert>}
     <Card title="Cuentas del negocio">
       <p className="mb-4 text-sm text-muted">Desactivar una cuenta impide su acceso al panel de este negocio. Tu cuenta y la del propietario están protegidas.</p>
-      {loading ? <p>Cargando usuarios…</p> : <DataList items={members} label="Usuarios" searchText={m => `${m.name} ${m.email} ${roles[m.role]} ${m.status === "active" ? "Activo" : m.status === "pending" ? "Pendiente" : "Inactivo"}`}>{rows => <div className="overflow-x-auto"><table className="w-full text-left text-sm">
+      <div className="admin-filter-row"><label>Filtrar por rol<select value={roleFilter} onChange={e => setRoleFilter(e.target.value)}><option value="">Todos los roles</option>{Object.entries(roles).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label>Filtrar por estado<select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}><option value="">Todos los estados</option><option value="active">Activo</option><option value="inactive">Inactivo</option><option value="pending">Pendiente</option></select></label></div>
+      {loading ? <p role="status">Cargando usuarios…</p> : <DataList items={members.filter(m => (!roleFilter || m.role === roleFilter) && (!statusFilter || m.status === statusFilter))} resetKey={`${roleFilter}:${statusFilter}`} label="Usuarios" searchText={m => `${m.name} ${m.email} ${roles[m.role]} ${m.status === "active" ? "Activo" : m.status === "pending" ? "Pendiente" : "Inactivo"}`}>{rows => <div className="overflow-x-auto"><table className="w-full text-left text-sm">
         <thead><tr><th className="p-3">Usuario</th><th className="p-3">Rol</th><th className="p-3">Estado</th><th className="p-3">Acción</th></tr></thead>
         <tbody>{rows.map((member) => <UserRow key={member.userId}
           member={member} busy={busy} locked={!ownerId || member.userId === ownerId || member.userId === currentUser.uid} save={save} />)}</tbody>
       </table></div>}</DataList>}
     </Card>
     <Card title="Permisos por rol">
-      <ul className="space-y-2 text-sm">
+      <ul className="admin-role-guide">
         <li><strong>Administrador:</strong> configura el negocio y administra usuarios, servicios, profesionales, horarios y bloqueos.</li>
         <li><strong>Profesional:</strong> consulta su disponibilidad y gestiona sus propios bloqueos.</li>
         <li><strong>Cliente:</strong> accede a su panel personal, sin acceso a la administración.</li>
