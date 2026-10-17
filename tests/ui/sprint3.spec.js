@@ -139,6 +139,8 @@ test('Sprint 3 public booking resumes after login, preferences, admin clients an
     await staff.getByRole('button', { name:'Guardar anticipación' }).click()
     await expect(staff.getByText('Anticipación de recordatorios guardada.')).toBeVisible()
     await login(pro, 'professional')
+    await expect(pro.getByRole('heading', { name: 'Mis próximas reservas', exact: true })).toBeVisible()
+    await expect(pro.getByRole('link', { name: /Consulta integral/ })).toHaveCount(1)
     await pro.goto('/agenda')
     await expect(pro.getByRole('heading', { name:'Mi agenda profesional' })).toBeVisible()
     await pro.getByLabel('Fecha de agenda').fill(date)

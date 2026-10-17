@@ -46,7 +46,7 @@ export function AuthProvider({ children }) {
       if (!uid) return
       const userSnap = await getDoc(doc(db, 'users', uid))
       const data = userSnap.exists() ? userSnap.data() : null
-      const businessId = data?.businessIds?.[0]
+      const businessId = data?.businessIds?.includes(data?.defaultBusinessId) ? data.defaultBusinessId : data?.businessIds?.[0]
       const memberSnap = businessId
         ? await getDoc(doc(db, 'memberships', `${businessId}_${uid}`))
         : null
@@ -83,7 +83,7 @@ export function AuthProvider({ children }) {
   }, [reloadProfile])
 
   // Apply membership revocation and administrator approval without a new login.
-  const profileBusinessId = userDoc?.businessIds?.[0]
+  const profileBusinessId = !isSuperadmin && userDoc?.businessIds?.includes(selectedBusiness) ? selectedBusiness : userDoc?.businessIds?.includes(userDoc?.defaultBusinessId) ? userDoc.defaultBusinessId : userDoc?.businessIds?.[0]
   useEffect(() => {
     if (!currentUser || !profileBusinessId || provisioning.current) return
     const uid = currentUser.uid
@@ -314,7 +314,7 @@ export function AuthProvider({ children }) {
     membership: isSuperadmin ? { businessId: selectedBusiness || userDoc.businessIds?.[0], userId: currentUser?.uid, role: 'admin', status: 'active' } : membership,
     isSuperadmin,
     selectBusiness: setSelectedBusiness,
-    loading,
+    loading: loading || (!isSuperadmin && !!membership && membership.businessId !== profileBusinessId),
     authError,
     reloadProfile,
     register,

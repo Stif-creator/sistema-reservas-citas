@@ -1,3 +1,4 @@
+import ProfessionalDashboard from '../components/ProfessionalDashboard'
 import BusinessStats from '../components/BusinessStats'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -91,6 +92,7 @@ function Dashboard() {
         </Card>
       </div>
 
+      {membership?.role === 'professional' && <ProfessionalDashboard />}
       {membership?.role === 'admin' && <BusinessStats />}
       {membership?.role === 'admin' && (
         <p className="mt-6 text-sm text-muted">

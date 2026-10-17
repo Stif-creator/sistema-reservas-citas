@@ -1,3 +1,4 @@
+import BusinessAccess from './BusinessAccess'
 import SuperadminBusinesses from './SuperadminBusinesses'
 import NotificationLink from './NotificationLink'
 import './admin.css'
@@ -145,7 +146,7 @@ function AdminLayout() {
         </button>
       </div>
 
-      <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-5"><SuperadminBusinesses />
+      <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-5"><SuperadminBusinesses />{isSuperadmin && <NavLink to="/plataforma/negocios" className={navLinkClasses}><Settings size={18} />Gestionar negocios</NavLink>}
         <div>
           <p className="px-3 pb-2 text-xs font-semibold uppercase tracking-wide text-muted">
             General
@@ -304,7 +305,7 @@ function AdminLayout() {
             </p>
           )}
           <ListSearchContext.Provider value={searchValue}>
-            <Outlet key={`${membership.businessId}:${membership.role}:${membership.userId}`} />
+            <BusinessAccess><Outlet key={`${membership.businessId}:${membership.role}:${membership.userId}`} /></BusinessAccess>
           </ListSearchContext.Provider>
         </main>
       </div>

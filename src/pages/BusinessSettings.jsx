@@ -23,6 +23,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 function BusinessSettings() {
   const { membership, isSuperadmin } = useAuth()
   const businessId = membership?.businessId
+  const [publicPageEnabled, setPublicPageEnabled] = useState(false)
 
   const [loadingBusiness, setLoadingBusiness] = useState(true)
   const [loadError, setLoadError] = useState('')
@@ -72,6 +73,7 @@ function BusinessSettings() {
         if (snap.exists()) {
           const data = snap.data()
           setTimeZone(data.settings?.timezone || 'America/La_Paz')
+          setPublicPageEnabled(data.settings?.publicPageEnabled === true)
           setName(data.name ?? '')
           setDescription(data.description ?? '')
           setAbout(Object.fromEntries(Object.entries(defaultAbout).map(([key, fallback]) => [key, data.about?.[key] ?? fallback])))
@@ -152,8 +154,9 @@ function BusinessSettings() {
       // sea fácil de razonar: lo que se ve en el formulario es
       // exactamente lo que queda guardado en cada campo.
       await updateDoc(doc(db, 'businesses', businessId), {
-        name: name.trim(),
+        ...(isSuperadmin ? { name: name.trim() } : {}),
         description,
+        'settings.publicPageEnabled': publicPageEnabled,
         about: Object.fromEntries(aboutFields.map(([key, , max]) => [key, about[key].trim().slice(0, max)])),
         logo: { url: logoUrl.trim() },
         cover: { url: coverUrl.trim() },
@@ -234,11 +237,11 @@ function BusinessSettings() {
         }}><Icon size={19} />{label}</button>)}
     </div>
     <form id="settings-business" onSubmit={handleSubmit} noValidate>
-<div id="settings-panel-general" role="tabpanel" aria-labelledby="settings-tab-general" hidden={tab !== 'general'}><div className="settings-columns"><div className="settings-fields"><Card title="Datos generales">
+<div id="settings-panel-general" role="tabpanel" aria-labelledby="settings-tab-general" hidden={tab !== 'general'}><div className="settings-columns"><div className="settings-fields"><Card title="Datos generales"><label className="block mb-4 text-sm"><input type="checkbox" checked={publicPageEnabled} onChange={e => setPublicPageEnabled(e.target.checked)} /> Publicar página del negocio</label>{!isSuperadmin && <p className="mb-4 text-sm text-muted">El nombre y los colores los configura el superadministrador.</p>}
           <div className="space-y-4">
             <Field label="Nombre" htmlFor="name" error={fieldErrors.name}>
               <input
-                id="name"
+                id="name" disabled={!isSuperadmin}
                 value={name}
                 onChange={(e) => {
                   setName(e.target.value)

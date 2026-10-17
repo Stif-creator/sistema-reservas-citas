@@ -38,17 +38,50 @@ secrets/
 .secrets/
 credentials/
 backups/
+service-account.json
+service_account*.json
+*service_account_key*.json
+*.keystore
+.config/gcloud/
+.config/firebase/
+
+# Local authentication sessions (cookies and tokens)
+playwright/.auth/
+.auth/
+storage-state*.json
+storageState*.json
 
 # Generated Firebase cache and emulator exports
 .firebase/
 firebase-export*/
 firestore-export*/
+emulator-data/
+firebase-emulator-data/
+
+# Test coverage, build caches and temporary files
+coverage/
+.nyc_output/
+.vite/
+.cache/
+.eslintcache
+*.tsbuildinfo
+blob-report/
+playwright/.cache/
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+*.orig
+*.rej
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 .idea
 .DS_Store
+Thumbs.db
+Desktop.ini
 *.suo
 *.ntvs*
 *.njsproj

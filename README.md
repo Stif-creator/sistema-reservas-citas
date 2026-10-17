@@ -278,3 +278,16 @@ npx firebase deploy --only hosting
 3. Activa la cuenta de superadministrador como se explica arriba y actualiza los recordatorios de las reservas anteriores desde Promociones y recordatorios.
 
 No ejecutes un despliegue general de Firebase ni `--only functions`: esta modalidad usa la API de Render y no requiere facturación de Firebase.
+
+## Gestión de negocios y panel profesional
+
+El superadministrador tiene el menú **Gestionar negocios**, con búsqueda y paginación. Desde ahí crea un negocio indicando nombre, colores y el correo de una cuenta ya registrada y activa. Esa cuenta queda como propietaria y administradora, conserva sus membresías anteriores y puede cambiar de negocio en el menú lateral. No se envían contraseñas ni invitaciones por correo.
+
+El nuevo negocio comienza con su página pública desactivada. En **Configurar**, el superadministrador puede completar toda su información o dejar que el administrador complete imágenes, ubicación, contacto, Nosotros, servicios, profesionales y horarios. **El nombre y los colores solo puede modificarlos el superadministrador**; las reglas también protegen esos campos. Cuando esté listo, marca **Publicar página del negocio** y guarda.
+
+- **Desactivar:** impide operar en el negocio y recibir reservas. Conserva los datos y puede revertirse.
+- **Eliminar:** archiva el negocio, no borra físicamente sus cuentas ni historial. Primero debes desactivarlo y escribir su nombre exacto. Si tiene reservas pendientes o confirmadas, reactívalo para resolverlas antes de archivarlo. Los negocios con más de 2000 reservas requieren una revisión adicional y pueden permanecer desactivados.
+- **Restaurar:** activa **Mostrar también eliminados** y pulsa **Activar / restaurar**.
+- **Profesionales:** su Dashboard muestra sus citas de hoy, próximas citas, pendientes de confirmar y una lista de sus próximas reservas con búsqueda y paginación. Incluye enlaces a su agenda, reservas y disponibilidad. Las consultas y reglas limitan los datos a las citas asignadas al profesional.
+
+Esta actualización necesita desplegar primero el código del servidor en Render, después las reglas de Firestore y Firebase Hosting con los comandos de la sección anterior. No añade servicios de pago ni requiere Blaze.

@@ -61,8 +61,8 @@ export default function Users() {
           getDoc(doc(db, 'businesses', businessId)),
           Promise.all(snapshot.docs.map(async (item) => {
             const member = item.data()
-            const profile = await getDoc(doc(db, 'users', member.userId))
-            const data = profile.data()
+            const profile = await getDoc(doc(db, 'users', member.userId)).catch(error => { if (error.code === 'permission-denied' && member.email) return null; throw error })
+            const data = profile ? profile.data() : member
             return { ...member, name: data ? `${data.firstName} ${data.lastName}` : 'Perfil incompleto', email: data?.email || '' }
           })),
         ])
