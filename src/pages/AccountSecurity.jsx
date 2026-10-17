@@ -1,3 +1,5 @@
+import { doc, updateDoc } from 'firebase/firestore'
+import { db } from '../firebase/config'
 import { useState } from 'react'
 import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth'
 import { useAuth } from '../context/auth-context'
@@ -23,6 +25,7 @@ export default function AccountSecurity() {
     try {
       await reauthenticateWithCredential(currentUser, EmailAuthProvider.credential(currentUser.email, data.get('current')))
       await updatePassword(currentUser, data.get('password'))
+      await updateDoc(doc(db, 'users', currentUser.uid), { mustChangePassword: false })
       form.reset()
       setMessage('Contraseña actualizada. Usa la nueva contraseña al iniciar sesión.')
     } catch {

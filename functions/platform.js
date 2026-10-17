@@ -1,3 +1,5 @@
+import { getAuth } from 'firebase-admin/auth'
+import { createHash } from 'node:crypto'
 import { FieldValue } from 'firebase-admin/firestore'
 import { BookingError } from './bookingError.js'
 
@@ -8,6 +10,23 @@ export async function executePlatform(db, uid, input) {
   if (!uid) fail('unauthenticated', 'Inicia sesión.')
   if (!['platformCreate', 'platformStatus'].includes(input.action)) fail('invalid-argument', 'Acción de plataforma inválida.')
   if (!validId(input.businessId)) fail('invalid-argument', 'Identificador de negocio inválido.')
+  let newOwner
+  if (input.action === 'platformCreate' && input.createAccount === true) {
+    const actor = (await db.doc(`users/${uid}`).get()).data()
+    if (actor?.status !== 'active' || actor.globalRole !== 'superadmin') fail('permission-denied', 'Solo el superadministrador puede crear administradores.')
+    const email = String(input.email || '').trim().toLowerCase()
+    const firstName = String(input.firstName || '').trim(), lastName = String(input.lastName || '').trim()
+    if (!firstName || !lastName || firstName.length > 80 || lastName.length > 80 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || typeof input.password !== 'string' || input.password.length < 12 || input.password.length > 128 || !input.name?.trim() || input.name.length > 120 || !/^#[0-9a-f]{6}$/i.test(input.primaryColor) || !/^#[0-9a-f]{6}$/i.test(input.secondaryColor)) fail('invalid-argument', 'Completa los datos del administrador y del negocio; la clave inicial requiere al menos 12 caracteres.')
+    const accountId = `tenant-${createHash('sha256').update(`${uid}:${input.businessId}`).digest('hex')}`
+    try {
+      await getAuth().createUser({ uid: accountId, email, password: input.password, displayName: `${firstName} ${lastName}` })
+    } catch (error) {
+      if (error.code !== 'auth/uid-already-exists' && error.code !== 'auth/email-already-exists') throw error
+      const previous = await getAuth().getUserByEmail(email)
+      if (previous.uid !== accountId) fail('already-exists', 'Ese correo ya tiene cuenta. Selecciona vincular cuenta existente.')
+    }
+    newOwner = { id: accountId, ref: db.doc(`users/${accountId}`), profile: { firstName, lastName, email, status: 'active', businessIds: [] } }
+  }
   return db.runTransaction(async tx => {
     const actor = (await tx.get(db.doc(`users/${uid}`))).data()
     if (actor?.status !== 'active' || actor.globalRole !== 'superadmin') fail('permission-denied', 'Solo el superadministrador puede gestionar negocios.')
@@ -22,15 +41,16 @@ export async function executePlatform(db, uid, input) {
         if (existing.data().createdByUserId === uid && existing.data().administratorEmail === email && existing.data().name === name && existing.data().appearance.primaryColor === input.primaryColor && existing.data().appearance.secondaryColor === input.secondaryColor) return { ok: true, businessId: ref.id }
         fail('already-exists', 'Este identificador ya está en uso.')
       }
-      const candidates = await tx.get(db.collection('users').where('email', '==', email).limit(2))
-      if (candidates.size !== 1) fail('failed-precondition', 'El administrador debe tener una cuenta registrada con ese correo.')
-      const owner = candidates.docs[0], profile = owner.data()
+      const candidates = newOwner ? null : await tx.get(db.collection('users').where('email', '==', email).limit(2))
+      if (!newOwner && candidates.size !== 1) fail('failed-precondition', 'El administrador debe tener una cuenta registrada con ese correo.')
+      const owner = newOwner || candidates.docs[0], profile = newOwner ? newOwner.profile : owner.data()
       if (profile.status !== 'active' || profile.onboardingComplete === false || (profile.businessIds || []).length >= 20) fail('failed-precondition', 'La cuenta debe estar activa y tener menos de 20 negocios.')
-      tx.create(ref, { id: ref.id, name, ownerUserId: owner.id, administratorEmail: email, createdByUserId: uid,
+      tx.create(ref, { id: ref.id, name, ownerUserId: owner.id, administratorEmail: email, administratorName: `${profile.firstName || ''} ${profile.lastName || ''}`.trim(), createdByUserId: uid,
         appearance: { primaryColor: input.primaryColor, secondaryColor: input.secondaryColor }, status: 'active',
         settings: { publicPageEnabled: false, timezone: 'America/La_Paz', currencyCode: 'BOB', bookingIntervalMinutes: 15, minAdvanceMinutes: 60, maxAdvanceDays: 90, cancellationLimitHours: 24, autoConfirmBookings: false },
         createdAt: stamp, updatedAt: stamp })
       tx.create(db.doc(`memberships/${ref.id}_${owner.id}`), { businessId: ref.id, userId: owner.id, role: 'admin', status: 'active', permissions: {}, firstName: profile.firstName || '', lastName: profile.lastName || '', email, createdAt: stamp })
+      if (newOwner) tx.create(owner.ref, { ...profile, id: owner.id, auth_uid: owner.id, globalRole: 'user', onboardingComplete: true, mustChangePassword: true, createdAt: stamp })
       tx.update(owner.ref, { businessIds: FieldValue.arrayUnion(ref.id), defaultBusinessId: ref.id, updatedAt: stamp })
     } else {
       if (!existing.exists) fail('not-found', 'El negocio no existe.')

@@ -27,7 +27,7 @@ export async function createProfessionalAccount(businessId, form) {
     batch.set(doc(db, 'users', uid), {
       id: uid, auth_uid: uid, firstName, lastName, email, phone,
       status: 'active', globalRole: 'user', businessIds: [businessId],
-      onboardingComplete: true, emailVerified: false, photoUrl: null,
+      mustChangePassword: true, onboardingComplete: true, emailVerified: false, photoUrl: null,
       createdAt: now, updatedAt: now,
     })
     batch.set(doc(db, 'memberships', id), {

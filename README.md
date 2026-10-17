@@ -291,3 +291,13 @@ El nuevo negocio comienza con su página pública desactivada. En **Configurar**
 - **Profesionales:** su Dashboard muestra sus citas de hoy, próximas citas, pendientes de confirmar y una lista de sus próximas reservas con búsqueda y paginación. Incluye enlaces a su agenda, reservas y disponibilidad. Las consultas y reglas limitan los datos a las citas asignadas al profesional.
 
 Esta actualización necesita desplegar primero el código del servidor en Render, después las reglas de Firestore y Firebase Hosting con los comandos de la sección anterior. No añade servicios de pago ni requiere Blaze.
+
+## Cuentas creadas por administradores
+
+En **Gestionar negocios**, el superadministrador puede elegir **Crear cuenta nueva** e indicar nombre, apellido y correo del administrador, junto con los datos del negocio. La cuenta se crea en Firebase Authentication y queda vinculada al negocio. La clave inicial se genera y se muestra al terminar; debe compartirse directamente con su destinatario. No se guarda en Firestore, archivos ni registros. **Vincular cuenta existente** conserva la alternativa anterior sin modificar su clave.
+
+Las cuentas nuevas de administrador y los profesionales registrados por el administrador ven un aviso persistente para cambiar su clave desde **Mi seguridad**. Es un recordatorio, no un bloqueo del panel. Tras reautenticarse y cambiarla correctamente, desaparece; las cuentas anteriores no se marcan retroactivamente. Gestionar negocios muestra el nombre y correo actuales del administrador vinculado.
+
+Si una interrupción ocurre al crear una cuenta, reintenta el mismo formulario sin recargar: se conserva el identificador de la operación y no se vuelve a cambiar la clave de una cuenta ya creada. Si cierras esa pantalla durante un fallo, el responsable debe revisar la cuenta incompleta en Authentication antes de volver a crearla.
+
+Publica el servidor de Render, las reglas y Hosting para activar esta actualización. Las exclusiones de Git ya cubren credenciales, variables locales y resultados de estas pruebas.

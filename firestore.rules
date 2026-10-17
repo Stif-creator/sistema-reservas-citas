@@ -67,7 +67,7 @@ service cloud.firestore {
         && request.resource.data.businessIds is list && request.resource.data.businessIds.size() == 1
         && request.resource.data.createdAt == request.time;
       allow update: if self(uid) && request.resource.data.diff(resource.data).affectedKeys()
-        .hasOnly(['firstName', 'lastName', 'phone', 'photoUrl', 'lastLoginAt', 'updatedAt'])
+        .hasOnly(['firstName', 'lastName', 'phone', 'photoUrl', 'lastLoginAt', 'updatedAt', 'mustChangePassword'])
         || (self(uid) && resource.data.get('onboardingComplete', true) == false
           && request.resource.data.onboardingComplete == true
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['onboardingComplete'])

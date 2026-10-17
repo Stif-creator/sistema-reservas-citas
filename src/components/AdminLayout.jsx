@@ -304,6 +304,7 @@ function AdminLayout() {
               {layoutError}
             </p>
           )}
+          {userDoc?.mustChangePassword && <div role="alert" className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-950"><strong>Cambia tu contraseña inicial</strong><p>Tu cuenta fue creada por un administrador. Elige una contraseña personal para proteger tu acceso.</p><NavLink to="/seguridad" className="font-semibold underline">Cambiar contraseña ahora</NavLink></div>}
           <ListSearchContext.Provider value={searchValue}>
             <BusinessAccess><Outlet key={`${membership.businessId}:${membership.role}:${membership.userId}`} /></BusinessAccess>
           </ListSearchContext.Provider>

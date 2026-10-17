@@ -52,9 +52,9 @@ export default function CreateProfessionalForm({ businessId }) {
             </Field>
           ))}
         </div>
-        <p className="text-sm text-muted">El profesional podrá ingresar con este correo y contraseña. Puede restablecerla desde el inicio de sesión.</p>
+        <p className="text-sm text-muted">El profesional podrá ingresar con este correo y contraseña. Al ingresar verá un aviso para cambiarla desde Mi seguridad.</p>
         <Button type="button" variant="secondary" disabled={busy} onClick={() => { const password = generatePassword(); setForm({ ...form, password, confirm: password }) }}>Generar otra contraseña</Button>
-        {credential && <Alert tone="success"><p>Cuenta creada: {credential.email}</p><p>Contraseña inicial: <code className="select-all">{credential.password}</code></p><p>Compártela directamente con el profesional. Puede cambiarla usando Recuperar contraseña al iniciar sesión.</p><Button type="button" variant="secondary" onClick={() => setCredential(null)}>Ocultar credenciales</Button></Alert>}
+        {credential && <Alert tone="success"><p>Cuenta creada: {credential.email}</p><p>Contraseña inicial: <code className="select-all">{credential.password}</code></p><p>Compártela directamente con el profesional. Al ingresar verá el aviso para cambiarla desde Mi seguridad.</p><Button type="button" variant="secondary" onClick={() => setCredential(null)}>Ocultar credenciales</Button></Alert>}
         {error && <Alert tone="error">{error}</Alert>}
         {success && <Alert tone="success">{success}</Alert>}
         <Button type="submit" disabled={busy}>{busy ? 'Registrando…' : 'Registrar profesional'}</Button>
