@@ -89,7 +89,7 @@ test('business identity persists across home, login and registration on desktop 
   expect(errors).toEqual([])
 })
 
-test('owner registration, branding changes, professional approval and logout work end to end', async ({
+test('owner registration, restricted branding, professional approval and logout work end to end', async ({
   page,
   browser,
 }) => {
@@ -108,13 +108,11 @@ test('owner registration, branding changes, professional approval and logout wor
     timeout: 20000,
   })
   await page.getByRole('link', { name: 'Configuración', exact: true }).click()
-  await page.getByLabel('Color primario').fill('#eab308')
-  await page.getByRole('button', { name: 'Guardar cambios' }).click()
-  await expect(page.getByText('Cambios guardados.', { exact: true })).toBeVisible()
+  await expect(page.getByLabel('Color primario')).toBeDisabled()
+  const brand = await page.getByLabel('Color primario').inputValue()
   const url = await page.locator('a[target="_blank"]').getAttribute('href')
   await page.goto(url)
-  await expect(page.locator('.public-site')).toHaveCSS('--brand', '#eab308')
-  await expect(page.locator('.public-site')).toHaveCSS('--on-brand', '#101b30')
+  await expect(page.locator('.public-site')).toHaveCSS('--brand', brand)
   const professionalContext = await browser.newContext()
   const professionalPage = await professionalContext.newPage()
   await professionalPage.goto(`http://127.0.0.1:4173${url}/registro`)
@@ -138,6 +136,7 @@ test('owner registration, branding changes, professional approval and logout wor
   await page.getByRole('button', { name: 'Activar', exact: true }).click()
   await expect(professionalPage.getByRole('heading', { name: 'Hola, Luis' })).toBeVisible()
   await page.getByRole('button', { name: 'Más acciones' }).click()
+  page.once('dialog', dialog => dialog.accept())
   await page.getByRole('button', { name: 'Desactivar', exact: true }).click()
   await expect(
     professionalPage.getByText(

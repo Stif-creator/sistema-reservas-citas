@@ -311,3 +311,12 @@ Gestionar negocios muestra indicadores y una lista con búsqueda y paginación. 
 El profesional ve su próxima cita, resumen de reservas y accesos personales. En la agenda puede seleccionar una cita para consultar sus datos en el panel lateral y abrir el detalle para gestionarla. Se conservan los permisos y las consultas restringidas a su propio trabajo. No se a?adieron acciones ficticias de los bocetos.
 
 Estos cambios visuales se publican con `npm run build` y `npx firebase deploy --only hosting`. Si aún no publicaste los cambios anteriores de cuentas, actualiza también Render y las reglas según las instrucciones anteriores. Las capturas y resultados de pruebas permanecen excluidos por `.gitignore`.
+# Bloqueos y solicitudes de ausencia
+
+- Los profesionales solicitan bloqueos; un administrador del negocio los aprueba o rechaza desde **Bloqueos**. Una solicitud pendiente o rechazada no ocupa la agenda.
+- Las fechas representan las **00:00 del inicio hasta las 00:00 del fin**, en la zona horaria del negocio. El día final no se incluye: para bloquear el lunes completo, selecciona lunes → martes.
+- El servidor comprueba las citas pendientes y confirmadas (incluidos sus márgenes) al crear y al aprobar. Las operaciones comparten un bloqueo transaccional con las reservas para impedir cruces simultáneos.
+- Los avisos internos notifican solicitudes, resoluciones y eliminaciones. Un profesional solo puede retirar su propia solicitud pendiente; el administrador elimina los bloqueos con confirmación.
+- Las escrituras directas de bloqueos en Firestore quedan deshabilitadas. Los bloqueos anteriores sin estado se consideran aprobados; no se eliminan ni corrigen automáticamente los conflictos históricos.
+
+Para publicar este cambio: sube los archivos al repositorio, despliega primero el backend actualizado en Render y espera que esté operativo. Después ejecuta `npm run build` y `npx firebase deploy --only firestore:rules,hosting --project sistema-reservas-jf745-2026`. No requiere Blaze. Durante la actualización, las versiones antiguas de la página deben recargarse.

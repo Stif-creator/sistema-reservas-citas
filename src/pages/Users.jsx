@@ -84,6 +84,7 @@ export default function Users() {
     return () => { active = false; stop() }
   }, [businessId])
   async function save(userId, role, status) {
+    if (!window.confirm('Confirmar el cambio de rol y acceso de esta cuenta?')) return false
     setBusy(true)
     setError('')
     setSuccess('')

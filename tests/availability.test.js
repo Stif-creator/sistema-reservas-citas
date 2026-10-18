@@ -49,3 +49,9 @@ test('business timezone, advance limits and invalid inputs are respected', () =>
   assert.deepEqual(labels({ professional: { ...professional, weeklyHours: { 1: 'invalid' } } }), [])
   assert.deepEqual(labels({ professional: { ...professional, weeklyHours: { 1: [null] } } }), [])
 })
+
+
+test('only approved or legacy blocks remove slots', () => {
+  for (const status of ['pending', 'rejected', 'cancelled']) assert.deepEqual(labels({ blocks:[{...block,status}] }), labels())
+  assert.deepEqual(labels({ blocks:[{...block,status:'approved'}] }), labels({ blocks:[block] }))
+})

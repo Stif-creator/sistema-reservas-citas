@@ -1,21 +1,18 @@
+import { bookingRequest } from '../lib/bookingApi'
+import { useRef } from 'react'
 import DataList from '../components/ui/DataList'
 import { useEffect, useState } from 'react'
 import {
-  Timestamp,
-  setDoc,
   getDoc,
   and,
   collection,
-  deleteDoc,
   doc,
   onSnapshot,
   or,
   orderBy,
   query,
-  serverTimestamp,
   where,
 } from 'firebase/firestore'
-import { businessDate } from '../lib/hours'
 import useProfessionalProfile from '../hooks/useProfessionalProfile'
 import { db } from '../firebase/config'
 import { useAuth } from '../context/auth-context'
@@ -113,6 +110,8 @@ function ScheduleBlocks() {
   const [formError, setFormError] = useState('')
   const [formSuccess, setFormSuccess] = useState('')
   const [saving, setSaving] = useState(false)
+  const request = useRef(null)
+  const actions = useRef({})
 
   useEffect(() => {
     if (!businessId) return
@@ -183,17 +182,20 @@ function ScheduleBlocks() {
   }
 
   function canDelete(block) {
-    return isAdmin || block.createdByUserId === currentUser?.uid
+    return isAdmin || (block.status === 'pending' && block.createdByUserId === currentUser?.uid)
   }
 
-  async function handleDelete(block) {
+  async function blockAction(block, action) {
+    const labels = { blockDelete: 'Eliminar', blockApprove: 'Aprobar', blockReject: 'Rechazar' }
+    if (!window.confirm(`${labels[action]}: ${block.title}?`)) return
     setActionError('')
+    setSaving(true)
     try {
-      await deleteDoc(doc(db, 'scheduleBlocks', block.id))
-    } catch (err) {
-      console.error('Error al eliminar bloqueo', err)
-      setActionError('No se pudo eliminar el bloqueo. Intenta de nuevo.')
-    }
+      const key = `${action}_${block.id}`
+      actions.current[key] ||= crypto.randomUUID()
+      await bookingRequest({ action, businessId, blockId: block.id, requestId: actions.current[key] })
+    } catch (err) { setActionError(err.message) }
+    finally { setSaving(false) }
   }
 
   function clearFieldError(key) {
@@ -207,10 +209,10 @@ function ScheduleBlocks() {
       errors.title = 'El título es obligatorio.'
     }
     if (!startAt) {
-      errors.startAt = 'Selecciona fecha y hora de inicio.'
+      errors.startAt = 'Selecciona fecha de inicio.'
     }
     if (!endAt) {
-      errors.endAt = 'Selecciona fecha y hora de fin.'
+      errors.endAt = 'Selecciona fecha de fin.'
     }
     if (startAt && endAt && endAt <= startAt) {
       errors.endAt = 'La fecha de fin debe ser posterior a la de inicio.'
@@ -254,25 +256,19 @@ function ScheduleBlocks() {
           : selectedProfessionalId
         : myProfessionalId
 
-      const blockRef = doc(collection(db, 'scheduleBlocks'))
-      await setDoc(blockRef, {
-        id: blockRef.id,
-        businessId,
-        professionalId,
-        allProfessionals: isAllProfessionals,
-        title: title.trim(),
-        reason,
-        startAt: Timestamp.fromDate(businessDate(startAt, timeZone)),
-        endAt: Timestamp.fromDate(businessDate(endAt, timeZone)),
-        createdByUserId: currentUser.uid,
-        createdAt: serverTimestamp(),
-      })
+      const payload = { action: 'blockCreate', businessId, professionalId,
+        allProfessionals: isAllProfessionals, title: title.trim(), reason,
+        startDate: startAt, endDate: endAt }
+      const signature = JSON.stringify(payload)
+      if (request.current?.signature !== signature) request.current = { signature, id: crypto.randomUUID() }
+      await bookingRequest({ ...payload, requestId: request.current.id })
+      request.current = null
 
       resetForm()
-      setFormSuccess('Bloqueo creado.')
+      setFormSuccess(isAdmin ? 'Bloqueo creado.' : 'Solicitud enviada al administrador.')
     } catch (err) {
       console.error('Error al crear el bloqueo', err)
-      setFormError('No se pudo crear el bloqueo. Intenta de nuevo.')
+      setFormError(err.message)
     } finally {
       setSaving(false)
     }
@@ -282,7 +278,7 @@ function ScheduleBlocks() {
     <div className="space-y-6">
       <PageHeader
         title="Bloqueos"
-        description="Bloquea franjas de horario para todo el negocio o para un profesional específico."
+        description="Gestiona bloqueos por días y solicitudes de ausencia de los profesionales."
       />
 
       {zoneError && <Alert>{zoneError}</Alert>}
@@ -305,7 +301,7 @@ function ScheduleBlocks() {
                   <th className="py-2 pr-4">Alcance</th>
                   <th className="py-2 pr-4">Motivo</th>
                   <th className="py-2 pr-4">Fecha y hora</th>
-                  <th className="py-2 pr-4">Acciones</th>
+                  <th className="py-2 pr-4">Estado</th><th className="py-2 pr-4">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -325,12 +321,15 @@ function ScheduleBlocks() {
                         ? formatRange(block.startAt, block.endAt, timeZone)
                         : 'Cargando zona horaria…'}
                     </td>
+                    <td className="py-2.5 pr-4"><Badge>{({ pending: 'Pendiente', approved: 'Aprobado', rejected: 'Rechazado' })[block.status || 'approved']}</Badge></td>
                     <td className="py-2.5 pr-4">
+                      {isAdmin && block.status === 'pending' && <div className="flex gap-2"><Button disabled={saving} onClick={() => blockAction(block, 'blockApprove')}>Aprobar</Button><Button disabled={saving} variant="ghost" onClick={() => blockAction(block, 'blockReject')}>Rechazar</Button></div>}
                       {canDelete(block) && (
                         <Button
                           variant="ghost"
                           className="px-2 py-1 text-error"
-                          onClick={() => handleDelete(block)}
+                          disabled={saving}
+                          onClick={() => blockAction(block, 'blockDelete')}
                         >
                           <Trash2 size={14} />
                           Eliminar
@@ -345,7 +344,7 @@ function ScheduleBlocks() {
         )}
 
       </Card>
-      <Card title="Crear bloqueo" description="Define el periodo en el que no se recibirán reservas.">
+      <Card title={isAdmin ? "Crear bloqueo" : "Solicitar bloqueo"} description="Define el periodo en el que no se recibirán reservas.">
         <form
           onSubmit={handleSubmit}
           noValidate
@@ -386,7 +385,7 @@ function ScheduleBlocks() {
             <Field label="Desde" htmlFor="startAt" error={fieldErrors.startAt}>
               <input
                 id="startAt"
-                type="datetime-local"
+                type="date"
                 value={startAt}
                 onChange={(e) => {
                   setStartAt(e.target.value)
@@ -400,7 +399,7 @@ function ScheduleBlocks() {
             <Field label="Hasta" htmlFor="endAt" error={fieldErrors.endAt}>
               <input
                 id="endAt"
-                type="datetime-local"
+                type="date"
                 value={endAt}
                 onChange={(e) => {
                   setEndAt(e.target.value)
@@ -457,11 +456,12 @@ function ScheduleBlocks() {
             </div>
           )}
 
+          <Alert>El periodo comienza a las 00:00 del inicio y termina a las 00:00 del fin (no incluye ese último día). Para bloquear un día, selecciona el siguiente como fin. Las solicitudes requieren aprobación del administrador.</Alert>
           {formError && <Alert tone="error">{formError}</Alert>}
           {formSuccess && <Alert tone="success">{formSuccess}</Alert>}
 
           <Button type="submit" disabled={saving || !timeZone || (!isAdmin && !myProfessionalId)}>
-            {saving ? 'Guardando...' : 'Crear bloqueo'}
+            {saving ? 'Guardando...' : isAdmin ? 'Crear bloqueo' : 'Solicitar bloqueo'}
           </Button>
         </form>
       </Card></div>

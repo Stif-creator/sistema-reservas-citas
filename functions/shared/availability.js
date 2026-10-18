@@ -27,7 +27,7 @@ export function availableSlots({ business, professional, service, date, blocks =
     startAt: millis(item.startAt) - (item.bufferBeforeMinutes || 0) * 60000,
     endAt: millis(item.endAt) + (item.bufferAfterMinutes || 0) * 60000,
   }))
-  const relevantBlocks = [...blocks, ...occupied].filter((block) => block.businessId === business.id &&
+  const relevantBlocks = [...blocks.filter(b => !b.status || b.status === 'approved'), ...occupied].filter((block) => block.businessId === business.id &&
     (block.allProfessionals || block.professionalId === professional.id))
   const result = new Map()
   const earliest = now + Math.max(0, business.settings?.minAdvanceMinutes ?? 0) * 60000

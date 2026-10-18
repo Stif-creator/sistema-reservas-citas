@@ -149,6 +149,24 @@
 }
 
 /* Shared editing surfaces for business and professional workspaces. */
+.admin-shell .assigned-services-heading { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; }
+.admin-shell .assigned-services-heading h2 { margin: 0 0 5px; }
+.admin-shell .assigned-services-heading p { font-size: 13px; color: #657594; }
+.admin-shell .assigned-services-symbol, .admin-shell .assigned-service-icon { display: grid; place-items: center; flex-shrink: 0; width: 46px; height: 46px; border-radius: 13px; color: #5145cd; background: #eeedff; }
+.admin-shell .assigned-services-count { margin-left: auto; white-space: nowrap; font-size: 12px; font-weight: 600; color: #5145cd; background: #f0efff; padding: 7px 12px; border-radius: 20px; }
+.admin-shell .assigned-services-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,260px),1fr)); gap: 16px; list-style: none; padding: 0; margin: 0; }
+.admin-shell .assigned-service-card { display: flex; align-items: flex-start; gap: 14px; padding: 20px; border: 1px solid #e2e8f3; border-radius: 14px; background: linear-gradient(135deg,#fff,#f9fbff); }
+.admin-shell .assigned-service-card > div { min-width: 0; }
+.admin-shell .assigned-service-card h3 { font-size: 14px; font-weight: 650; line-height: 1.5; overflow-wrap: anywhere; color: #243351; margin: 0 0 10px; }
+.admin-shell .assigned-service-duration { display: inline-flex; gap: 6px; align-items: center; font-size: 12px; color: #60718e; border: 1px solid #e7edf6; border-radius: 8px; padding: 5px 9px; background: white; }
+.admin-shell .data-list-empty, .admin-shell .panel-empty, .admin-shell .panel-loading { padding: 24px; border: 1px dashed #d8e1ef; background: #f8faff; border-radius: 12px; color: #657594; font-size: 14px; line-height: 1.7; }
+.admin-shell .panel-empty { display: flex; align-items: center; gap: 16px; }
+.admin-shell .panel-empty > svg { flex-shrink: 0; color: #6355e5; }
+.admin-shell .panel-empty h2 { font-size: 15px; font-weight: 600; color: #243351; margin-bottom: 5px; }
+.admin-shell .availability-day { padding: 20px; border: 1px solid #e1e8f3; border-radius: 14px; background: #fafcff; }
+.admin-shell .availability-day li { background: white; color: #4338a8; border-color: #dcdff6; font-size: 14px; font-weight: 600; box-shadow: 0 2px 5px #24335105; }
+.admin-shell .availability-day > p { color: #738099; font-size: 13px; padding: 12px 0; }
+@media(max-width:640px) { .admin-shell .assigned-services-heading { flex-wrap: wrap; } .admin-shell .assigned-services-heading > div { flex: 1; min-width: 180px; } .admin-shell .assigned-services-count { margin-left: 60px; } .admin-shell .assigned-service-card { padding: 16px; } }
 .editor-dialog { width: min(1080px, calc(100vw - 32px)); max-height: calc(100dvh - 40px); margin: auto; border: 1px solid #e2e8f0; border-radius: 20px; padding: 0; color: #17233f; box-shadow: 0 24px 90px #15203b30; }
 .editor-dialog::backdrop { background: #14213e66; backdrop-filter: blur(3px); }
 .editor-dialog-header { position: sticky; top: 0; z-index: 20; background: white; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 22px 28px; border-bottom: 1px solid #e2e8f0; }

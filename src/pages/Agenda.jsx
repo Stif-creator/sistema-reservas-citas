@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, CalendarDays, Clock, UserRound } from 'lucide-react'
+import { ChevronLeft, ChevronRight, CalendarDays, Clock, UserRound, BriefcaseBusiness } from 'lucide-react'
 import Card from '../components/ui/Card'
 import DataList from '../components/ui/DataList'
 import { useAuth } from '../context/auth-context'
@@ -62,5 +62,10 @@ function AgendaView({ business, items, own }) {
 function AssignedServices({ businessId }) {
   const [items, setItems] = useState(null), [error, setError] = useState('')
   useEffect(() => { let active = true; bookingRequest({ action:'options', businessId }).then(r => { if (active) setItems(r.services) }).catch(e => { if (active) setError(e.message) }); return () => { active = false } }, [businessId])
-  return <section className="booking-panel"><h2>Mis servicios asignados</h2>{error && <p role="alert">{error}</p>}{!items && !error && <p role="status">Cargando servicios…</p>}{items?.length === 0 && <p>No tienes servicios activos asignados.</p>}<DataList label="Servicios asignados" items={items || []}>{rows => <ul>{rows.map(s => <li key={s.id}>{s.name} · {s.durationMinutes} minutos</li>)}</ul>}</DataList></section>
+  return <section className="booking-panel assigned-services">
+    <div className="assigned-services-heading"><span className="assigned-services-symbol"><BriefcaseBusiness size={23} aria-hidden="true" /></span><div><h2>Mis servicios asignados</h2><p>Estos son los servicios que puedes atender en este negocio.</p></div>{items && <span className="assigned-services-count">{items.length} {items.length === 1 ? 'servicio' : 'servicios'}</span>}</div>
+    {error && <Alert tone="error">{error}</Alert>}
+    {!items && !error && <p role="status" className="panel-loading">Cargando servicios…</p>}
+    {items && !error && <DataList label="Servicios asignados" items={items}>{rows => <ul className="assigned-services-grid">{rows.map(s => <li key={s.id} className="assigned-service-card"><span className="assigned-service-icon"><BriefcaseBusiness size={20} aria-hidden="true" /></span><div><h3>{s.name}</h3><span className="assigned-service-duration"><Clock size={14} aria-hidden="true" />{s.durationMinutes} minutos</span></div></li>)}</ul>}</DataList>}
+  </section>
 }

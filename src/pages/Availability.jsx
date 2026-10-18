@@ -97,7 +97,7 @@ function AvailabilityView({ membership, ownId }) {
       {rangeError && <Alert tone="error">Selecciona un rango ordenado de hasta 31 días.</Alert>}
       {professional && services.length === 0 && <p className="mt-4 text-sm">Este profesional no tiene servicios activos asignados.</p>}
       <div className="mt-6" aria-live="polite">
-        {results.map(({ day, slots }) => <section key={day} className="mb-5"><h3 className="mb-3 font-semibold">{day} · Horarios disponibles</h3>{slots.length ? <ul aria-label={`Horarios disponibles ${day}`} className="flex flex-wrap gap-2">{slots.map(slot => <li key={slot.start} className="rounded-lg border border-border px-4 py-2">{slot.label}</li>)}</ul> : <p>No hay horarios disponibles para esta fecha.</p>}</section>)}
+        {results.map(({ day, slots }) => <section key={day} className="availability-day mb-5"><h3 className="mb-3 font-semibold">{day} · Horarios disponibles</h3>{slots.length ? <ul aria-label={`Horarios disponibles ${day}`} className="flex flex-wrap gap-2">{slots.map(slot => <li key={slot.start} className="rounded-lg border border-border px-4 py-2">{slot.label}</li>)}</ul> : <p>No hay horarios disponibles para esta fecha.</p>}</section>)}
       </div>
     </Card>}
   </div>

@@ -271,6 +271,7 @@ function Services() {
   }
 
   async function toggleServiceActive(service) {
+    if (service.isActive && !window.confirm('Desactivar este registro? Dejará de estar disponible para nuevas reservas.')) return
     setSvcError('')
     try {
       await updateDoc(doc(db, 'services', service.id), {

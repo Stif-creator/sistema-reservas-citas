@@ -129,6 +129,7 @@ export default function Categories() {
   }
 
   async function toggleCategoryActive(category) {
+    if (category.isActive && !window.confirm('Desactivar este registro? Dejará de estar disponible para nuevas reservas.')) return
     setCatError('')
     try {
       await updateDoc(doc(db, 'categories', category.id), {

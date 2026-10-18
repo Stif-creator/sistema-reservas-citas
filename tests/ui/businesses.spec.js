@@ -50,6 +50,7 @@ test('platform links a business, administrator selects it, suspension and archiv
     await admin.getByRole('button', { name: 'Guardar cambios', exact: true }).click()
     await expect(admin.getByText('Cambios guardados.', { exact: true })).toBeVisible()
     const card = page.locator('article').filter({ has: page.getByRole('heading', { name: 'Consultorio nuevo', exact: true }) })
+  page.once('dialog', dialog => dialog.accept())
     await card.getByRole('button', { name: 'Desactivar', exact: true }).click()
     await expect(admin.getByRole('alert')).toContainText('desactivado')
     await card.getByRole('button', { name: 'Eliminar', exact: true }).click()

@@ -1,3 +1,4 @@
+import { executeBlocks } from './blocks.js'
 import { executePlatform } from './platform.js'
 import { createHash } from 'node:crypto'
 import { FieldValue, Timestamp } from 'firebase-admin/firestore'
@@ -120,6 +121,7 @@ export async function executeBooking(db, uid, input) {
   if (!input || typeof input !== 'object') fail('invalid-argument', 'Solicitud inválida.')
   const { businessId, action } = input
   if (['platformCreate', 'platformStatus'].includes(action)) return executePlatform(db, uid, input)
+  if (['blockCreate', 'blockApprove', 'blockReject', 'blockDelete'].includes(action)) return executeBlocks(db, uid, input, context)
   const reader = { get: ref => ref.get() }
   if (engagementActions.includes(action)) return executeEngagement(db, uid, input, await context(db, reader, uid, businessId))
   if (action === 'options' || action === 'publicOptions') {

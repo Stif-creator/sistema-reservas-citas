@@ -270,6 +270,7 @@ function Professionals() {
   }
 
   async function toggleProfessionalActive(prof) {
+    if (prof.isActive && !window.confirm('Desactivar este registro? Dejará de estar disponible para nuevas reservas.')) return
     setActionError('')
     try {
       const batch = writeBatch(db)

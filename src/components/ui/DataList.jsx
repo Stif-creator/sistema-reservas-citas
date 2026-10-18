@@ -21,7 +21,7 @@ export default function DataList({ items = [], label, searchText = defaultText, 
       {search && <label>Buscar {label.toLowerCase()}<input type="search" value={term} onChange={event => setTerm(event.target.value)} placeholder="Escribe para filtrar…" /></label>}
       <label>Registros por página<select value={size} onChange={event => setSize(Number(event.target.value))}>{[10, 25, 50].map(value => <option key={value} value={value}>{value}</option>)}</select></label>
     </div>
-    {filtered.length ? children(filtered.slice(start, start + size)) : <p role="status">No hay resultados para esta selección.</p>}
+    {filtered.length ? children(filtered.slice(start, start + size)) : <p className="data-list-empty" role="status">No hay resultados para esta selección.</p>}
     <div className="data-list-footer">
       <span role="status">{filtered.length ? start + 1 : 0}–{Math.min(start + size, filtered.length)} de {filtered.length} registros</span>
       <nav aria-label={`Paginación de ${label.toLowerCase()}`}>

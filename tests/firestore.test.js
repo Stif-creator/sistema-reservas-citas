@@ -270,12 +270,13 @@ test('legacy professional IDs retain own blocks and synchronize membership state
     title: 'Descanso', reason: 'personal', createdByUserId: 'legacy', createdAt: serverTimestamp(),
     startAt: Timestamp.now(), endAt: Timestamp.fromMillis(Date.now() + 3600000),
   }
-  await assertSucceeds(setDoc(doc(db, 'scheduleBlocks', block.id), block))
+  await assertFails(setDoc(doc(db, 'scheduleBlocks', block.id), block))
+  await env.withSecurityRulesDisabled(context => setDoc(doc(context.firestore(), 'scheduleBlocks', block.id), block))
   const blocks = await assertSucceeds(getDocs(query(collection(db, 'scheduleBlocks'),
     and(where('businessId', '==', 'studio'), or(where('allProfessionals', '==', true), where('professionalId', '==', 'professional_001'))))))
   assert.equal(blocks.size, 2)
   await assertFails(getDocs(query(collection(db, 'scheduleBlocks'), where('businessId', '==', 'studio'), where('professionalId', '==', 'studio_pro'))))
-  await assertSucceeds(deleteDoc(doc(db, 'scheduleBlocks', block.id)))
+  await assertFails(deleteDoc(doc(db, 'scheduleBlocks', block.id)))
   const owner = dbFor('owner')
   const batch = writeBatch(owner)
   batch.update(doc(owner, 'memberships', 'studio_legacy'), { role: 'client', status: 'inactive', professionalId: 'professional_001' })
@@ -415,8 +416,9 @@ test('professional query sees only global and own blocks; cannot delete administ
     endAt: Timestamp.fromMillis(Date.now() + 3600000),
     createdAt: serverTimestamp(),
   }
-  await assertSucceeds(setDoc(doc(db, 'scheduleBlocks', block.id), block))
-  await assertSucceeds(deleteDoc(doc(db, 'scheduleBlocks', block.id)))
+  await assertFails(setDoc(doc(db, 'scheduleBlocks', block.id), block))
+  await env.withSecurityRulesDisabled(context => setDoc(doc(context.firestore(), 'scheduleBlocks', block.id), block))
+  await assertFails(deleteDoc(doc(db, 'scheduleBlocks', block.id)))
   await assertFails(
     setDoc(doc(db, 'scheduleBlocks', block.id), {
       ...block,

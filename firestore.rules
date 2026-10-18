@@ -184,27 +184,7 @@ service cloud.firestore {
     match /scheduleBlocks/{bid} {
       allow read: if admin(resource.data.businessId) || (professional(resource.data.businessId)
         && (resource.data.allProfessionals == true || ownProfessional(resource.data.businessId, resource.data.professionalId)));
-      allow create: if signedIn() && request.resource.data.id == bid
-        && request.resource.data.createdByUserId == request.auth.uid
-        && request.resource.data.startAt is timestamp && request.resource.data.endAt is timestamp
-        && request.resource.data.endAt > request.resource.data.startAt
-        && request.resource.data.title is string && request.resource.data.title.size() > 0
-        && request.resource.data.reason in ['meeting', 'vacation', 'personal', 'other']
-        && request.resource.data.createdAt == request.time
-        && (
-          (admin(request.resource.data.businessId)
-            && ((request.resource.data.allProfessionals == true && request.resource.data.professionalId == null)
-              || (request.resource.data.allProfessionals == false
-                && get(/databases/$(database)/documents/professionals/$(request.resource.data.professionalId)).data.businessId == request.resource.data.businessId
-                && get(/databases/$(database)/documents/professionals/$(request.resource.data.professionalId)).data.isActive == true)))
-          || (professional(request.resource.data.businessId) && request.resource.data.allProfessionals == false
-            && ownProfessional(request.resource.data.businessId, request.resource.data.professionalId)
-            && get(/databases/$(database)/documents/professionals/$(request.resource.data.professionalId)).data.isActive == true)
-        );
-      allow delete: if admin(resource.data.businessId) || (professional(resource.data.businessId)
-        && resource.data.createdByUserId == request.auth.uid
-        && ownProfessional(resource.data.businessId, resource.data.professionalId)
-        && resource.data.allProfessionals == false);
+      allow write: if false; // Validated transactionally by the booking server.
     }
     // Compatibilidad con las colecciones de fases posteriores ya existentes.
     function activeUser() { return userActive(); }
