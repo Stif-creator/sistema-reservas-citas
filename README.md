@@ -301,3 +301,13 @@ Las cuentas nuevas de administrador y los profesionales registrados por el admin
 Si una interrupción ocurre al crear una cuenta, reintenta el mismo formulario sin recargar: se conserva el identificador de la operación y no se vuelve a cambiar la clave de una cuenta ya creada. Si cierras esa pantalla durante un fallo, el responsable debe revisar la cuenta incompleta en Authentication antes de volver a crearla.
 
 Publica el servidor de Render, las reglas y Hosting para activar esta actualización. Las exclusiones de Git ya cubren credenciales, variables locales y resultados de estas pruebas.
+
+## Paneles y editores renovados
+
+Los paneles utilizan Tailwind y los iconos de Lucide, sin Bootstrap ni emojis. Profesionales incluye filtros por estado y servicio, tarjetas con su información y un registro que se abre al solicitarlo. La edición se divide en Datos personales, Servicios, Horarios y Acceso; cada sección mantiene su propio guardado. Los horarios permiten activar días y copiar las franjas a otros días seleccionados. La copia reemplaza esas franjas y solo se persiste al guardar.
+
+Gestionar negocios muestra indicadores y una lista con búsqueda y paginación. La creación se organiza en tres pasos: Negocio, Administrador y Revisar. El formulario conserva los datos al retroceder y mantiene el flujo de creación de cuenta y contraseña inicial.
+
+El profesional ve su próxima cita, resumen de reservas y accesos personales. En la agenda puede seleccionar una cita para consultar sus datos en el panel lateral y abrir el detalle para gestionarla. Se conservan los permisos y las consultas restringidas a su propio trabajo. No se a?adieron acciones ficticias de los bocetos.
+
+Estos cambios visuales se publican con `npm run build` y `npx firebase deploy --only hosting`. Si aún no publicaste los cambios anteriores de cuentas, actualiza también Render y las reglas según las instrucciones anteriores. Las capturas y resultados de pruebas permanecen excluidos por `.gitignore`.

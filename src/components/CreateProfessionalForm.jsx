@@ -1,5 +1,5 @@
 import { generatePassword } from '../lib/password'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createProfessionalAccount } from '../lib/userAdministration'
 import { getAuthErrorMessage } from '../firebase/authErrors'
 import Card from './ui/Card'
@@ -10,10 +10,11 @@ import Alert from './ui/Alert'
 
 const empty = { firstName: '', lastName: '', email: '', phone: '', password: '', confirm: '' }
 
-export default function CreateProfessionalForm({ businessId }) {
+export default function CreateProfessionalForm({ businessId, onBusyChange }) {
   const [form, setForm] = useState(() => { const password = generatePassword(); return { ...empty, password, confirm: password } })
   const [credential, setCredential] = useState(null)
   const [busy, setBusy] = useState(false)
+  useEffect(() => { onBusyChange?.(busy) }, [busy, onBusyChange])
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   async function submit(event) {

@@ -16,3 +16,9 @@
 .agenda-appointment.agenda-completed { background: #edf8f1; border-color: #99c8ac; }
 .agenda-appointment.agenda-no_show { background: #fff1ef; border-color: #e6b2a9; }
 .agenda-day > .agenda-day .agenda-appointment { max-width: 650px; }
+
+.agenda-toolbar { padding: 18px; background: white; border: 1px solid #e1e7f0; border-radius: 14px; }
+.agenda-appointment { font-size: 12px; line-height: 1.5; padding: 13px; transition: box-shadow .15s; }
+.agenda-appointment:hover, .agenda-appointment[aria-pressed=true] { box-shadow: 0 0 0 2px #818cf8; }
+.agenda-appointment.agenda-pending { background: #fffbeb; border-color: #fde68a; border-left-color: #f59e0b; }
+.agenda-day h2 { padding-bottom: 12px; border-bottom: 1px solid #edf1f7; color: #425576; }

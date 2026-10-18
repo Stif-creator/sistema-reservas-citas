@@ -160,7 +160,7 @@ function AdminLayout() {
                 onClick={() => setMobileNavOpen(false)}
               >
                 <link.icon size={18} />
-                {link.label}
+                {membership.role === 'professional' ? ({'/dashboard':'Mi día','/reservas':'Mis reservas','/agenda':'Mi agenda','/disponibilidad':'Mi disponibilidad'}[link.to] || link.label) : link.label}
               </NavLink>
             ))}
           </div>
@@ -180,7 +180,7 @@ function AdminLayout() {
                   onClick={() => setMobileNavOpen(false)}
                 >
                   <link.icon size={18} />
-                  {link.label}
+                  {membership.role === 'professional' ? ({'/dashboard':'Mi día','/reservas':'Mis reservas','/agenda':'Mi agenda','/disponibilidad':'Mi disponibilidad'}[link.to] || link.label) : link.label}
                 </NavLink>
               ))}
             </div>

@@ -25,7 +25,9 @@ import { fieldControlClasses } from '../components/ui/fieldStyles'
 import Button from '../components/ui/Button'
 import Alert from '../components/ui/Alert'
 import Badge from '../components/ui/Badge'
-import { MoreVertical, User, X } from 'lucide-react'
+import EditorDialog from '../components/ui/EditorDialog'
+import AdminSummary from '../components/ui/AdminSummary'
+import { MoreVertical, User, Users, Clock, Briefcase, ShieldCheck, Plus, Pencil } from 'lucide-react'
 
 const PHONE_REGEX = /^\+?\d{8,}$/
 
@@ -43,7 +45,7 @@ function initialsFor(text) {
     .join('')
 }
 
-function ProfessionalCard({ professional, onEdit, onToggleActive }) {
+function ProfessionalCard({ professional, services, onEdit, onToggleActive }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef(null)
 
@@ -63,7 +65,7 @@ function ProfessionalCard({ professional, onEdit, onToggleActive }) {
       : professional.bio
 
   return (
-    <Card className="relative">
+    <Card className="relative professional-list-card">
       <div className="flex items-start gap-3">
         {professional.photo?.url ? (
           <img
@@ -116,6 +118,9 @@ function ProfessionalCard({ professional, onEdit, onToggleActive }) {
         </Badge>
       </div>
 
+      <p className="mt-2 text-xs text-muted break-all">{professional.email}</p>
+      <div className="flex flex-wrap gap-2 mt-3">{services.filter(s => professional.serviceIds?.includes(s.id)).slice(0,3).map(s => <span key={s.id} className="rounded-full bg-indigo-50 px-3 py-1 text-xs text-primary">{s.name}</span>)}</div>
+      <p className="flex gap-2 items-center mt-3 text-xs text-muted"><Clock size={15} />{Object.values(professional.weeklyHours || {}).some(slots => slots.length) ? 'Horario configurado' : 'Horario pendiente de configurar'}</p>
       {bioSnippet && <p className="mt-3 text-sm text-muted">{bioSnippet}</p>}
 
       <p className="mt-3 text-xs text-muted">
@@ -125,7 +130,7 @@ function ProfessionalCard({ professional, onEdit, onToggleActive }) {
       </p>
 
       <Button variant="secondary" className="mt-4 w-full" onClick={() => onEdit(professional)}>
-        Editar
+        <Pencil size={16} /> Editar perfil
       </Button>
     </Card>
   )
@@ -149,6 +154,11 @@ function Professionals() {
 
   // --- Editor: qué profesional está abierto ---
   const [editingId, setEditingId] = useState(null)
+  const [tab, setTab] = useState('profile')
+  const [creating, setCreating] = useState(false)
+  const [creatingBusy, setCreatingBusy] = useState(false)
+  const [statusFilter, setStatusFilter] = useState('')
+  const [serviceFilter, setServiceFilter] = useState('')
 
   // --- Sección A: datos del perfil ---
   const [jobTitle, setJobTitle] = useState('')
@@ -233,6 +243,7 @@ function Professionals() {
   function loadProfessionalForEdit(prof) {
     if (imageUploading) return
     setEditingId(prof.id)
+    setTab('profile')
 
     setJobTitle(prof.jobTitle ?? '')
     setBio(prof.bio ?? '')
@@ -421,7 +432,13 @@ function Professionals() {
         description="Registra profesionales y administra su perfil, servicios y horario."
       />
 
-      <CreateProfessionalForm businessId={businessId} />
+      <div className="flex flex-wrap justify-between items-center gap-4 mb-6"><AdminSummary items={[
+        { label: 'Profesionales activos', value: professionals.filter(p => p.isActive).length, icon: Users },
+        { label: 'Sin servicios asignados', value: professionals.filter(p => !p.serviceIds?.length).length, icon: Briefcase, tone: 'blue' },
+        { label: 'Sin horario configurado', value: professionals.filter(p => !Object.values(p.weeklyHours || {}).some(slots => slots.length)).length, icon: Clock, tone: 'green' },
+      ]} /><Button onClick={() => setCreating(true)}><Plus size={18} />Registrar profesional</Button></div>
+      {creating && <EditorDialog title="Registrar profesional" busy={creatingBusy} onClose={() => setCreating(false)}><CreateProfessionalForm businessId={businessId} onBusyChange={setCreatingBusy} /></EditorDialog>}
+      <div className="grid sm:grid-cols-2 gap-4 mb-5"><label className="text-sm">Estado<select aria-label="Filtrar estado del profesional" className={fieldControlClasses(false)} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}><option value="">Todos los estados</option><option value="active">Activos</option><option value="inactive">Inactivos</option></select></label><label className="text-sm">Servicio<select aria-label="Filtrar servicio del profesional" className={fieldControlClasses(false)} value={serviceFilter} onChange={e => setServiceFilter(e.target.value)}><option value="">Todos los servicios</option>{services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label></div>
 
       {professionalsListError && (
         <div className="mb-4">
@@ -441,11 +458,12 @@ function Professionals() {
           Todavía no hay profesionales registrados en este negocio.
         </p>
       ) : (
-        <DataList label="Profesionales" items={professionals.filter(prof => professionalUsers.includes(prof.userId))}>{rows => <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <DataList label="Profesionales" items={professionals.filter(prof => professionalUsers.includes(prof.userId) && (!statusFilter || prof.isActive === (statusFilter === 'active')) && (!serviceFilter || prof.serviceIds?.includes(serviceFilter)))}>{rows => <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {rows.map((prof) => (
             <ProfessionalCard
               key={prof.id}
               professional={prof}
+              services={services}
               onEdit={loadProfessionalForEdit}
               onToggleActive={toggleProfessionalActive}
             />
@@ -454,36 +472,14 @@ function Professionals() {
       )}
 
       {editingProfessional && (
-        <>
-          <button
-            type="button"
-            aria-label="Cerrar panel"
-            onClick={closeEditor}
-            className="fixed inset-0 z-40 bg-ink/30"
-          />
+        <EditorDialog title={`Editar profesional: ${editingProfessional.displayName}`} onClose={closeEditor} busy={imageUploading || profileSaving || hoursSaving || svcAssignSaving}>
+          <div className="flex flex-wrap items-center gap-3 mb-5"><div className="rounded-full bg-indigo-100 p-3 text-primary"><User size={24} /></div><div><p className="font-semibold">{editingProfessional.displayName}</p><p className="text-sm text-muted">{editingProfessional.email}</p></div><Badge tone={editingProfessional.isActive ? 'success' : 'neutral'}>{editingProfessional.isActive ? 'Activo' : 'Inactivo'}</Badge></div>
+          <div className="workspace-tabs" role="tablist" aria-label="Editar profesional">{[['profile','Datos personales',User],['services','Servicios',Briefcase],['hours','Horarios',Clock],['access','Acceso',ShieldCheck]].map(([id,label,Icon]) => <button key={id} type="button" role="tab" aria-selected={tab === id} aria-controls={`professional-${id}`} id={`tab-${id}`} onClick={() => setTab(id)}><Icon size={18} />{label}</button>)}</div>
+          <div className="professional-editor">
 
-          <div className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col overflow-y-auto border-l border-border bg-surface shadow-xl">
-            <div className="flex items-center justify-between border-b border-border px-6 py-4">
-              <div className="min-w-0">
-                <h3 className="truncate text-base font-semibold text-ink">
-                  {editingProfessional.displayName}
-                </h3>
-                <p className="truncate text-sm text-muted">{editingProfessional.email}</p>
-              </div>
-              <button
-                type="button"
-                onClick={closeEditor}
-                className="shrink-0 rounded-lg p-2 text-muted hover:bg-slate-100"
-                aria-label="Cerrar"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="flex-1 space-y-8 px-6 py-6">
-              <section>
+              <section role="tabpanel" id="professional-profile" aria-labelledby="tab-profile" hidden={tab !== 'profile'}>
                 <h4 className="mb-4 text-sm font-semibold text-ink">Datos del perfil</h4>
-                <form onSubmit={handleProfileSubmit} noValidate className="space-y-4">
+                <form onSubmit={handleProfileSubmit} noValidate className="grid md:grid-cols-2 gap-5 [&>div]:min-w-0">
                   <Field label="Puesto" htmlFor="jobTitle">
                     <input
                       id="jobTitle"
@@ -545,7 +541,7 @@ function Professionals() {
                 </form>
               </section>
 
-              <section className="border-t border-border pt-6">
+              <section role="tabpanel" id="professional-services" aria-labelledby="tab-services" hidden={tab !== 'services'}>
                 <h4 className="mb-4 text-sm font-semibold text-ink">Servicios asignados</h4>
                 {servicesListError && (
                   <Alert tone="error">Error al cargar servicios: {servicesListError}</Alert>
@@ -561,8 +557,8 @@ function Professionals() {
                       Todavía no hay servicios creados en este negocio.
                     </p>
                   ) : (
-                    <div className="space-y-2">
-                      {services.map((svc) => (
+                    <DataList label="Servicios para asignar" items={services} searchText={s => s.name}>{rows => <div className="space-y-2">
+                      {rows.map((svc) => (
                         <label
                           key={svc.id}
                           className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm hover:bg-slate-50"
@@ -577,8 +573,9 @@ function Professionals() {
                           {!svc.isActive && <span className="text-xs text-muted">(inactivo)</span>}
                         </label>
                       ))}
-                    </div>
+                    </div>}</DataList>
                   )}
+                  <p className="rounded-xl bg-indigo-50 p-4 text-sm text-primary">{selectedServiceIds.size} servicios seleccionados. Solo estos servicios se pueden reservar con este profesional.</p>
 
                   {svcAssignError && <Alert tone="error">{svcAssignError}</Alert>}
                   {svcAssignSuccess && <Alert tone="success">{svcAssignSuccess}</Alert>}
@@ -589,7 +586,7 @@ function Professionals() {
                 </form>
               </section>
 
-              <section className="border-t border-border pt-6">
+              <section role="tabpanel" id="professional-hours" aria-labelledby="tab-hours" hidden={tab !== 'hours'}>
                 <h4 className="mb-4 text-sm font-semibold text-ink">Horario semanal</h4>
                 <form onSubmit={handleHoursSubmit} className="space-y-4">
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -625,9 +622,9 @@ function Professionals() {
                   </Button>
                 </form>
               </section>
+              <section role="tabpanel" id="professional-access" aria-labelledby="tab-access" hidden={tab !== 'access'}><Card title="Acceso a la cuenta" description="La cuenta y el perfil del profesional mantienen los mismos permisos."><p className="mb-4 text-sm">{editingProfessional.email}</p><Alert>El profesional puede cambiar su clave desde Mi seguridad o recuperar el acceso desde el inicio de sesión.</Alert><div className="mt-5"><Button variant="secondary" onClick={() => toggleProfessionalActive(editingProfessional)}>{editingProfessional.isActive ? 'Desactivar acceso' : 'Activar acceso'}</Button></div></Card></section>
             </div>
-          </div>
-        </>
+        </EditorDialog>
       )}
     </div>
   )

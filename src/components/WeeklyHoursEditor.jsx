@@ -1,8 +1,12 @@
-import { Plus, Trash2 } from 'lucide-react'
+import { useState } from 'react'
+import { Plus, Trash2, Copy } from 'lucide-react'
 
 import { DAYS, isSlotInvalid } from '../lib/hours'
 
 function WeeklyHoursEditor({ value, onChange }) {
+  const [copyFrom, setCopyFrom] = useState('1')
+  const [copyDays, setCopyDays] = useState([])
+  const [copyOpen, setCopyOpen] = useState(false)
   function addSlot(dayKey) {
     const daySlots = value[dayKey] ?? []
     onChange({ ...value, [dayKey]: [...daySlots, { start: '', end: '' }] })
@@ -27,7 +31,7 @@ function WeeklyHoursEditor({ value, onChange }) {
     }`
 
   return (
-    <div className="divide-y divide-border">
+    <div className="weekly-hours-editor"><div className="mb-5 rounded-xl bg-slate-50 p-4"><button type="button" className="inline-flex gap-2 items-center font-medium text-primary text-sm" onClick={() => setCopyOpen(!copyOpen)}><Copy size={16} />Copiar a otros días</button>{copyOpen && <div className="mt-4 space-y-3"><label className="block text-sm">Copiar horario de<select className="ml-3 rounded-lg border p-2" value={copyFrom} onChange={e => setCopyFrom(e.target.value)}>{DAYS.map(d => <option key={d.key} value={d.key}>{d.label}</option>)}</select></label><div className="flex flex-wrap gap-4">{DAYS.filter(d => String(d.key) !== copyFrom).map(d => <label key={d.key} className="flex gap-2 text-sm"><input type="checkbox" checked={copyDays.includes(d.key)} onChange={e => setCopyDays(e.target.checked ? [...copyDays,d.key] : copyDays.filter(k => k !== d.key))} />{d.label}</label>)}</div><p className="text-xs text-muted">Reemplaza las franjas de los días seleccionados. Guarda el formulario para aplicar los cambios.</p><button type="button" disabled={!copyDays.length} className="rounded-lg bg-primary text-white px-4 py-2 text-sm disabled:opacity-50" onClick={() => { const next = {...value}; copyDays.filter(k => String(k) !== copyFrom).forEach(k => { next[k] = (value[copyFrom] || []).map(slot => ({...slot})) }); onChange(next); setCopyOpen(false); setCopyDays([]) }}>Aplicar copia</button></div>}</div><div className="divide-y divide-border">
       {DAYS.map((day) => {
         const daySlots = value[day.key] ?? []
         return (
@@ -35,7 +39,7 @@ function WeeklyHoursEditor({ value, onChange }) {
             key={day.key}
             className="flex flex-col gap-2 py-3 sm:flex-row sm:items-start sm:gap-4"
           >
-            <p className="w-24 shrink-0 pt-1.5 text-sm font-medium text-ink">{day.label}</p>
+            <div className="w-32 shrink-0 pt-1.5"><p className="text-sm font-semibold text-ink mb-3">{day.label}</p><button type="button" role="switch" aria-checked={daySlots.length > 0} aria-label={`Abrir ${day.label}`} onClick={() => onChange({...value, [day.key]: daySlots.length ? [] : [{start:'09:00',end:'13:00'}]})} className={`relative h-6 w-11 rounded-full ${daySlots.length ? 'bg-primary' : 'bg-slate-300'}`}><span className={`absolute top-1 h-4 w-4 rounded-full bg-white transition-all ${daySlots.length ? 'left-6' : 'left-1'}`} /></button></div>
 
             <div className="flex-1 space-y-2">
               {daySlots.length === 0 ? (
@@ -90,7 +94,7 @@ function WeeklyHoursEditor({ value, onChange }) {
           </div>
         )
       })}
-    </div>
+    </div></div>
   )
 }
 

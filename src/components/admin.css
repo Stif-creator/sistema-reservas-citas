@@ -147,3 +147,27 @@
   .admin-shell .admin-promotion > button { grid-column: 1 / -1; grid-row: auto; margin-top: 12px; }
   .admin-shell .admin-notification { padding: 20px; padding-top: 70px; }
 }
+
+/* Shared editing surfaces for business and professional workspaces. */
+.editor-dialog { width: min(1080px, calc(100vw - 32px)); max-height: calc(100dvh - 40px); margin: auto; border: 1px solid #e2e8f0; border-radius: 20px; padding: 0; color: #17233f; box-shadow: 0 24px 90px #15203b30; }
+.editor-dialog::backdrop { background: #14213e66; backdrop-filter: blur(3px); }
+.editor-dialog-header { position: sticky; top: 0; z-index: 20; background: white; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 22px 28px; border-bottom: 1px solid #e2e8f0; }
+.editor-dialog-content { padding: 26px; }
+.workspace-tabs { display: flex; overflow-x: auto; gap: 12px; border-bottom: 1px solid #e2e8f0; margin-bottom: 26px; }
+.workspace-tabs button { display: inline-flex; align-items: center; gap: 9px; white-space: nowrap; padding: 16px 20px; color: #65738d; border-bottom: 3px solid transparent; }
+.workspace-tabs button[aria-selected=true] { color: #4f46e5; border-color: #6366f1; font-weight: 600; }
+.professional-editor [hidden], .business-wizard [hidden] { display: none !important; }
+.professional-editor > section { padding: 24px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; }
+.professional-editor form > button[type=submit] { position: sticky; bottom: 0; z-index: 2; box-shadow: 0 5px 18px #4f46e51a; }
+.weekly-hours-editor input[type=time] { min-width: 120px; min-height: 40px; }
+.business-row { display: grid; grid-template-columns: minmax(150px,1fr) minmax(180px,1fr) auto; align-items: center; gap: 20px; padding: 22px 16px; border-bottom: 1px solid #e7edf5; }
+.business-row:hover { background: #f8faff; }
+.business-row p { overflow-wrap: anywhere; }
+.business-wizard label { font-size: 14px; font-weight: 500; }
+.business-wizard input:not([type=color]), .business-wizard select { margin-top: 7px; }
+.wizard-steps { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 28px; }
+.wizard-steps span { display: flex; gap: 8px; align-items: center; font-size: 13px; color: #73829a; }
+.wizard-steps b { display: grid; place-items: center; width: 30px; height: 30px; background: #edf1f8; border-radius: 50%; }
+.wizard-steps .current { color: #4f46e5; font-weight: 600; }
+.wizard-steps .current b { background: #4f46e5; color: white; }
+@media(max-width:640px) { .editor-dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); } .editor-dialog-content,.editor-dialog-header { padding: 16px; } .professional-editor > section { padding: 16px; } .workspace-tabs button { padding: 12px; } .business-row { grid-template-columns: 1fr; gap: 12px; } .wizard-steps span { font-size: 11px; } }
