@@ -1,3 +1,4 @@
+import useReservationStates from './useReservationStates'
 import { useEffect, useState } from 'react'
 import { collection, doc, onSnapshot, query, where } from 'firebase/firestore'
 import { useAuth } from '../context/auth-context'
@@ -20,5 +21,6 @@ export default function useBusinessReservations() {
     return () => stops.forEach(stop => stop())
   }, [businessId, role, uid, key])
   const current = state.key === key ? state : {}
-  return { business: current.business, items: current.items || [], loading: !('business' in current && 'items' in current), error: current.businessError || current.itemsError || '' }
+  const items = useReservationStates(current.items || [])
+  return { business: current.business, items, loading: !('business' in current && 'items' in current), error: current.businessError || current.itemsError || '' }
 }

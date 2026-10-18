@@ -210,3 +210,6 @@
 .client-site .client-service-card:hover { box-shadow: 0 9px 28px #2233540e; }
 .client-site .client-service-copy > p { min-height: 40px; }
 @media (max-width: 600px) { .client-professional-grid { grid-template-columns: 1fr; } .client-catalog-toolbar { align-items: stretch; } .client-catalog-toolbar label { max-width: none; } }
+
+.client-status.status-expired { background: #fff0f0; color: #9b3030; }
+.client-status.status-awaiting_closure { background: #fff5d9; color: #79540b; }

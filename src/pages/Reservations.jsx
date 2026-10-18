@@ -1,6 +1,6 @@
 import DataList from '../components/ui/DataList'
 import { useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/auth-context'
 import useBusinessReservations from '../hooks/useBusinessReservations'
 import PageHeader from '../components/ui/PageHeader'
@@ -18,6 +18,7 @@ export default function Reservations({ detail = false, manual = false }) {
   const { business, items, loading, error } = useBusinessReservations()
   const { reservationId } = useParams()
   const navigate = useNavigate()
+  const [params, setParams] = useSearchParams()
   const [date, setDate] = useState('')
   const [status, setStatus] = useState('')
   const [editing, setEditing] = useState(false)
@@ -28,25 +29,27 @@ export default function Reservations({ detail = false, manual = false }) {
   if (manual) return <div className="space-y-6"><PageHeader title="Reserva manual" description="Registra una cita solicitada por teléfono u otro medio." /><BookingFlow business={business} manual onSuccess={result => navigate(`/reservas/${result.id}`, { replace: true })} /></div>
   if (detail) return <div className="space-y-6 booking-scope">
     <Link className="text-sm text-primary underline" to="/reservas">← Volver a reservas</Link>
-    <PageHeader title="Detalle de reserva" description={item ? `Estado: ${reservationStatuses[item.status] || 'Por confirmar'}` : 'Reserva no disponible.'} />
+    <PageHeader title="Detalle de reserva" description={item ? `Estado: ${reservationStatuses[item.displayStatus || item.status] || 'Por confirmar'}` : 'Reserva no disponible.'} />
     {item && (editing ? <><BookingFlow key={item.id} business={business} reservation={item} onSuccess={() => setEditing(false)} /><button className="booking-button secondary" onClick={() => setEditing(false)}>Volver al detalle</button></> : <>
       <div className="grid gap-6 lg:grid-cols-2"><BookingSummary service={{ name: item.serviceName || 'Servicio reservado' }} professional={{ displayName: item.professionalName || 'Profesional asignado' }} slot={{ start: dateMillis(item.startAt) }} quote={item} timeZone={zone} />
         <Card title="Cliente"><dl className="space-y-3 text-sm"><div><dt className="text-muted">Nombre</dt><dd>{item.clientName || 'Cliente'}</dd></div><div><dt className="text-muted">Correo</dt><dd className="break-all">{item.clientEmail || 'Sin correo'}</dd></div><div><dt className="text-muted">Teléfono</dt><dd>{item.clientPhone || 'Sin teléfono'}</dd></div><div><dt className="text-muted">Notas</dt><dd>{item.notes || 'Sin notas'}</dd></div><div><dt className="text-muted">Origen</dt><dd>{item.source === 'manual' ? 'Reserva manual' : 'Panel del cliente'}</dd></div></dl></Card></div>
-      <ReservationActions reservation={item} business={business} onReschedule={membership.role === 'admin' ? () => setEditing(true) : undefined} />
+      <ReservationActions reservation={item} business={business} onReschedule={() => setEditing(true)} />
     </>)}
   </div>
-  const filtered = items.filter(item => (!status || item.status === status) && (!date || (Number.isFinite(dateMillis(item.startAt)) && dayKey(dateMillis(item.startAt), zone) === date)))
+  const filtered = items.filter(item => (!params.has('cierre') || ['expired', 'awaiting_closure'].includes(item.displayStatus)) && (!status || (item.displayStatus || item.status) === status) && (!date || (Number.isFinite(dateMillis(item.startAt)) && dayKey(dateMillis(item.startAt), zone) === date)))
     .sort((a, b) => dateMillis(b.startAt) - dateMillis(a.startAt))
   return <div className="space-y-6 booking-scope">
     <PageHeader title="Reservas" description={membership.role === 'professional' ? 'Gestiona el estado de tus citas asignadas.' : 'Consulta y gestiona las citas de tu negocio.'}
       actions={membership.role === 'admin' && bookingEnabled && <Link className="booking-button" to="/reservas/nueva">Reserva manual</Link>} />
     {!bookingEnabled && <Alert>Las reservas en línea todavía no están habilitadas.</Alert>}
+    {items.some(r => ['expired', 'awaiting_closure'].includes(r.displayStatus)) && <Alert>Tienes {items.filter(r => ['expired', 'awaiting_closure'].includes(r.displayStatus)).length} citas pendientes de cerrar. Revisa el detalle para finalizar, marcar inasistencia o reprogramar.</Alert>}
+    {params.has('cierre') && <button className="booking-button secondary" onClick={() => setParams({})}>Mostrar todas las reservas</button>}
     <Card><div className="mb-6 grid gap-4 md:grid-cols-3">
       <label className="booking-field">Fecha<input type="date" value={date} onChange={event => setDate(event.target.value)} /></label>
       <label className="booking-field">Estado<select value={status} onChange={event => setStatus(event.target.value)}><option value="">Todos</option>{Object.entries(reservationStatuses).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
     </div><p className="mb-4 text-xs text-muted">Zona horaria: {zone}</p>
-      {!filtered.length ? <p className="panel-empty">No hay reservas para esta selección.</p> : <DataList items={filtered} label="Reservas" resetKey={`${date}:${status}`} searchText={r => `${r.serviceName} ${r.clientName} ${r.professionalName} ${r.clientPhone || ""} ${reservationStatuses[r.status]} ${formatAppointmentDate(r.startAt,zone)}`}>{rows => <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr className="border-b border-border"><th className="p-3">Fecha y hora</th><th className="p-3">Servicio</th><th className="p-3">Cliente</th><th className="p-3">Profesional</th><th className="p-3">Estado</th><th className="p-3">Acción</th></tr></thead><tbody>
-        {rows.map(item => <tr key={item.id} className="border-b border-border"><td className="p-3">{formatAppointmentDate(item.startAt, zone)}<br />{formatAppointmentDate(item.startAt, zone, true)}</td><td className="p-3">{item.serviceName || 'Servicio'}</td><td className="p-3">{item.clientName || 'Cliente'}</td><td className="p-3">{item.professionalName || 'Profesional'}</td><td className="p-3">{reservationStatuses[item.status] || 'Por confirmar'}</td><td className="p-3"><Link className="text-primary underline" to={`/reservas/${encodeURIComponent(item.id)}`}>Ver detalle</Link></td></tr>)}
+      {!filtered.length ? <p className="panel-empty">No hay reservas para esta selección.</p> : <DataList items={filtered} label="Reservas" resetKey={`${date}:${status}`} searchText={r => `${r.serviceName} ${r.clientName} ${r.professionalName} ${r.clientPhone || ""} ${reservationStatuses[r.displayStatus || r.status]} ${formatAppointmentDate(r.startAt,zone)}`}>{rows => <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr className="border-b border-border"><th className="p-3">Fecha y hora</th><th className="p-3">Servicio</th><th className="p-3">Cliente</th><th className="p-3">Profesional</th><th className="p-3">Estado</th><th className="p-3">Acción</th></tr></thead><tbody>
+        {rows.map(item => <tr key={item.id} className="border-b border-border"><td className="p-3">{formatAppointmentDate(item.startAt, zone)}<br />{formatAppointmentDate(item.startAt, zone, true)}</td><td className="p-3">{item.serviceName || 'Servicio'}</td><td className="p-3">{item.clientName || 'Cliente'}</td><td className="p-3">{item.professionalName || 'Profesional'}</td><td className="p-3">{reservationStatuses[item.displayStatus || item.status] || 'Por confirmar'}</td><td className="p-3"><Link className="text-primary underline" to={`/reservas/${encodeURIComponent(item.id)}`}>Ver detalle</Link></td></tr>)}
       </tbody></table></div>}</DataList>}
     </Card>
   </div>

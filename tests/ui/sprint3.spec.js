@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { initializeTestEnvironment } from '@firebase/rules-unit-testing'
-import { doc, setDoc, updateDoc } from 'firebase/firestore'
+import { doc, setDoc, updateDoc, Timestamp } from 'firebase/firestore'
 import { readFile } from 'node:fs/promises'
 
 test.use({ actionTimeout:15000, navigationTimeout:20000 })
@@ -167,8 +167,29 @@ test('Sprint 3 public booking resumes after login, preferences, admin clients an
     const detailPath = await page.getByRole('link', { name:'Ver detalles', exact:true }).getAttribute('href')
     await page.goto(detailPath)
     await expect(page.getByRole('button', { name:'Publicar valoración' })).toHaveCount(0)
+    await pro.goto(detailPath.replace('/cliente', ''))
+    await pro.getByRole('button', { name:'Reprogramar', exact:true }).click()
+    await selectTime(pro, '12:00')
+    await pro.getByRole('button', { name:'Guardar nuevo horario', exact:true }).click()
+    await expect(pro.getByText('Cita reprogramada. El estado mostrado corresponde al nuevo horario.')).toBeVisible()
+    await expect(page.getByText('Cita reprogramada. El estado mostrado corresponde al nuevo horario.')).toBeVisible()
     const reviewEnv = await initializeTestEnvironment({ projectId:'demo-citaspro', firestore:{ host:'127.0.0.1', port:8080, rules:await readFile('firestore.rules','utf8') } })
-    try { await reviewEnv.withSecurityRulesDisabled(context => updateDoc(doc(context.firestore(),'reservations',detailPath.split('/').pop()), { status:'completed' })) } finally { await reviewEnv.cleanup() }
+    const id = detailPath.split('/').pop()
+    try {
+      await reviewEnv.withSecurityRulesDisabled(context => updateDoc(doc(context.firestore(),'reservations',id), { status:'confirmed', startAt:Timestamp.fromMillis(Date.now()-7200000), endAt:Timestamp.fromMillis(Date.now()-3600000) }))
+      await expect(page.locator('.client-status')).toHaveText('Pendiente de cierre')
+      await expect(pro.getByText('Estado: Pendiente de cierre')).toBeVisible()
+      await staff.goto(`/reservas/${id}`)
+      await expect(staff.getByText('Estado: Pendiente de cierre')).toBeVisible()
+      await reviewEnv.withSecurityRulesDisabled(context => updateDoc(doc(context.firestore(),'reservations',id), { status:'pending' }))
+      await expect(page.locator('.client-status')).toHaveText('Vencida sin confirmar')
+      await expect(pro.getByText('Estado: Vencida sin confirmar')).toBeVisible()
+      await expect(staff.getByText('Estado: Vencida sin confirmar')).toBeVisible()
+      await expect(page.getByRole('button', { name:'Publicar valoración' })).toHaveCount(0)
+      await pro.getByRole('button', { name:'Finalizar', exact:true }).click()
+      await pro.getByRole('button', { name:'Aplicar cambio', exact:true }).click()
+      await expect(page.locator('.client-status')).toHaveText('Finalizada')
+    } finally { await reviewEnv.cleanup() }
     await page.getByLabel('Calificación del servicio').selectOption('4')
     await page.getByLabel('Calificación del profesional').selectOption('5')
     await page.getByLabel('Comentario', { exact:true }).fill('Excelente atención y puntualidad.')

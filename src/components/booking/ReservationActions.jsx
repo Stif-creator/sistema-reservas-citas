@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { bookingEnabled, bookingRequest } from '../../lib/bookingApi'
 import { useAuth } from '../../context/auth-context'
-import { dateMillis } from '../../lib/clientPresentation'
+import { dateMillis, formatAppointmentDate } from '../../lib/clientPresentation'
 import './booking.css'
 
 const labels = { confirmed: 'Confirmar', completed: 'Finalizar', cancelled: 'Cancelar cita', no_show: 'Marcar no asistida' }
@@ -21,8 +21,8 @@ export default function ReservationActions({ reservation, business, onReschedule
   const deadline = dateMillis(reservation.startAt) > now && dateMillis(reservation.startAt) - now >= (business.settings?.cancellationLimitHours ?? 24) * 3600000
   const allowed = !active ? [] : isClient ? (deadline ? ['cancelled'] : []) : [
     ...(reservation.status === 'pending' && dateMillis(reservation.endAt) > now ? ['confirmed'] : []),
-    ...(reservation.status === 'confirmed' && dateMillis(reservation.endAt) <= now ? ['completed'] : []),
-    ...(reservation.status === 'confirmed' && dateMillis(reservation.startAt) <= now ? ['no_show'] : []), 'cancelled',
+    ...(active && dateMillis(reservation.endAt) <= now ? ['completed'] : []),
+    ...((reservation.status === 'confirmed' && dateMillis(reservation.startAt) <= now || reservation.status === 'pending' && dateMillis(reservation.endAt) <= now) ? ['no_show'] : []), 'cancelled',
   ]
   async function submit(event) {
     event.preventDefault(); setBusy(true); setError(''); setSuccess('')
@@ -38,6 +38,9 @@ export default function ReservationActions({ reservation, business, onReschedule
   }
   if (!bookingEnabled) return null
   return <div className="booking-scope">
+    {active && dateMillis(reservation.endAt) <= now && <p role="status" className="booking-notice">{isClient ? 'El horario de esta cita ya terminó. El negocio debe registrar si se realizó la atención. Contacta al profesional si necesitas otra fecha.' : 'Esta cita requiere cierre. Finaliza solo si se realizó el servicio; de lo contrario, marca inasistencia o reprograma de acuerdo con el cliente.'}</p>}
+    {reservation.rescheduledAt && <p className="booking-notice">Cita reprogramada. El estado mostrado corresponde al nuevo horario.</p>}
+    {!!reservation.rescheduleHistory?.length && <details className="booking-panel"><summary>Historial de reprogramaciones ({reservation.rescheduleHistory.length})</summary><ul className="space-y-2 mt-3">{reservation.rescheduleHistory.map((entry, index) => <li key={index}>Horario anterior: {formatAppointmentDate(entry.startAt, business.settings?.timezone)} · {formatAppointmentDate(entry.startAt, business.settings?.timezone, true)}. Cambio registrado: {formatAppointmentDate(entry.at, business.settings?.timezone)}.</li>)}</ul></details>}
     {error && <p className="booking-error" role="alert">{error}</p>}
     {success && <p role="status" className="booking-notice">{success}</p>}
     {!desired && <div className="booking-actions">

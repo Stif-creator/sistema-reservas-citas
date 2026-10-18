@@ -19,7 +19,7 @@ export default function ClientReservationDetail() {
     {!item ? <div className="client-empty"><h1>Reserva no disponible</h1><p>No encontramos esta reserva en tu cuenta.</p></div> : <>
       <div className="client-page-heading"><div><span className="client-overline">INFORMACIÓN DE TU VISITA</span><h1>Detalle de reserva</h1></div></div>
       <article className="client-panel client-reservation-detail">
-        <div className="client-page-heading"><h2>{item.serviceName || item.serviceSnapshot?.name || services.find(service => service.id === item.serviceId)?.name || 'Servicio reservado'}</h2><span className={`client-status status-${Object.hasOwn(reservationStatuses, item.status) ? item.status : 'unknown'}`}>{reservationStatuses[item.status] || 'Por confirmar'}</span></div>
+        <div className="client-page-heading"><h2>{item.serviceName || item.serviceSnapshot?.name || services.find(service => service.id === item.serviceId)?.name || 'Servicio reservado'}</h2><span className={`client-status status-${Object.hasOwn(reservationStatuses, item.displayStatus || item.status) ? (item.displayStatus || item.status) : 'unknown'}`}>{reservationStatuses[item.displayStatus || item.status] || 'Por confirmar'}</span></div>
         <dl className="client-profile-fields">
           <div><dt><Hash size={16} />Código de reserva</dt><dd>{item.code || item.id}</dd></div>
           <div><dt><UserRound size={16} />Profesional</dt><dd>{item.professionalName || item.professionalSnapshot?.displayName || 'Profesional asignado'}</dd></div>

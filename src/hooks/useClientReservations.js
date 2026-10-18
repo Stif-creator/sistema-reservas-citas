@@ -1,3 +1,4 @@
+import useReservationStates from './useReservationStates'
 import { useEffect, useState } from 'react'
 import { collection, onSnapshot, query, where } from 'firebase/firestore'
 import { useAuth } from '../context/auth-context'
@@ -12,5 +13,6 @@ export default function useClientReservations() {
   useEffect(() => onSnapshot(query(collection(db, 'reservations'), where('businessId', '==', businessId), where('clientUserId', '==', uid)),
     snapshot => setState({ key, items: snapshot.docs.map(item => ({ ...item.data(), id: item.id })), error: '' }),
     () => setState({ key, items: [], error: 'No pudimos cargar tus reservas. Recarga la página para volver a intentarlo.' })), [businessId, uid, key])
-  return state?.key === key ? { ...state, loading: false } : { items: [], error: '', loading: true }
+  const items = useReservationStates(state?.key === key ? state.items : [])
+  return state?.key === key ? { ...state, items, loading: false } : { items: [], error: '', loading: true }
 }

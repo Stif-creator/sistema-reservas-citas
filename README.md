@@ -313,6 +313,16 @@ El profesional ve su próxima cita, resumen de reservas y accesos personales. En
 Estos cambios visuales se publican con `npm run build` y `npx firebase deploy --only hosting`. Si aún no publicaste los cambios anteriores de cuentas, actualiza también Render y las reglas según las instrucciones anteriores. Las capturas y resultados de pruebas permanecen excluidos por `.gitignore`.
 # Bloqueos y solicitudes de ausencia
 
+## Citas vencidas y reprogramación
+
+Los profesionales pueden reprogramar únicamente sus citas asignadas, acordando el nuevo horario con el cliente. El servidor comprueba permisos, disponibilidad, bloqueos y versión de la reserva; guarda los horarios anteriores y notifica al cliente.
+
+Al terminar el horario, una cita pendiente se muestra como **Vencida sin confirmar** y una confirmada como **Pendiente de cierre**, tanto para el cliente como para el personal. Estos estados se calculan al consultar las reservas y se actualizan cada 30 segundos mientras la página está abierta; no requieren Blaze ni tareas programadas. No sustituyen el estado persistido ni autorizan reseñas.
+
+El administrador o profesional asignado debe registrar **Finalizada**, **No asistida**, cancelar o reprogramar. Los paneles del personal muestran un aviso con acceso a las citas pendientes de cierre. Solo una atención marcada explícitamente como finalizada habilita la valoración del cliente.
+
+### Solicitudes de bloqueo
+
 - Los profesionales solicitan bloqueos; un administrador del negocio los aprueba o rechaza desde **Bloqueos**. Una solicitud pendiente o rechazada no ocupa la agenda.
 - Las fechas representan las **00:00 del inicio hasta las 00:00 del fin**, en la zona horaria del negocio. El día final no se incluye: para bloquear el lunes completo, selecciona lunes → martes.
 - El servidor comprueba las citas pendientes y confirmadas (incluidos sus márgenes) al crear y al aprobar. Las operaciones comparten un bloqueo transaccional con las reservas para impedir cruces simultáneos.

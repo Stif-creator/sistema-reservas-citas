@@ -22,3 +22,6 @@
 .agenda-appointment:hover, .agenda-appointment[aria-pressed=true] { box-shadow: 0 0 0 2px #818cf8; }
 .agenda-appointment.agenda-pending { background: #fffbeb; border-color: #fde68a; border-left-color: #f59e0b; }
 .agenda-day h2 { padding-bottom: 12px; border-bottom: 1px solid #edf1f7; color: #425576; }
+
+.agenda-expired { background: #fff0f0; border-color: #fecaca; color: #9b3030; }
+.agenda-awaiting_closure { background: #fff5d9; border-color: #fde68a; color: #79540b; }

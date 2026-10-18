@@ -196,14 +196,14 @@ export async function executeBooking(db, uid, input) {
         if (status !== 'cancelled') fail('permission-denied', 'Solo puedes cancelar tus propias reservas.')
         clientDeadline(actor, original, now)
       }
-      const allowed = original.status === 'pending' ? ['confirmed', 'cancelled'] : ['completed', 'cancelled', 'no_show']
+      const allowed = original.status === 'pending' ? (now >= millis(original.endAt) ? ['completed', 'no_show', 'cancelled'] : ['confirmed', 'cancelled']) : ['completed', 'cancelled', 'no_show']
       if (!allowed.includes(status)) fail('failed-precondition', 'El cambio de estado no es válido.')
       if (status === 'completed' && now < millis(original.endAt)) fail('failed-precondition', 'La cita todavía no ha terminado.')
       if (status === 'no_show' && now < millis(original.startAt)) fail('failed-precondition', 'La cita todavía no ha comenzado.')
       if (status === 'confirmed' && now >= millis(original.endAt)) fail('failed-precondition', 'No se puede confirmar una cita que ya terminó.')
       update = { status, ...(status === 'cancelled' ? { cancellation: { byUserId: uid, at: stamp, reason: text(input.reason, 500) } } : {}) }
     } else {
-      if (actor.member.role === 'professional') fail('permission-denied', 'Solo clientes y administradores pueden reservar o reprogramar.')
+      if (actor.member.role === 'professional' && !original) fail('permission-denied', 'Solo puedes reprogramar tus citas asignadas.')
       if (original) clientDeadline(actor, original, now)
       const serviceId = original?.serviceId || input.serviceId
       const professionalId = original?.professionalId || input.professionalId
@@ -224,7 +224,7 @@ export async function executeBooking(db, uid, input) {
         serviceName: selected.service.name, professionalName: selected.professional.displayName || 'Profesional', ...serviceQuote,
         startAt: Timestamp.fromMillis(slot.start), endAt: Timestamp.fromMillis(slot.end), timeZone: actor.business.settings?.timezone || 'America/La_Paz',
         status: actor.business.settings?.autoConfirmBookings === true ? 'confirmed' : 'pending',
-        ...(original ? { rescheduledAt: stamp } : { notes: text(input.notes, 1000) }),
+        ...(original ? { rescheduledAt: stamp, rescheduleHistory: FieldValue.arrayUnion({ startAt: original.startAt, endAt: original.endAt, status: original.status, byUserId: uid, at: stamp }) } : { notes: text(input.notes, 1000) }),
       }
     }
     const revision = (original?.revision || 0) + 1

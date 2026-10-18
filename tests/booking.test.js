@@ -336,3 +336,29 @@ test('block midnight boundary is exclusive, buffers count and unrelated professi
   await rejects(f.call(f.users.admin,{...input,allProfessionals:true,professionalId:null,requestId:randomUUID()}),'failed-precondition')
   assert.equal((await f.call(f.users.admin,{...input,requestId:randomUUID()})).status,'approved')
 })
+
+
+test('professionals reschedule only assigned appointments and retain history and client notices', async () => {
+  const f = await fixture(), booked = await f.call(f.users.client, f.create())
+  const change = { action:'reschedule', reservationId:booked.id, revision:1, date:f.date, startAt:f.time('11:00'), expectedPrice:100, expectedDuration:30, requestId:randomUUID() }
+  await rejects(f.call(f.users.pro2,change),'permission-denied')
+  await db.doc(`reservations/${booked.id}`).update({startAt:Timestamp.fromMillis(Date.now()-7200000),endAt:Timestamp.fromMillis(Date.now()-3600000)})
+  await rejects(f.call(f.users.client,change),'failed-precondition')
+  const moved = await f.call(f.users.pro,change)
+  assert.deepEqual(await f.call(f.users.pro,change),moved)
+  const stored = (await db.doc(`reservations/${booked.id}`).get()).data()
+  assert.equal(stored.startAt.toMillis(),f.time('11:00'))
+  assert.equal(stored.rescheduleHistory.length,1)
+  assert.equal(stored.rescheduleHistory[0].byUserId,f.users.pro)
+  assert.equal((await db.doc(`notifications/${booked.id}_2_${f.users.client}`).get()).data().title,'Cita reprogramada')
+})
+test('expired pending appointments require an explicit staff closure', async () => {
+  const f = await fixture(), booked = await f.call(f.users.client,f.create())
+  const close = { action:'status',reservationId:booked.id,revision:1,status:'completed',requestId:randomUUID() }
+  await rejects(f.call(f.users.pro,close),'failed-precondition')
+  await db.doc(`reservations/${booked.id}`).update({startAt:Timestamp.fromMillis(Date.now()-7200000),endAt:Timestamp.fromMillis(Date.now()-3600000)})
+  await rejects(f.call(f.users.client,close),'permission-denied')
+  await rejects(f.call(f.users.pro,{...close,status:'confirmed'}),'failed-precondition')
+  await f.call(f.users.pro,close)
+  assert.equal((await db.doc(`reservations/${booked.id}`).get()).data().status,'completed')
+})

@@ -22,3 +22,14 @@ test('generated initial passwords have sufficient length, mixed characters and d
     assert.match(password, /[!@#$%]/)
   }
 })
+
+
+test('elapsed appointment display changes at endAt without implying completed service', async () => {
+  const { reservationDisplayStatus } = await import('../src/lib/clientPresentation.js')
+  const endAt = 10000
+  assert.equal(reservationDisplayStatus({status:'pending',endAt},9999),'pending')
+  assert.equal(reservationDisplayStatus({status:'pending',endAt},10000),'expired')
+  assert.equal(reservationDisplayStatus({status:'confirmed',endAt},10000),'awaiting_closure')
+  for (const status of ['completed','no_show','cancelled']) assert.equal(reservationDisplayStatus({status,endAt},10000),status)
+  assert.equal(reservationDisplayStatus({status:'confirmed',endAt:null},10000),'confirmed')
+})
