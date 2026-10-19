@@ -1,10 +1,12 @@
+import { markFormSaved } from '../lib/unsavedForms'
+import { updateBusinessWithAudit } from '../lib/audit'
 import SettingsPreview from '../components/SettingsPreview'
 import BusinessMap from '../components/BusinessMap'
 import { Building2, Image, Clock3, FileText, Phone, ExternalLink, Save, Info } from 'lucide-react'
 import './business-settings.css'
 import ImageUploadField from '../components/ImageUploadField'
 import { useEffect, useState } from 'react'
-import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
+import { doc, getDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useAuth } from '../context/auth-context'
 import WeeklyHoursEditor from '../components/WeeklyHoursEditor'
@@ -153,7 +155,7 @@ function BusinessSettings() {
       // Reescribimos cada sub-objeto completo (no dot-notation) para que
       // sea fácil de razonar: lo que se ve en el formulario es
       // exactamente lo que queda guardado en cada campo.
-      await updateDoc(doc(db, 'businesses', businessId), {
+      await updateBusinessWithAudit(businessId, {
         ...(isSuperadmin ? { name: name.trim() } : {}),
         description,
         'settings.publicPageEnabled': publicPageEnabled,
@@ -176,7 +178,7 @@ function BusinessSettings() {
         },
         updatedAt: serverTimestamp(),
       })
-      setSuccess('Cambios guardados.')
+      markFormSaved(e.target, false); setSuccess('Cambios guardados.')
     } catch (err) {
       console.error('Error al guardar el negocio', err)
       setError('No se pudieron guardar los cambios. Intenta de nuevo.')
@@ -199,11 +201,11 @@ function BusinessSettings() {
 
     setHoursSaving(true)
     try {
-      await updateDoc(doc(db, 'businesses', businessId), {
+      await updateBusinessWithAudit(businessId, {
         weeklyHours,
         updatedAt: serverTimestamp(),
       })
-      setHoursSuccess('Horario guardado.')
+      markFormSaved(e.target, false); setHoursSuccess('Horario guardado.')
     } catch (err) {
       console.error('Error al guardar el horario del negocio', err)
       setHoursError('No se pudo guardar el horario. Intenta de nuevo.')

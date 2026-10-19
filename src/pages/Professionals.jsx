@@ -1,3 +1,4 @@
+import { markFormSaved, confirmDiscard } from '../lib/unsavedForms'
 import DataList from '../components/ui/DataList'
 import ImageUploadField from '../components/ImageUploadField'
 import { useEffect, useRef, useState } from 'react'
@@ -265,6 +266,7 @@ function Professionals() {
   }
 
   function closeEditor() {
+    if (!confirmDiscard()) return
     if (imageUploading) return
     setEditingId(null)
   }
@@ -323,7 +325,7 @@ function Professionals() {
         photo: { url: photoUrl.trim() || null, publicId: null },
         updatedAt: serverTimestamp(),
       })
-      setProfileSuccess('Perfil actualizado.')
+      markFormSaved(e.target, false); setProfileSuccess('Perfil actualizado.')
     } catch (err) {
       console.error('Error al actualizar el perfil del profesional', err)
       setProfileError('No se pudo guardar el perfil. Intenta de nuevo.')
@@ -359,7 +361,7 @@ function Professionals() {
         scheduleValidUntil: scheduleValidUntil || null,
         updatedAt: serverTimestamp(),
       })
-      setHoursSuccess('Horario guardado.')
+      markFormSaved(e.target, false); setHoursSuccess('Horario guardado.')
     } catch (err) {
       console.error('Error al guardar el horario del profesional', err)
       setHoursError('No se pudo guardar el horario. Intenta de nuevo.')
@@ -417,7 +419,7 @@ function Professionals() {
 
       await batch.commit()
       setSelectedServiceIds(newIds)
-      setSvcAssignSuccess('Servicios asignados actualizados.')
+      markFormSaved(e.target, false); setSvcAssignSuccess('Servicios asignados actualizados.')
     } catch (err) {
       console.error('Error al actualizar los servicios asignados', err)
       setSvcAssignError('No se pudieron guardar los servicios asignados. Intenta de nuevo.')

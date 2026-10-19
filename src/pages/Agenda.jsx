@@ -1,3 +1,6 @@
+import ReservationActions from '../components/booking/ReservationActions'
+import BookingFlow from '../components/booking/BookingFlow'
+import EditorDialog from '../components/ui/EditorDialog'
 import { ChevronLeft, ChevronRight, CalendarDays, Clock, UserRound, BriefcaseBusiness } from 'lucide-react'
 import Card from '../components/ui/Card'
 import DataList from '../components/ui/DataList'
@@ -26,6 +29,7 @@ function AgendaView({ business, items, own }) {
   const [date, setDate] = useState(() => dayKey(Date.now(), zone))
   const [view, setView] = useState('week')
   const [professional, setProfessional] = useState('')
+  const [editing, setEditing] = useState(false)
   const [selectedId, setSelectedId] = useState(null)
   const selected = items.find(item => item.id === selectedId)
   const days = agendaDays(date, view)
@@ -51,10 +55,11 @@ function AgendaView({ business, items, own }) {
         return <section key={day} className={`agenda-day ${day === date ? 'selected-day' : ''} ${view === 'month' && day.slice(0, 7) !== date.slice(0, 7) ? 'outside-month' : ''}`}>
           <h2><button onClick={() => { setDate(day); setView('day') }}>{label}</button></h2>
           {!appointments.length && <p className="agenda-empty">Sin citas</p>}
-          {appointments.map(item => <button type="button" key={item.id} className={`agenda-appointment agenda-${item.displayStatus || item.status} w-full text-left`} aria-pressed={selectedId === item.id} onClick={() => setSelectedId(item.id)}><strong>{formatAppointmentDate(item.startAt, zone, true)} · {item.serviceName || 'Servicio'}</strong><span>{item.clientName || 'Cliente'}</span><span>{item.professionalName || 'Profesional'}</span><small>{reservationStatuses[item.displayStatus || item.status] || 'Por confirmar'}</small></button>)}
+          {appointments.map(item => <button type="button" key={item.id} className={`agenda-appointment agenda-${item.displayStatus || item.status} w-full text-left`} aria-pressed={selectedId === item.id} onClick={() => { setSelectedId(item.id); setEditing(false) }}><strong>{formatAppointmentDate(item.startAt, zone, true)} · {item.serviceName || 'Servicio'}</strong><span>{item.clientName || 'Cliente'}</span><span>{item.professionalName || 'Profesional'}</span><small>{reservationStatuses[item.displayStatus || item.status] || 'Por confirmar'}</small></button>)}
         </section>
       })}
-    </div></div><Card title="Detalle de cita">{selected ? <div className="space-y-5 text-sm"><p className="font-semibold text-lg">{selected.clientName}</p><p>{selected.serviceName}</p><p className="inline-block rounded-full bg-indigo-50 px-3 py-1 text-primary">{reservationStatuses[selected.displayStatus || selected.status]}</p><p className="flex gap-2"><CalendarDays size={18} />{formatAppointmentDate(selected.startAt,zone)}</p><p className="flex gap-2"><Clock size={18} />{formatAppointmentDate(selected.startAt,zone,true)}</p><p className="flex gap-2"><UserRound size={18} />{selected.professionalName}</p><Link className="booking-button w-full" to={`/reservas/${encodeURIComponent(selected.id)}`}>Ver detalle</Link></div> : <p className="text-sm text-muted">Selecciona una cita del calendario para ver sus datos.</p>}</Card></div>
+    </div></div><Card title="Detalle de cita">{selected ? <div className="space-y-5 text-sm"><p className="font-semibold text-lg">{selected.clientName}</p><p>{selected.serviceName}</p><p className="inline-block rounded-full bg-indigo-50 px-3 py-1 text-primary">{reservationStatuses[selected.displayStatus || selected.status]}</p><p className="flex gap-2"><CalendarDays size={18} />{formatAppointmentDate(selected.startAt,zone)}</p><p className="flex gap-2"><Clock size={18} />{formatAppointmentDate(selected.startAt,zone,true)}</p><p className="flex gap-2"><UserRound size={18} />{selected.professionalName}</p><ReservationActions key={selected.id} reservation={selected} business={business} onReschedule={() => setEditing(true)} /><Link className="booking-button secondary w-full" to={`/reservas/${encodeURIComponent(selected.id)}`}>Ver detalle</Link></div> : <p className="text-sm text-muted">Selecciona una cita del calendario para ver sus datos.</p>}</Card></div>
+    {editing && selected && <EditorDialog title="Reprogramar cita" onClose={() => setEditing(false)}><BookingFlow business={business} reservation={selected} onSuccess={() => setEditing(false)} /></EditorDialog>}
     {own && <AssignedServices businessId={business.id} />}
   </div>
 }

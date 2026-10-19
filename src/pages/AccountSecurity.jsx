@@ -1,3 +1,4 @@
+import { markFormSaved } from '../lib/unsavedForms'
 import { doc, updateDoc } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useState } from 'react'
@@ -27,6 +28,7 @@ export default function AccountSecurity() {
       await updatePassword(currentUser, data.get('password'))
       await updateDoc(doc(db, 'users', currentUser.uid), { mustChangePassword: false })
       form.reset()
+      markFormSaved(event.target, true)
       setMessage('Contraseña actualizada. Usa la nueva contraseña al iniciar sesión.')
     } catch {
       setError('No se pudo cambiar la contraseña. Comprueba tu contraseña actual, la conexión y vuelve a intentarlo.')

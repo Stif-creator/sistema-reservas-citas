@@ -1,3 +1,4 @@
+import { confirmDiscard } from '../lib/unsavedForms'
 import BusinessAccess from './BusinessAccess'
 import SuperadminBusinesses from './SuperadminBusinesses'
 import NotificationLink from './NotificationLink'
@@ -118,6 +119,7 @@ function AdminLayout() {
   }, [])
 
   async function handleLogout() {
+    if (!confirmDiscard()) return
     try {
       await logout()
       navigate('/login')

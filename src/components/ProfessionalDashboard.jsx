@@ -1,4 +1,4 @@
-import ClosingNotice from './ClosingNotice'
+import PendingWork from './PendingWork'
 import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { CalendarDays, Clock, CalendarCheck, ArrowRight, UserRound } from 'lucide-react'
@@ -24,7 +24,7 @@ export default function ProfessionalDashboard() {
   const upcoming = active.filter(r => dateMillis(r.endAt || r.startAt) > now).sort((a,b) => dateMillis(a.startAt)-dateMillis(b.startAt))
   const next = upcoming[0]
   const detail = upcoming.find(r => r.id === selected) || next
-  return <section className="space-y-6 mt-6"><ClosingNotice items={items} />
+  return <section className="space-y-6 mt-6"><PendingWork items={items} />
     <AdminSummary items={[
       {label:'Mis citas de hoy',value:active.filter(r => dayKey(dateMillis(r.startAt), zone) === dayKey(now, zone)).length,icon:CalendarDays},
       {label:'Próximas citas',value:upcoming.length,icon:CalendarCheck,tone:'blue'},

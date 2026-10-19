@@ -498,3 +498,19 @@ test('only a trusted superadmin can change colors across businesses; clients can
   await env.withSecurityRulesDisabled(context => updateDoc(doc(context.firestore(), 'users', 'platform'), { status: 'inactive' }))
   await assertFails(updateDoc(doc(platform, 'businesses', 'private'), { name: 'Denied' }))
 })
+
+
+test('audit events require an actual atomic change, cannot be forged, modified or removed', async () => {
+  const db = dbFor('owner')
+  const before = (await getDoc(doc(db,'businesses','studio'))).data()
+  const log = {businessId:'studio',actorUserId:'owner',action:'businessUpdate',beforeName:before.name || '',afterName:before.name || '',beforeAppearance:before.appearance || {},afterAppearance:before.appearance || {},createdAt:serverTimestamp()}
+  await assertFails(setDoc(doc(db,'auditLogs','forged'),log))
+  const batch = writeBatch(db)
+  batch.update(doc(db,'businesses','studio'),{description:'Audited update',updatedAt:serverTimestamp()})
+  batch.set(doc(db,'auditLogs','verified'),log)
+  await assertSucceeds(batch.commit())
+  await assertFails(updateDoc(doc(db,'auditLogs','verified'),{actorUserId:'pro'}))
+  await assertFails(deleteDoc(doc(db,'auditLogs','verified')))
+  await assertFails(getDoc(doc(dbFor('pro'),'auditLogs','verified')))
+  await assertFails(getDoc(doc(dbFor('client'),'auditLogs','verified')))
+})

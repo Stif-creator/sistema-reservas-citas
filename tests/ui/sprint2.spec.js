@@ -132,7 +132,7 @@ test('client booking, admin agenda, manual booking and assigned professional sta
     await expect(staff.getByText('Manuel Teléfono', { exact: true })).toBeVisible()
 
     await login(pro, 'professional')
-    await pro.getByRole('link', { name: 'Reservas', exact: true }).click()
+    await pro.getByRole('link', { name: 'Mis reservas', exact: true }).click()
     await expect(pro.getByRole('link', { name: 'Reserva manual', exact: true })).toHaveCount(0)
     await pro.getByRole('row').filter({ hasText: 'Manuel Teléfono' }).getByRole('link', { name: 'Ver detalle' }).click()
     await pro.getByRole('button', { name: 'Confirmar', exact: true }).click()

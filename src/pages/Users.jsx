@@ -1,3 +1,4 @@
+import { markFormSaved } from '../lib/unsavedForms'
 import DataList from '../components/ui/DataList'
 import AdminSummary from '../components/ui/AdminSummary'
 import PersonAvatar from '../components/ui/PersonAvatar'
@@ -20,7 +21,7 @@ function UserRow({ member, locked, save, busy }) {
   const role = draft?.role ?? member.role
   const status = draft?.status ?? (member.status === 'pending' ? 'active' : member.status)
   return (
-    <tr className="border-b border-border">
+    <tr data-draft className="border-b border-border">
       <td className="p-3"><div className="admin-person"><PersonAvatar name={member.name} tone={member.role === 'client' ? 'green' : member.role === 'professional' ? 'blue' : 'purple'} /><div><p className="font-medium">{member.name}</p><p className="text-xs text-muted">{member.email}</p></div></div></td>
       <td className="p-3"><select aria-label={`Rol de ${member.name}`} value={role} disabled={locked || busy}
         className={fieldControlClasses(false)} onChange={(e) => setDraft({ role: e.target.value, status })}>
@@ -35,7 +36,7 @@ function UserRow({ member, locked, save, busy }) {
       </td>
       <td className="p-3">{locked ? <span className="admin-protected"><LockKeyhole size={13} />Cuenta protegida</span> :
         <Button disabled={busy || (role === member.role && status === member.status)}
-          onClick={async () => { if (await save(member.userId, role, status)) setDraft(null) }}><Save size={14} />Guardar</Button>}</td>
+          onClick={async e => { const row = e.currentTarget.closest('tr'); if (await save(member.userId, role, status)) { markFormSaved(row); setDraft(null) } }}><Save size={14} />Guardar</Button>}</td>
     </tr>
   )
 }

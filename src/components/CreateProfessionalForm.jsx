@@ -1,3 +1,4 @@
+import { markFormSaved } from '../lib/unsavedForms'
 import { generatePassword } from '../lib/password'
 import { useEffect, useState } from 'react'
 import { createProfessionalAccount } from '../lib/userAdministration'
@@ -31,6 +32,7 @@ export default function CreateProfessionalForm({ businessId, onBusyChange }) {
       setCredential({ email: form.email, password: form.password })
       const password = generatePassword()
       setForm({ ...empty, password, confirm: password })
+      markFormSaved(event.target, true)
       setSuccess('Profesional registrado y activo. Usa Editar para asignar sus servicios y horarios.')
     } catch (err) {
       setError(err.code?.startsWith('auth/') ? getAuthErrorMessage(err) : err.message || 'No se pudo registrar al profesional.')

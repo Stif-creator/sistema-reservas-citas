@@ -20,7 +20,7 @@ export default function Reservations({ detail = false, manual = false }) {
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
   const [date, setDate] = useState('')
-  const [status, setStatus] = useState('')
+  const [status, setStatus] = useState(() => params.get('estado') || '')
   const [editing, setEditing] = useState(false)
   if (error) return <Alert tone="error">{error}</Alert>
   if (loading) return <p role="status">Cargando reservas…</p>

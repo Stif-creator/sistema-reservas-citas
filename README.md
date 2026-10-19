@@ -313,6 +313,23 @@ El profesional ve su próxima cita, resumen de reservas y accesos personales. En
 Estos cambios visuales se publican con `npm run build` y `npx firebase deploy --only hosting`. Si aún no publicaste los cambios anteriores de cuentas, actualiza también Render y las reglas según las instrucciones anteriores. Las capturas y resultados de pruebas permanecen excluidos por `.gitignore`.
 # Bloqueos y solicitudes de ausencia
 
+## Mejoras de los paneles de gestión
+
+- Administrador y profesional: panel de pendientes con enlaces a citas por confirmar y cerrar; el administrador también ve solicitudes de bloqueo.
+- Agenda: confirmar, finalizar, marcar inasistencia y reprogramar desde el detalle, sin salir del calendario. La vista semanal se apila por días en celular; el mes mantiene desplazamiento dentro del calendario.
+- Superadministrador: historial en Gestión de negocios, con búsqueda, filtro por acción y carga de registros anteriores. Incluye creación y estado de negocios, configuración y cambios de rol/acceso realizados por la aplicación desde esta actualización. No reconstruye acciones anteriores ni modificaciones manuales desde la consola de Firebase.
+- Formularios del panel: confirmación antes de navegar, cambiar de negocio, cerrar un editor o salir con cambios pendientes. Los borradores se mantienen solamente en memoria; aceptar descartarlos no los guarda. El navegador utiliza su propio mensaje al cerrar o recargar la pestaña.
+- Auditoría: los registros de configuración y permisos se guardan en la misma operación que el cambio y las reglas rechazan registros sin un cambio real, así como modificaciones y eliminaciones del historial.
+
+Publicación de estas mejoras (no cambian el servidor de Render):
+
+```bash
+npm run build
+npx firebase deploy --only firestore:rules,hosting --project sistema-reservas-jf745-2026
+```
+
+Publica las reglas junto con Hosting: son necesarias para guardar la configuración y los cambios de permisos con su auditoría. Después recarga la página con Ctrl + Shift + R. Las capturas de pruebas, archivos HAR, perfiles de rendimiento y credenciales quedan fuera de Git mediante `.gitignore`.
+
 ## Citas vencidas y reprogramación
 
 Los profesionales pueden reprogramar únicamente sus citas asignadas, acordando el nuevo horario con el cliente. El servidor comprueba permisos, disponibilidad, bloqueos y versión de la reserva; guarda los horarios anteriores y notifica al cliente.

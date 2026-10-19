@@ -25,3 +25,14 @@
 
 .agenda-expired { background: #fff0f0; border-color: #fecaca; color: #9b3030; }
 .agenda-awaiting_closure { background: #fff5d9; border-color: #fde68a; color: #79540b; }
+.agenda-scroll { min-width:0; }
+@media(max-width:640px) {
+  .agenda-toolbar { padding:12px; gap:12px; }
+  .agenda-toolbar > div { width:100%; }
+  .agenda-toolbar input { width:150px; min-width:0; }
+  .agenda-toolbar select { width:100%; }
+  .agenda-grid.agenda-week { display:block; }
+  .agenda-week > .agenda-day { min-height:0; }
+  .agenda-appointment { min-height:64px; font-size:14px; }
+  .agenda-grid.agenda-month { grid-template-columns:repeat(7,minmax(120px,1fr)); }
+}

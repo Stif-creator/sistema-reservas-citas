@@ -1,7 +1,7 @@
 import { initializeApp, deleteApp } from 'firebase/app'
 import { getAuth, connectAuthEmulator, setPersistence, inMemoryPersistence, createUserWithEmailAndPassword, deleteUser, signOut } from 'firebase/auth'
-import { doc, writeBatch, runTransaction, serverTimestamp } from 'firebase/firestore'
-import { db, firebaseConfig } from '../firebase/config'
+import { collection, doc, writeBatch, runTransaction, serverTimestamp } from 'firebase/firestore'
+import { auth, db, firebaseConfig } from '../firebase/config'
 import { findProfileId } from './profiles'
 
 // A separate, memory-only Auth instance keeps the administrator signed in.
@@ -73,6 +73,10 @@ export async function changeMembership(businessId, userId, role, status) {
     if (!user.exists() || !member.exists()) throw new Error('Usuario no encontrado.')
     const data = user.data()
     const now = serverTimestamp()
+    if (member.data().role !== role || member.data().status !== status) transaction.set(doc(collection(db, 'auditLogs')), {
+      businessId, actorUserId: auth.currentUser.uid, targetUserId: userId, action: 'membershipUpdate',
+      beforeRole: member.data().role, beforeStatus: member.data().status, afterRole: role, afterStatus: status, createdAt: now,
+    })
     transaction.update(memberRef, {
       role, status,
       ...(professional.exists() || role === 'professional' ? { professionalId } : {}),

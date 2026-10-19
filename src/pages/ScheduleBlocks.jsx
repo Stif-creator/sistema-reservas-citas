@@ -1,3 +1,5 @@
+import { markFormSaved } from '../lib/unsavedForms'
+import { useSearchParams } from 'react-router-dom'
 import { bookingRequest } from '../lib/bookingApi'
 import { useRef } from 'react'
 import DataList from '../components/ui/DataList'
@@ -59,6 +61,7 @@ function formatRange(startAt, endAt, timeZone) {
 }
 
 function ScheduleBlocks() {
+  const [params, setParams] = useSearchParams()
   const { currentUser, membership, userDoc } = useAuth()
   const businessId = membership?.businessId
   const isAdmin = membership?.role === 'admin'
@@ -264,6 +267,7 @@ function ScheduleBlocks() {
       await bookingRequest({ ...payload, requestId: request.current.id })
       request.current = null
 
+      markFormSaved(e.target, true)
       resetForm()
       setFormSuccess(isAdmin ? 'Bloqueo creado.' : 'Solicitud enviada al administrador.')
     } catch (err) {
@@ -284,6 +288,7 @@ function ScheduleBlocks() {
       {zoneError && <Alert>{zoneError}</Alert>}
       {ownProfile.error && <Alert tone="error">{ownProfile.error}</Alert>}
       {timeZone && <p className="text-sm text-muted">Todas las horas corresponden a {timeZone}.</p>}
+      {params.has('pendientes') && <Button variant="secondary" onClick={() => setParams({})}>Mostrar todos los bloqueos</Button>}
       <div className="admin-workspace-grid"><Card title="Bloqueos programados">
         {blocksListError && <Alert tone="error">Error al cargar bloqueos: {blocksListError}</Alert>}
         {actionError && <Alert tone="error">{actionError}</Alert>}
@@ -293,7 +298,7 @@ function ScheduleBlocks() {
         ) : blocks.length === 0 ? (
           <p className="text-sm text-muted">Todavía no hay bloqueos programados.</p>
         ) : (
-          <DataList items={blocks} label="Bloqueos" searchText={b => `${b.title} ${scopeLabel(b)} ${REASON_LABELS[b.reason] || b.reason} ${timeZone ? formatRange(b.startAt,b.endAt,timeZone) : ""}`}>{rows => <div className="overflow-x-auto">
+          <DataList items={params.has('pendientes') ? blocks.filter(b => b.status === 'pending') : blocks} label="Bloqueos" searchText={b => `${b.title} ${scopeLabel(b)} ${REASON_LABELS[b.reason] || b.reason} ${timeZone ? formatRange(b.startAt,b.endAt,timeZone) : ""}`}>{rows => <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-border text-xs font-semibold uppercase tracking-wide text-muted">

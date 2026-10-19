@@ -189,3 +189,31 @@
 .wizard-steps .current { color: #4f46e5; font-weight: 600; }
 .wizard-steps .current b { background: #4f46e5; color: white; }
 @media(max-width:640px) { .editor-dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); } .editor-dialog-content,.editor-dialog-header { padding: 16px; } .professional-editor > section { padding: 16px; } .workspace-tabs button { padding: 12px; } .business-row { grid-template-columns: 1fr; gap: 12px; } .wizard-steps span { font-size: 11px; } }
+.pending-work { padding: 24px; border: 1px solid #dce4f3; border-radius: 18px; background: linear-gradient(120deg,#f5f7ff,#fff); }
+.pending-work h2 { font-size: 18px; font-weight: 700; color: #16213c; }
+.pending-work p { margin-top: 5px; color: #566784; font-size: 14px; }
+.pending-work-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px; margin-top:18px; }
+.pending-work-grid a { display:flex; align-items:center; gap:14px; padding:18px; background:white; border:1px solid #e0e7f2; border-radius:12px; color:#52627e; transition:box-shadow .15s; }
+.pending-work-grid a:hover { box-shadow:0 4px 16px #283b6512; }
+.pending-work-grid a.has-pending { color:#4338ca; border-color:#c7d2fe; }
+.pending-work-grid a > span:first-of-type { flex:1; display:grid; gap:3px; font-size:13px; }
+.pending-work-grid strong { font-size:26px; line-height:1.2; }
+.audit-filter { display:grid; gap:8px; max-width:320px; margin-bottom:18px; font-size:14px; font-weight:600; }
+.audit-filter select { padding:11px 12px; border:1px solid #dce4f3; border-radius:9px; background:white; }
+.audit-list { display:grid; gap:12px; }
+.audit-list li { display:flex; gap:14px; padding:16px; border:1px solid #e6ebf3; border-radius:12px; overflow-wrap:anywhere; }
+.audit-list svg { flex-shrink:0; color:#6366f1; margin-top:3px; }
+.audit-list p { font-size:14px; margin:5px 0; color:#52627e; }
+.audit-list time { font-size:12px; color:#65738a; }
+.admin-shell main, .admin-shell main > *, .editor-dialog-content > * { min-width:0; }
+.admin-shell :is(button,a,input,select,textarea):focus-visible, .editor-dialog :is(button,a,input,select,textarea):focus-visible { outline:3px solid #818cf8; outline-offset:3px; }
+@media(max-width:640px) {
+  .pending-work { padding:16px; }
+  .pending-work-grid { grid-template-columns:1fr; gap:10px; }
+  .admin-shell main { padding:16px 12px; }
+  .admin-shell :is(input:not([type=checkbox]):not([type=radio]), select, textarea), .editor-dialog :is(input:not([type=checkbox]):not([type=radio]),select,textarea) { max-width:100%; font-size:16px; }
+  .admin-shell .booking-actions, .editor-dialog .booking-actions { flex-direction:column; align-items:stretch; }
+  .admin-shell .booking-actions button, .editor-dialog .booking-actions button { min-height:44px; }
+  .weekly-hours-editor input[type=time] { min-width:100px; width:110px; }
+  .audit-list li { padding:12px; }
+}

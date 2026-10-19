@@ -1,3 +1,4 @@
+import { markFormSaved, confirmDiscard } from '../lib/unsavedForms'
 import DataList from '../components/ui/DataList'
 import { useEffect, useState } from 'react'
 import { collection, doc, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore'
@@ -66,6 +67,7 @@ export default function Categories() {
   }
 
   function loadCategoryForEdit(category) {
+    if (!confirmDiscard()) return
     setCatEditingId(category.id)
     setCatName(category.name ?? '')
     setCatDescription(category.description ?? '')
@@ -119,6 +121,7 @@ export default function Categories() {
         })
         setCatSuccess('Categoría creada.')
       }
+      markFormSaved(e.target, true)
       resetCategoryForm()
     } catch (err) {
       console.error('Error al guardar categoría', err)
@@ -239,7 +242,7 @@ export default function Categories() {
               {catSaving ? 'Guardando...' : catEditingId ? 'Guardar cambios' : 'Crear categoría'}
             </Button>
             {catEditingId && (
-              <Button type="button" variant="secondary" onClick={resetCategoryForm}>
+              <Button type="button" variant="secondary" onClick={() => { if (confirmDiscard()) resetCategoryForm() }}>
                 Cancelar edición
               </Button>
             )}

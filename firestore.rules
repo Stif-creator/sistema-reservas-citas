@@ -235,7 +235,31 @@ service cloud.firestore {
     }
     match /auditLogs/{id} {
       allow read: if isAdmin(resource.data.businessId);
-      allow write: if false;
+      // Client events are accepted only alongside the actual atomic mutation.
+      allow create: if admin(request.resource.data.businessId)
+        && request.resource.data.actorUserId == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && (validBusinessAudit(request.resource.data) || validMembershipAudit(request.resource.data));
+      allow update, delete: if false;
+      function validBusinessAudit(data) {
+        let before = get(/databases/$(database)/documents/businesses/$(data.businessId)).data;
+        let after = getAfter(/databases/$(database)/documents/businesses/$(data.businessId)).data;
+        return data.action == 'businessUpdate'
+          && data.keys().hasOnly(['businessId', 'actorUserId', 'action', 'createdAt', 'beforeName', 'afterName', 'beforeAppearance', 'afterAppearance'])
+          && after.updatedAt == request.time && before.get('updatedAt', null) != after.updatedAt
+          && data.beforeName == before.get('name', '') && data.afterName == after.get('name', '')
+          && data.beforeAppearance == before.get('appearance', {}) && data.afterAppearance == after.get('appearance', {});
+      }
+      function validMembershipAudit(data) {
+        let mid = data.businessId + '_' + data.get('targetUserId', '');
+        let before = get(/databases/$(database)/documents/memberships/$(mid)).data;
+        let after = getAfter(/databases/$(database)/documents/memberships/$(mid)).data;
+        return data.action == 'membershipUpdate'
+          && data.keys().hasOnly(['businessId', 'actorUserId', 'action', 'createdAt', 'targetUserId', 'beforeRole', 'beforeStatus', 'afterRole', 'afterStatus'])
+          && (before.role != after.role || before.status != after.status)
+          && data.beforeRole == before.role && data.afterRole == after.role
+          && data.beforeStatus == before.status && data.afterStatus == after.status;
+      }
     }
     match /generatedReports/{id} {
       allow read: if isAdmin(resource.data.businessId);

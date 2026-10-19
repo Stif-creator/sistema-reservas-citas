@@ -1,3 +1,4 @@
+import { markFormSaved } from '../../lib/unsavedForms'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ArrowLeft, Check, Clock3, UserRound } from 'lucide-react'
 import { bookingEnabled, bookingRequest } from '../../lib/bookingApi'
@@ -90,6 +91,7 @@ export default function BookingFlow({ business, initialServiceId = '', reservati
     try {
       const result = await bookingRequest(pending.current)
       setUncertain(false)
+      markFormSaved(event.target)
       onSuccess(result)
     } catch (failure) {
       setError(failure.message)

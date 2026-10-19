@@ -65,6 +65,11 @@ coverage/
 .cache/
 .eslintcache
 *.tsbuildinfo
+# Browser traces and local performance/heap recordings (may contain user data)
+*.cpuprofile
+*.heapprofile
+*.heapsnapshot
+*.har
 blob-report/
 playwright/.cache/
 tmp/

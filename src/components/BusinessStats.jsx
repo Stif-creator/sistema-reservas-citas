@@ -1,4 +1,4 @@
-import ClosingNotice from './ClosingNotice'
+import PendingWork from './PendingWork'
 import { CalendarCheck, Clock3, Users, Activity, ArrowUpRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
@@ -24,7 +24,7 @@ export default function BusinessStats() {
   })
   const maximum = Math.max(1, ...week.map(d => d.count))
   const icons = [CalendarCheck, Clock3, Users]
-  return <section className="space-y-4 mt-6"><ClosingNotice items={items} />
+  return <section className="space-y-4 mt-6"><PendingWork items={items} />
     <div className="business-stats-heading"><h2>Actividad del negocio</h2></div>
     <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {stats.map(([label, count], index) => {

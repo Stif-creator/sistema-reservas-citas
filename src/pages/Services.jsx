@@ -1,3 +1,4 @@
+import { markFormSaved, confirmDiscard } from '../lib/unsavedForms'
 import { safeImageUrl } from '../lib/brand'
 import { Scissors } from 'lucide-react'
 import DataList from '../components/ui/DataList'
@@ -146,6 +147,7 @@ function Services() {
   }
 
   function loadServiceForEdit(service) {
+    if (!confirmDiscard()) return
     setSvcEditingId(service.id)
     setSvcName(service.name ?? '')
     setSvcDescription(service.description ?? '')
@@ -257,6 +259,7 @@ function Services() {
         })
         setSvcSuccess('Servicio creado.')
       }
+      markFormSaved(e.target, true)
       resetServiceForm()
     } catch (err) {
       console.error('Error al guardar servicio', err)
@@ -510,7 +513,7 @@ function Services() {
                   {svcSaving ? 'Guardando...' : svcEditingId ? 'Guardar cambios' : 'Crear servicio'}
                 </Button>
                 {svcEditingId && (
-                  <Button type="button" variant="secondary" onClick={resetServiceForm} disabled={svcSaving || imageUploading}>
+                  <Button type="button" variant="secondary" onClick={() => { if (confirmDiscard()) resetServiceForm() }} disabled={svcSaving || imageUploading}>
                     Cancelar edición
                   </Button>
                 )}

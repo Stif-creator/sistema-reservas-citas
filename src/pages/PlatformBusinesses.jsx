@@ -1,3 +1,5 @@
+import { markFormSaved } from '../lib/unsavedForms'
+import PlatformAudit from '../components/PlatformAudit'
 import EditorDialog from '../components/ui/EditorDialog'
 import AdminSummary from '../components/ui/AdminSummary'
 import { Building2, CheckCircle2, PauseCircle, Plus, Settings, ArrowLeft, ArrowRight, ShieldCheck } from 'lucide-react'
@@ -49,7 +51,7 @@ export default function PlatformBusinesses() {
     const form = e.currentTarget
     if (step < 2) { setStep(step + 1); return }
     const fields = draft
-    if (await mutate({ action: 'platformCreate', businessId: requestId, ...fields, createAccount, ...(createAccount ? { password } : {}) })) { setCredential(createAccount ? { email: fields.email, password } : null); setPassword(generatePassword()); form.reset(); setCreating(false); setStep(0); setDraft({name:'',email:'',firstName:'',lastName:'',primaryColor:'#6366f1',secondaryColor:'#eef2ff'}); setRequestId(crypto.randomUUID()); setMessage('Negocio creado y vinculado. Su página pública permanece desactivada hasta completar la configuración.') }
+    if (await mutate({ action: 'platformCreate', businessId: requestId, ...fields, createAccount, ...(createAccount ? { password } : {}) })) { setCredential(createAccount ? { email: fields.email, password } : null); setPassword(generatePassword()); form.reset(); markFormSaved(form, true); setCreating(false); setStep(0); setDraft({name:'',email:'',firstName:'',lastName:'',primaryColor:'#6366f1',secondaryColor:'#eef2ff'}); setRequestId(crypto.randomUUID()); setMessage('Negocio creado y vinculado. Su página pública permanece desactivada hasta completar la configuración.') }
   }
   return <div className="space-y-6"><PageHeader title="Negocios de la plataforma" description="Crea negocios, asigna su administrador y gestiona su estado." />
     {credential && <Alert tone="success"><p>Cuenta creada: {credential.email}</p><p>Contraseña inicial: <code className="select-all">{credential.password}</code></p><p>Compártela directamente con el administrador. Se le pedirá cambiarla al ingresar.</p><Button variant="secondary" onClick={() => setCredential(null)}>Ocultar credenciales</Button></Alert>}
@@ -65,6 +67,7 @@ export default function PlatformBusinesses() {
           </div></article>)}</div>}
       </DataList>
     </Card>
+    <PlatformAudit businesses={items} users={owners} />
     {creating && <EditorDialog title="Crear negocio" busy={busy} onClose={() => setCreating(false)}><form onSubmit={create} className="business-wizard space-y-6">
       <div className="wizard-steps">{['Negocio','Administrador','Revisar'].map((name,index) => <span key={name} className={step === index ? 'current' : ''} aria-current={step === index ? 'step' : undefined}><b>{index+1}</b>{name}</span>)}</div>
       {step === 0 && <div className="space-y-5"><h3 className="text-lg font-semibold">Identidad del negocio</h3><p className="text-sm text-muted">Define su nombre y colores. El administrador podrá completar el resto.</p><label className="block">Nombre del negocio<input autoFocus className={fieldControlClasses(false)} required maxLength={120} value={draft.name} onChange={e => setDraft({...draft,name:e.target.value})} /></label><div className="grid grid-cols-2 gap-4">{[['primaryColor','Color primario'],['secondaryColor','Color secundario']].map(([key,label]) => <label key={key}>{label}<input className="block w-full h-12 mt-2 rounded-lg" type="color" value={draft[key]} onChange={e => setDraft({...draft,[key]:e.target.value})} /></label>)}</div></div>}

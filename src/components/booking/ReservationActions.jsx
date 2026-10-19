@@ -1,3 +1,4 @@
+import { markFormSaved } from '../../lib/unsavedForms'
 import { useEffect, useRef, useState } from 'react'
 import { bookingEnabled, bookingRequest } from '../../lib/bookingApi'
 import { useAuth } from '../../context/auth-context'
@@ -28,7 +29,7 @@ export default function ReservationActions({ reservation, business, onReschedule
     event.preventDefault(); setBusy(true); setError(''); setSuccess('')
     if (!request.current) request.current = { action: 'status', businessId: business.id, reservationId: reservation.id,
       revision: reservation.revision || 0, status: desired, reason, requestId: crypto.randomUUID() }
-    try { await bookingRequest(request.current); request.current = null; setDesired(''); setUncertain(false); setSuccess('Estado actualizado.') }
+    try { await bookingRequest(request.current); markFormSaved(event.target, true); request.current = null; setDesired(''); setUncertain(false); setSuccess('Estado actualizado.') }
     catch (failure) {
       setError(failure.message)
       const ambiguous = ['functions/internal', 'functions/unavailable', 'functions/deadline-exceeded'].includes(failure.code)
