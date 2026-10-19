@@ -78,7 +78,7 @@ test('client booking, admin agenda, manual booking and assigned professional sta
     await page.unroute('**/booking')
     await selectTime(page, '10:00')
     await page.getByLabel('Notas adicionales (opcional)').fill('Primera visita')
-    await page.getByRole('button', { name: 'Confirmar reserva', exact: true }).click()
+    await page.getByRole('button', { name: /^(Confirmar reserva|Solicitar cita)$/ }).click()
     await expect(page.getByRole('heading', { name: '¡Solicitud registrada!' })).toBeVisible({ timeout: 20000 })
     await page.getByRole('link', { name: 'Ver mi reserva', exact: true }).click()
     await expect(page.getByText('Pendiente', { exact: true })).toBeVisible()
@@ -127,7 +127,7 @@ test('client booking, admin agenda, manual booking and assigned professional sta
     await selectTime(staff, '11:00')
     await staff.getByLabel('Nombre completo', { exact: true }).fill('Manuel Teléfono')
     await staff.getByLabel('Teléfono', { exact: true }).fill('70000002')
-    await staff.getByRole('button', { name: 'Confirmar reserva', exact: true }).click()
+    await staff.getByRole('button', { name: /^(Confirmar reserva|Solicitar cita)$/ }).click()
     await expect(staff.getByRole('heading', { name: 'Detalle de reserva' })).toBeVisible()
     await expect(staff.getByText('Manuel Teléfono', { exact: true })).toBeVisible()
 
@@ -154,7 +154,7 @@ test('client booking, admin agenda, manual booking and assigned professional sta
     await expect(page.locator('.client-site')).toHaveCSS('--brand', '#7c3aed')
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
     await page.screenshot({ path: 'test-results/sprint2-confirm-mobile.png', fullPage: true })
-    await page.getByRole('button', { name: 'Confirmar reserva', exact: true }).click()
+    await page.getByRole('button', { name: /^(Confirmar reserva|Solicitar cita)$/ }).click()
     await expect(page.getByRole('heading', { name: '¡Solicitud registrada!' })).toBeVisible()
     expect(errors).toEqual([])
   } finally { await staffContext.close(); await proContext.close() }

@@ -51,6 +51,9 @@ playwright/.auth/
 storage-state*.json
 storageState*.json
 
+# Local calendar downloads may contain customer appointment details
+*.ics
+
 # Generated Firebase cache and emulator exports
 .firebase/
 firebase-export*/

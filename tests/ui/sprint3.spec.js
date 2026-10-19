@@ -74,7 +74,7 @@ test('Sprint 3 public booking resumes after login, preferences, admin clients an
     await expect(page.getByLabel('Fecha de la cita')).toHaveValue(date)
     await expect(page.getByRole('button', { name:'10:00', exact:true })).toHaveAttribute('aria-pressed','true')
     await page.getByRole('button', { name:'Continuar', exact:true }).click()
-    await page.getByRole('button', { name:'Confirmar reserva', exact:true }).click()
+    await page.getByRole('button', { name:/^(Confirmar reserva|Solicitar cita)$/ }).click()
     await expect(page.getByRole('heading', { name:'¡Solicitud registrada!' })).toBeVisible({ timeout:20000 })
     let notificationHubCalls = 0
     await page.route('**/booking', route => {

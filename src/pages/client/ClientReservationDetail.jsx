@@ -1,3 +1,5 @@
+import AppointmentTools from '../../components/client/AppointmentTools'
+import { statusHelp } from '../../lib/clientBooking'
 import ReviewForm from '../../components/ReviewForm'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import ReservationActions from '../../components/booking/ReservationActions'
@@ -20,6 +22,7 @@ export default function ClientReservationDetail() {
       <div className="client-page-heading"><div><span className="client-overline">INFORMACIÓN DE TU VISITA</span><h1>Detalle de reserva</h1></div></div>
       <article className="client-panel client-reservation-detail">
         <div className="client-page-heading"><h2>{item.serviceName || item.serviceSnapshot?.name || services.find(service => service.id === item.serviceId)?.name || 'Servicio reservado'}</h2><span className={`client-status status-${Object.hasOwn(reservationStatuses, item.displayStatus || item.status) ? (item.displayStatus || item.status) : 'unknown'}`}>{reservationStatuses[item.displayStatus || item.status] || 'Por confirmar'}</span></div>
+        <p className="client-status-explanation">{statusHelp[item.displayStatus || item.status]}</p>
         <dl className="client-profile-fields">
           <div><dt><Hash size={16} />Código de reserva</dt><dd>{item.code || item.id}</dd></div>
           <div><dt><UserRound size={16} />Profesional</dt><dd>{item.professionalName || item.professionalSnapshot?.displayName || 'Profesional asignado'}</dd></div>
@@ -30,6 +33,7 @@ export default function ClientReservationDetail() {
         </dl>
         <ReservationActions reservation={item} business={business} onReschedule={() => navigate(`/cliente/reservas/${item.id}/reprogramar`)} />
       </article>
+      <AppointmentTools reservation={item} business={business} />
       <ReviewForm reservation={item} />
     </>}
   </>

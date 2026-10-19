@@ -1,9 +1,9 @@
 import NotificationLink from '../NotificationLink'
 import useClientCommunity from '../../hooks/useClientCommunity'
 import { useEffect, useState } from 'react'
-import { Link, Outlet, useNavigate } from 'react-router-dom'
+import { Link, NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { collection, doc, onSnapshot, query, where } from 'firebase/firestore'
-import { UserRound } from 'lucide-react'
+import { UserRound, Home, CalendarPlus, CalendarDays } from 'lucide-react'
 import { db } from '../../firebase/config'
 import { useAuth } from '../../context/auth-context'
 import { ClientContext } from '../../context/client-context'
@@ -30,6 +30,8 @@ function ClientWorkspace({ businessId }) {
   const { userDoc, logout, currentUser } = useAuth()
   const community = useClientCommunity(businessId, currentUser.uid)
   const navigate = useNavigate()
+  const location = useLocation()
+  const bookingPage = /\/cliente\/(reservar|reservas\/[^/]+\/reprogramar)/.test(location.pathname)
   const [business, setBusiness] = useState(null)
   const [businessReady, setBusinessReady] = useState(false)
   const [businessError, setBusinessError] = useState('')
@@ -63,7 +65,7 @@ function ClientWorkspace({ businessId }) {
     catalogLoading: !catalog.ready.services || !catalog.ready.categories,
     catalogError: catalog.errors.services || catalog.errors.categories || '', endSession }
   return <ClientContext.Provider value={value}>
-    <div className="public-site client-site" style={brandVariables(business?.appearance)}>
+    <div className={`public-site client-site ${bookingPage ? "client-booking-page" : ""}`} style={brandVariables(business?.appearance)}>
       <SiteHeader business={business} homeTo="/cliente" links={links}>
         <NotificationLink />
         <Link className="client-user-link" to="/cliente/perfil"><UserRound size={17} />{userDoc.firstName}</Link>
@@ -76,6 +78,9 @@ function ClientWorkspace({ businessId }) {
           : businessError ? <div className="client-empty" role="alert"><h1>{businessError}</h1><button className="public-button secondary" onClick={() => window.location.reload()}>Reintentar</button><button className="public-button secondary" onClick={endSession}>Cerrar sesión</button></div>
           : <Outlet />}
       </main>
+      {!bookingPage && <nav className="client-mobile-nav" aria-label="Navegación rápida">
+        {[["/cliente", "Inicio", Home], ["/cliente/reservar", "Reservar", CalendarPlus], ["/cliente/reservas", "Mis citas", CalendarDays], ["/cliente/perfil", "Mi cuenta", UserRound]].map(([to, label, Icon]) => <NavLink key={to} to={to} end={to === '/cliente'}><Icon size={21} /><span>{label}</span></NavLink>)}
+      </nav>}
       <SiteFooter business={business} homeTo="/cliente" contactTo="/cliente/contacto" />
     </div>
   </ClientContext.Provider>
