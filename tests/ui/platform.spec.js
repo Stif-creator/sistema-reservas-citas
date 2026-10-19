@@ -18,7 +18,6 @@ test('superadmin selects another business; colors are locked again after privile
     await env.withSecurityRulesDisabled(async context => {
       const db = context.firestore()
       await setDoc(doc(db, 'users', uid), { firstName: 'Platform', lastName: 'Test', email, status: 'active', globalRole: 'superadmin', businessIds: [id], onboardingComplete: true })
-      await setDoc(doc(db, 'memberships', `${id}_${uid}`), { businessId: id, userId: uid, role: 'admin', status: 'active' })
       for (const bid of [id, `${id}-other`]) await setDoc(doc(db, 'businesses', bid), { id: bid, ownerUserId: bid === id ? uid : 'someone-else', name: bid, status: 'active', settings: { timezone: 'America/La_Paz', currencyCode: 'BOB', publicPageEnabled: true }, appearance: { primaryColor: '#123456', secondaryColor: '#abcdef' } })
       await setDoc(doc(db, 'services', `${id}-service`), { businessId: `${id}-other`, name: 'Consulta', isActive: true, durationMinutes: 30, price: 100 })
       await setDoc(doc(db, 'professionals', `${id}-pro`), { businessId: `${id}-other`, userId: 'pro', displayName: 'Profesional', isActive: true, serviceIds: [`${id}-service`] })
@@ -45,7 +44,9 @@ test('superadmin selects another business; colors are locked again after privile
     await page.getByLabel('Color primario').fill('#654321')
     await page.getByRole('button', { name: 'Guardar cambios', exact: true }).click()
     await env.withSecurityRulesDisabled(async context => {
-      await expect.poll(async () => (await getDoc(doc(context.firestore(), 'businesses', `${id}-other`))).data().appearance.primaryColor).toBe('#654321')
+      const db = context.firestore()
+      await expect.poll(async () => (await getDoc(doc(db, 'businesses', `${id}-other`))).data().appearance.primaryColor).toBe('#654321')
+      await setDoc(doc(db, 'memberships', `${id}_${uid}`), { businessId: id, userId: uid, role: 'admin', status: 'active' })
       await updateDoc(doc(context.firestore(), 'users', uid), { globalRole: 'user' })
     })
     await expect(page.getByLabel('Superadministrador · Negocio')).toHaveCount(0)
