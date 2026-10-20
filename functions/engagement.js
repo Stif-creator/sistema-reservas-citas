@@ -71,7 +71,7 @@ export async function executeEngagement(db, uid, input, actor) {
     ])
     return serial({ favorites, waiting, notifications: notifications.filter(n => ms(n.visibleAt) <= Date.now() && (!n.expiresAt || ms(n.expiresAt) > Date.now())).sort((a, b) => ms(b.visibleAt) - ms(a.visibleAt)),
       promotions: actor.member.role === 'admin' ? promotions : promotions.filter(p => p.isActive && ms(p.startAt) <= Date.now() && ms(p.endAt) > Date.now()),
-      reviews: reviews.filter(r => r.status === 'published').map(r => ({ id: r.id, serviceId: r.serviceId || null, professionalId: r.professionalId || null, professionalName: r.professionalName || null, professionalRating: r.professionalRating || null, rating: r.rating, comment: r.comment, authorName: r.authorName, serviceName: r.serviceName })), reminderHours: reminder.data()?.hours ?? 24 })
+      reviews: reviews.filter(r => r.status === 'published').map(r => ({ id: r.id, serviceId: r.serviceId || null, professionalId: r.professionalId || null, professionalName: r.professionalName || null, professionalRating: r.professionalRating || null, rating: r.rating, comment: r.comment, authorName: r.authorName, serviceName: r.serviceName, reviewedAt: Number.isFinite(ms(r.updatedAt || r.createdAt)) ? ms(r.updatedAt || r.createdAt) : null })), reminderHours: reminder.data()?.hours ?? 24 })
   }
   if (action === 'notificationRead') {
     if (!id(input.id)) fail('invalid-argument', 'Aviso inválido.')

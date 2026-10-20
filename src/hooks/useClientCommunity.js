@@ -1,6 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { collection, onSnapshot, query, where } from 'firebase/firestore'
-import { db } from '../firebase/config'
 import { bookingRequest } from '../lib/bookingApi'
 
 export default function useClientCommunity(businessId, userId) {
@@ -9,13 +7,37 @@ export default function useClientCommunity(businessId, userId) {
   const [favoriteError, setFavoriteError] = useState('')
   const [favoriteBusy, setFavoriteBusy] = useState(false)
   const lock = useRef(false)
+  const favoriteRevision = useRef(0)
+  const [favoriteVersion, setFavoriteVersion] = useState(0)
   const [data, setData] = useState({ professionals: [], reviews: [] })
   const [communityLoading, setLoading] = useState(true)
   const [communityError, setError] = useState('')
   const [version, setVersion] = useState(0)
-  useEffect(() => onSnapshot(query(collection(db, 'favorites'), where('businessId', '==', businessId), where('userId', '==', userId)), snap => {
-    setFavorites(snap.docs.map(d => ({ ...d.data(), id: d.id }))); setFavoriteReady(true); setFavoriteError('')
-  }, () => { setFavoriteReady(false); setFavoriteError('No pudimos cargar tus favoritos. Recarga la página para reintentar.') }), [businessId, userId])
+  useEffect(() => {
+    let active = true, pending = false
+    async function refreshFavorites() {
+      if (pending) return
+      pending = true
+      const revision = favoriteRevision.current
+      try {
+        const result = await bookingRequest({ action: 'hub', businessId })
+        if (active && revision === favoriteRevision.current) {
+          setFavorites(result.favorites || [])
+          setFavoriteReady(true)
+          setFavoriteError('')
+        }
+      } catch (error) {
+        if (active && revision === favoriteRevision.current) {
+          setFavoriteReady(false)
+          setFavoriteError(error.message)
+        }
+      } finally { pending = false }
+    }
+    refreshFavorites()
+    const timer = setInterval(refreshFavorites, 60000)
+    window.addEventListener('focus', refreshFavorites)
+    return () => { active = false; clearInterval(timer); window.removeEventListener('focus', refreshFavorites) }
+  }, [businessId, userId, favoriteVersion])
   useEffect(() => {
     let active = true, pending = false
     async function refresh() {
@@ -34,6 +56,7 @@ export default function useClientCommunity(businessId, userId) {
   }, [businessId, version])
   async function toggleFavorite(service) {
     if (lock.current || !favoriteReady) return
+    favoriteRevision.current += 1
     lock.current = true; setFavoriteBusy(true); setFavoriteError('')
     const enabled = !favorites.some(f => f.kind === 'service' && f.targetId === service.id)
     try {
@@ -43,5 +66,7 @@ export default function useClientCommunity(businessId, userId) {
     } catch (error) { setFavoriteError(error.message) }
     finally { lock.current = false; setFavoriteBusy(false) }
   }
-  return { ...data, favorites, favoriteReady, favoriteError, favoriteBusy, toggleFavorite, communityLoading, communityError, reloadCommunity: () => setVersion(v => v + 1) }
+  return { ...data, favorites, favoriteReady, favoriteError, favoriteBusy, toggleFavorite,
+    reloadFavorites: () => setFavoriteVersion(v => v + 1), communityLoading, communityError,
+    reloadCommunity: () => setVersion(v => v + 1) }
 }

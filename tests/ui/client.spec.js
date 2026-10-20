@@ -17,7 +17,7 @@ test('client layouts use real scoped data and live branding on desktop and mobil
     await env.withSecurityRulesDisabled(async context => {
       const db = context.firestore()
       await setDoc(doc(db, 'businesses', businessId), { name: 'Estudio Violeta', ownerUserId: 'test-owner', status: 'active',
-        description: 'Un espacio para cuidarte y disfrutar de tu tiempo.', appearance: { primaryColor: '#7c3aed', secondaryColor: '#f0e7ff' },
+        description: 'Un espacio para cuidarte y disfrutar de tu tiempo.', appearance: { primaryColor: '#7c3aed', secondaryColor: '#f0e7ff', accentColor: '#c2410c', surfaceColor: '#fff7ed' },
         contact: { phone: '+59170000000', email: 'hola@example.test' }, settings: { publicPageEnabled: true, timezone: 'America/La_Paz', currencyCode: 'BOB' } })
       for (const [id, name] of [['care', 'Bienestar'], ['hair', 'Peluquería']]) {
         await setDoc(doc(db, 'categories', `${businessId}-${id}`), { businessId, name, isActive: true, displayOrder: 1 })
@@ -60,27 +60,36 @@ test('client layouts use real scoped data and live branding on desktop and mobil
     await expect(page.getByRole('heading', { name: 'Masaje relajante', exact: true })).toBeVisible()
     await expect(page.getByText('Servicio privado', { exact: true })).toHaveCount(0)
     await expect(page.getByText('Servicio inactivo', { exact: true })).toHaveCount(0)
+    const homeFavorite = page.getByRole('button', { name: 'Agregar a favoritos: Masaje relajante', exact: true })
+    await expect(homeFavorite).toBeEnabled()
+    await homeFavorite.click()
+    await expect(page.getByRole('button', { name: 'Quitar de favoritos: Masaje relajante', exact: true })).toBeVisible()
 
     // The customer catalog is independent of publication of the external website.
     let uid
     await env.withSecurityRulesDisabled(async context => {
       const db = context.firestore()
       uid = (await getDocs(query(collection(db, 'users'), where('email', '==', email)))).docs[0].id
-      await updateDoc(doc(db, 'businesses', businessId), { 'settings.publicPageEnabled': false, 'appearance.primaryColor': '#eab308', 'appearance.secondaryColor': '#fff6cc' })
+      await updateDoc(doc(db, 'businesses', businessId), { 'settings.publicPageEnabled': false, 'appearance.primaryColor': '#eab308', 'appearance.secondaryColor': '#fff6cc', 'appearance.accentColor': '#be123c', 'appearance.surfaceColor': '#fef3c7' })
     })
     await expect(page.locator('.client-site')).toHaveCSS('--brand', '#eab308')
     await expect(page.locator('.client-site')).toHaveCSS('--on-brand', '#101b30')
+    await expect(page.locator('.client-site')).toHaveCSS('--brand-accent', '#be123c')
+    await expect(page.locator('.client-site')).toHaveCSS('--brand-surface', '#fef3c7')
     await page.reload()
     await expect(page.getByRole('heading', { name: 'Masaje relajante', exact: true })).toBeVisible()
     await page.getByRole('navigation', { name: 'Navegación principal' }).getByRole('link', { name: 'Servicios', exact: true }).click()
     await page.getByRole('button', { name: 'Peluquería', exact: true }).click()
     await expect(page.getByRole('heading', { name: 'Corte de cabello' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Masaje relajante' })).toHaveCount(0)
-    await page.getByRole('button', { name: 'Todos', exact: true }).click()
+    await page.getByRole('button', { name: /^Todos/ }).click()
+    await expect(page.getByRole('button', { name: 'Quitar de favoritos: Masaje relajante', exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'Quitar de favoritos: Masaje relajante', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Agregar a favoritos: Masaje relajante', exact: true })).toBeVisible()
     await page.getByRole('searchbox', { name: 'Buscar servicios' }).fill('no existe')
     await expect(page.getByRole('heading', { name: 'No hay servicios para mostrar' })).toBeVisible()
     await page.getByRole('searchbox', { name: 'Buscar servicios' }).fill('masaje')
-    await page.getByRole('link', { name: 'Ver servicio', exact: true }).click()
+    await page.getByRole('link', { name: 'Ver detalle', exact: true }).first().click()
     await expect(page.getByRole('heading', { name: 'Masaje relajante' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Reservar cita', exact: true })).toBeVisible()
     await page.getByRole('link', { name: 'Mis reservas', exact: true }).click()
@@ -101,7 +110,7 @@ test('client layouts use real scoped data and live branding on desktop and mobil
     await page.goto(`/cliente/reservas/other-${suffix}`)
     await expect(page.getByRole('heading', { name: 'Reserva no disponible' })).toBeVisible()
 
-    await env.withSecurityRulesDisabled(context => updateDoc(doc(context.firestore(), 'businesses', businessId), { 'appearance.primaryColor': '#7c3aed', 'appearance.secondaryColor': '#f0e7ff' }))
+    await env.withSecurityRulesDisabled(context => updateDoc(doc(context.firestore(), 'businesses', businessId), { 'appearance.primaryColor': '#7c3aed', 'appearance.secondaryColor': '#f0e7ff', 'appearance.accentColor': '#c2410c', 'appearance.surfaceColor': '#fff7ed' }))
     for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: width === 1440 ? 1000 : 844 })
       for (const [path, title, name] of [
@@ -115,11 +124,18 @@ test('client layouts use real scoped data and live branding on desktop and mobil
         await page.goto(path)
         await expect(page.getByRole('heading', { name: title, exact: false }).first()).toBeVisible()
         await expect(page.locator('.client-site')).toHaveCSS('--brand', '#7c3aed')
-        await expect(page.locator('header')).toHaveCount(1)
+        await expect(page.locator('.client-site')).toHaveCSS('--brand-accent', '#c2410c')
+        await expect(page.locator('.client-site')).toHaveCSS('--brand-surface', '#fff7ed')
+        await expect(page.locator('header.site-header')).toHaveCount(1)
         await expect(page.locator('footer')).toHaveCount(1)
         await expect(page.getByRole('main')).toHaveCount(1)
         await expect(page.getByRole('alert')).toHaveCount(0)
-        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+        const layout = await page.evaluate(() => ({
+          fits: document.documentElement.scrollWidth <= innerWidth,
+          overflow: [...document.querySelectorAll('body *')].filter(element => element.getBoundingClientRect().right > innerWidth + 1)
+            .slice(0, 8).map(element => `${element.tagName.toLowerCase()}.${String(element.className).replaceAll(' ', '.')}`),
+        }))
+        expect(layout.fits, `${path} at ${width}px overflows: ${layout.overflow.join(', ')}`).toBe(true)
         await page.screenshot({ path: `test-results/client-${name}-${width}.png`, fullPage: true })
       }
       if (width === 390) {

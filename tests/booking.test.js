@@ -142,6 +142,7 @@ test('Sprint 3 reviews require own completed reservation; promotions alter serve
   assert.equal(published.professionalId, original.professionalId)
   assert.equal(published.professionalRating, 3)
   assert.equal(published.rating, 4)
+  assert.equal(typeof published.reviewedAt, 'number')
   assert.equal(published.clientUserId, undefined)
   await f.call(f.users.admin, { ...promo, isActive:false })
   assert.equal((await f.call(f.users.client, { action:'options' })).services[0].price, 100)

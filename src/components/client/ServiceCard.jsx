@@ -1,6 +1,6 @@
 import { bookingEnabled } from '../../lib/bookingApi'
 import { Link } from 'react-router-dom'
-import { ArrowUpRight, Clock3, Sparkles } from 'lucide-react'
+import { ArrowRight, Clock3, Sparkles } from 'lucide-react'
 import { safeImageUrl } from '../../lib/brand'
 import { formatPrice } from '../../lib/clientPresentation'
 import FavoriteButton from './FavoriteButton'
@@ -20,8 +20,10 @@ export default function ServiceCard({ service, category, currency }) {
       <div className="client-card-social"><FavoriteButton service={service} />{!communityLoading && !communityError && <RatingSummary reviews={reviews.filter(r => r.serviceId === service.id)} />}</div>
       <p>{service.description || 'Conoce los detalles de este servicio.'}</p>
       <div className="client-service-meta"><span><Clock3 size={14} />{service.durationMinutes} minutos</span><strong>{formatPrice(service.price, service.currencyCode || currency)}</strong></div>
-      {bookingEnabled && <Link className="public-button" to={`/cliente/reservar?servicio=${encodeURIComponent(service.id)}`}>Reservar cita</Link>}
-      <Link className="public-button secondary" to={`/cliente/servicios/${encodeURIComponent(service.id)}`}>Ver servicio <ArrowUpRight size={16} /></Link>
+      <div className="client-service-actions">
+        {bookingEnabled && <Link className="public-button" to={`/cliente/reservar?servicio=${encodeURIComponent(service.id)}`}><Clock3 size={15} />Reservar cita</Link>}
+        <Link className="public-button secondary" to={`/cliente/servicios/${encodeURIComponent(service.id)}`}>Ver detalle <ArrowRight size={16} /></Link>
+      </div>
     </div>
   </article>
 }

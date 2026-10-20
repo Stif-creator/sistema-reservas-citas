@@ -73,7 +73,7 @@ function ClientWorkspace({ businessId }) {
       </SiteHeader>
       <main id="contenido" className="client-main" tabIndex={-1}>
         {sessionError && <p className="public-alert public-container" role="alert">{sessionError}</p>}
-        {community.favoriteError && <p className="public-alert public-container" role="alert">{community.favoriteError}</p>}
+        {community.favoriteError && <p className="public-alert public-container" role="alert">{community.favoriteError} <button type="button" onClick={community.reloadFavorites}>Reintentar</button></p>}
         {!businessReady ? <p className="client-loading" role="status">Cargando tu negocio…</p>
           : businessError ? <div className="client-empty" role="alert"><h1>{businessError}</h1><button className="public-button secondary" onClick={() => window.location.reload()}>Reintentar</button><button className="public-button secondary" onClick={endSession}>Cerrar sesión</button></div>
           : <Outlet />}

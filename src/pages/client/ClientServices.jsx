@@ -1,6 +1,6 @@
 import DataList from '../../components/ui/DataList'
 import { useState } from 'react'
-import { Search } from 'lucide-react'
+import { Heart, Search, SlidersHorizontal, Users } from 'lucide-react'
 import { useClientBusiness } from '../../context/client-context'
 import ServiceCard from '../../components/client/ServiceCard'
 import CatalogState from '../../components/client/CatalogState'
@@ -20,17 +20,29 @@ export default function ClientServices() {
     (!onlyFavorites || favorites.some(f => f.kind === 'service' && f.targetId === service.id)) &&
     normalize(`${service.name} ${service.description || ''}`).includes(normalize(search.trim())))
     .sort((a, b) => a.name.localeCompare(b.name))
-  return <section className="public-container client-section">
-    <div className="client-page-heading"><div><span className="client-overline">ENCUENTRA TU PRÓXIMO MOMENTO</span><h1>Servicios</h1><p>Explora nuestros servicios y elige el que mejor se adapte a ti.</p></div>
-      <label className="client-search"><Search size={18} /><span className="sr-only">Buscar servicios</span><input type="search" placeholder="Buscar un servicio…" value={search} onChange={event => setSearch(event.target.value)} /></label>
-    </div>
-    <div className="client-catalog-toolbar"><label>Profesional<select aria-label="Filtrar servicios por profesional" value={professionalId} disabled={communityLoading || !!communityError} onChange={e => setProfessionalId(e.target.value)}><option value="">Todos los profesionales</option>{professionals.map(p => <option key={p.id} value={p.id}>{p.displayName}</option>)}</select></label><button type="button" className="public-button secondary" aria-pressed={onlyFavorites} onClick={() => setOnlyFavorites(v => !v)}>{onlyFavorites ? 'Mostrando favoritos' : 'Solo favoritos'}</button></div>
+  return <section className="public-container client-section client-services-page">
+    <header className="client-services-hero">
+      <div><span className="client-overline">A TU MEDIDA</span><h1>Servicios</h1><p>Explora las opciones disponibles y encuentra la que mejor se adapta a ti.</p></div>
+      <span className="client-services-hero-art" aria-hidden="true"><SlidersHorizontal size={34} /></span>
+    </header>
     {communityLoading && <p role="status">Cargando profesionales y calificaciones…</p>}
     {communityError && <p className="public-alert" role="alert">No pudimos cargar profesionales y calificaciones. <button type="button" onClick={reloadCommunity}>Reintentar</button></p>}
-    <div className="client-filters" role="group" aria-label="Categorías de servicios">
-      <button aria-pressed={!categoryId} onClick={() => setSelected('')}>Todos</button>
-      {options.map(category => <button key={category.id} aria-pressed={categoryId === category.id} onClick={() => setSelected(category.id)}>{category.name}</button>)}
-    </div>
-    <CatalogState empty={!filtered.length}><p className="client-results" role="status">{filtered.length} {filtered.length === 1 ? 'servicio disponible' : 'servicios disponibles'}</p><DataList label="Servicios" items={filtered} search={false} resetKey={`${search}:${categoryId}:${professionalId}:${onlyFavorites}`}>{rows => <div className="client-service-grid">{rows.map(service => <ServiceCard key={service.id} service={service} category={categories.find(category => category.id === service.categoryId)?.name} currency={business.settings?.currencyCode} />)}</div>}</DataList></CatalogState>
+    <section className="client-catalog-toolbar" aria-label="Buscar y filtrar servicios">
+      <div className="client-catalog-controls">
+        <label className="client-search"><Search size={18} aria-hidden="true" /><span className="sr-only">Buscar servicios</span><input type="search" placeholder="Buscar por nombre o descripción…" value={search} onChange={event => setSearch(event.target.value)} /></label>
+        <label className="client-professional-filter"><Users size={17} aria-hidden="true" /><span className="sr-only">Filtrar servicios por profesional</span><select aria-label="Filtrar servicios por profesional" value={professionalId} disabled={communityLoading || !!communityError} onChange={e => setProfessionalId(e.target.value)}><option value="">Todos los profesionales</option>{professionals.map(p => <option key={p.id} value={p.id}>{p.displayName}</option>)}</select></label>
+        <button type="button" className="client-favorites-filter" aria-pressed={onlyFavorites} onClick={() => setOnlyFavorites(value => !value)}><Heart size={17} fill={onlyFavorites ? 'currentColor' : 'none'} />{onlyFavorites ? 'Solo favoritos: activo' : 'Solo favoritos'}</button>
+      </div>
+      <div className="client-filters" role="group" aria-label="Filtrar por categoría">
+        <button type="button" aria-pressed={!categoryId} onClick={() => setSelected('')}>Todos ({services.length})</button>
+        {options.map(category => <button type="button" key={category.id} aria-pressed={categoryId === category.id} onClick={() => setSelected(category.id)}>{category.name}</button>)}
+      </div>
+    </section>
+    <CatalogState>
+      <div className="client-catalog-results"><p className="client-results" role="status">{filtered.length} {filtered.length === 1 ? 'servicio encontrado' : 'servicios encontrados'}</p></div>
+      {filtered.length
+        ? <DataList label="Servicios" items={filtered} search={false} resetKey={`${search}:${categoryId}:${professionalId}:${onlyFavorites}`}>{rows => <div className="client-service-grid">{rows.map(service => <ServiceCard key={service.id} service={service} category={categories.find(category => category.id === service.categoryId)?.name} currency={business.settings?.currencyCode} />)}</div>}</DataList>
+        : <div className="client-empty"><Search size={30} /><h2>No hay servicios para mostrar</h2><p>Prueba otra búsqueda o ajusta los filtros para ver más opciones.</p></div>}
+    </CatalogState>
   </section>
 }
