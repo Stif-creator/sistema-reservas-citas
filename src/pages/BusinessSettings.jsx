@@ -41,6 +41,8 @@ function BusinessSettings() {
   const [coverUrl, setCoverUrl] = useState('')
   const [primaryColor, setPrimaryColor] = useState('#1672ed')
   const [secondaryColor, setSecondaryColor] = useState('#eaf3ff')
+  const [accentColor, setAccentColor] = useState('#d97706')
+  const [surfaceColor, setSurfaceColor] = useState('#f4f6f8')
   const [contactPhone, setContactPhone] = useState('')
   const [contactWhatsapp, setContactWhatsapp] = useState('')
   const [contactEmail, setContactEmail] = useState('')
@@ -83,6 +85,8 @@ function BusinessSettings() {
           setCoverUrl(data.cover?.url ?? '')
           setPrimaryColor(data.appearance?.primaryColor ?? '#1672ed')
           setSecondaryColor(data.appearance?.secondaryColor ?? '#eaf3ff')
+          setAccentColor(data.appearance?.accentColor ?? '#d97706')
+          setSurfaceColor(data.appearance?.surfaceColor ?? '#f4f6f8')
           setContactPhone(data.contact?.phone ?? '')
           setContactWhatsapp(data.contact?.whatsapp ?? '')
           setContactEmail(data.contact?.email ?? '')
@@ -162,7 +166,7 @@ function BusinessSettings() {
         about: Object.fromEntries(aboutFields.map(([key, , max]) => [key, about[key].trim().slice(0, max)])),
         logo: { url: logoUrl.trim() },
         cover: { url: coverUrl.trim() },
-        ...(isSuperadmin ? { appearance: { primaryColor, secondaryColor } } : {}),
+        ...(isSuperadmin ? { appearance: { primaryColor, secondaryColor, accentColor, surfaceColor } } : {}),
         contact: {
           phone: contactPhone.trim(),
           whatsapp: contactWhatsapp.trim(),
@@ -284,15 +288,34 @@ function BusinessSettings() {
                 className="h-10 w-16 cursor-pointer rounded-lg border border-border bg-white p-1"
               />
             </Field>
+            <Field label="Color de acento" htmlFor="accentColor">
+              <input
+                id="accentColor" disabled={!isSuperadmin}
+                type="color"
+                value={accentColor}
+                onChange={(e) => setAccentColor(e.target.value)}
+                className="h-10 w-16 cursor-pointer rounded-lg border border-border bg-white p-1"
+              />
+            </Field>
+            <Field label="Color de superficie" htmlFor="surfaceColor">
+              <input
+                id="surfaceColor" disabled={!isSuperadmin}
+                type="color"
+                value={surfaceColor}
+                onChange={(e) => setSurfaceColor(e.target.value)}
+                className="h-10 w-16 cursor-pointer rounded-lg border border-border bg-white p-1"
+              />
+            </Field>
           </div>
-        </Card></div><div className="settings-preview-column"><SettingsPreview {...{ tab, name, description, logoUrl, coverUrl, primaryColor, secondaryColor, about, contactPhone, contactWhatsapp, contactEmail, addressLine, city }} /></div></div></div>
+          <p className="mt-3 text-xs text-muted">El acento destaca detalles y la superficie colorea la vista previa. El texto se ajusta automáticamente para mantener el contraste.</p>
+        </Card></div><div className="settings-preview-column"><SettingsPreview {...{ tab, name, description, logoUrl, coverUrl, primaryColor, secondaryColor, accentColor, surfaceColor, about, contactPhone, contactWhatsapp, contactEmail, addressLine, city }} /></div></div></div>
 <div id="settings-panel-images" role="tabpanel" aria-labelledby="settings-tab-images" hidden={tab !== 'images'}><div className="settings-columns"><div className="settings-fields"><Card title="Imágenes">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <ImageUploadField label="Logo" value={logoUrl} onChange={setLogoUrl} businessId={businessId} kind="logo" disabled={saving || imageUploading} onBusyChange={setImageUploading} />
 
             <ImageUploadField label="Portada" value={coverUrl} onChange={setCoverUrl} businessId={businessId} kind="cover" disabled={saving || imageUploading} onBusyChange={setImageUploading} />
           </div>
-        </Card></div><div className="settings-preview-column"><SettingsPreview {...{ tab, name, description, logoUrl, coverUrl, primaryColor, secondaryColor, about, contactPhone, contactWhatsapp, contactEmail, addressLine, city }} /></div></div></div>
+        </Card></div><div className="settings-preview-column"><SettingsPreview {...{ tab, name, description, logoUrl, coverUrl, primaryColor, secondaryColor, accentColor, surfaceColor, about, contactPhone, contactWhatsapp, contactEmail, addressLine, city }} /></div></div></div>
 <div id="settings-panel-about" role="tabpanel" aria-labelledby="settings-tab-about" hidden={tab !== 'about'}><div className="settings-columns"><div className="settings-fields"><Card title="Página Nosotros">
           <p className="mb-4 text-sm text-muted">Personaliza la historia, misión y valores que se muestran en la página pública y en el panel del cliente. Los campos vacíos utilizan el texto inicial.</p>
           <div className="grid gap-4">
@@ -301,7 +324,7 @@ function BusinessSettings() {
                 : <textarea id={`about-${key}`} value={about[key]} rows={key === 'story' ? 6 : 3} maxLength={max} onChange={event => setAbout(previous => ({ ...previous, [key]: event.target.value }))} className={fieldControlClasses(false)} />}
             </Field>)}
           </div>
-        </Card></div><div className="settings-preview-column"><SettingsPreview {...{ tab, name, description, logoUrl, coverUrl, primaryColor, secondaryColor, about, contactPhone, contactWhatsapp, contactEmail, addressLine, city }} /></div></div></div>
+        </Card></div><div className="settings-preview-column"><SettingsPreview {...{ tab, name, description, logoUrl, coverUrl, primaryColor, secondaryColor, accentColor, surfaceColor, about, contactPhone, contactWhatsapp, contactEmail, addressLine, city }} /></div></div></div>
 <div id="settings-panel-contact" role="tabpanel" aria-labelledby="settings-tab-contact" hidden={tab !== 'contact'}><div className="settings-columns"><div className="settings-fields"><Card title="Contacto">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Teléfono" htmlFor="contactPhone" error={fieldErrors.contactPhone}>
@@ -381,7 +404,7 @@ function BusinessSettings() {
               />
             </Field>
           </div>
-        </Card></div><div className="settings-preview-column"><SettingsPreview {...{ tab, name, description, logoUrl, coverUrl, primaryColor, secondaryColor, about, contactPhone, contactWhatsapp, contactEmail, addressLine, city }} /><Card title="Ubicación en el mapa">{tab === 'contact' && <BusinessMap business={{ name, location: { latitude: latitude === '' ? null : Number(latitude), longitude: longitude === '' ? null : Number(longitude), addressLine, city } }} />}</Card></div></div></div>
+        </Card></div><div className="settings-preview-column"><SettingsPreview {...{ tab, name, description, logoUrl, coverUrl, primaryColor, secondaryColor, accentColor, surfaceColor, about, contactPhone, contactWhatsapp, contactEmail, addressLine, city }} /><Card title="Ubicación en el mapa">{tab === 'contact' && <BusinessMap business={{ name, location: { latitude: latitude === '' ? null : Number(latitude), longitude: longitude === '' ? null : Number(longitude), addressLine, city } }} />}</Card></div></div></div>
     </form>
     <div id="settings-panel-hours" role="tabpanel" aria-labelledby="settings-tab-hours" hidden={tab !== 'hours'}>
       <div className="settings-columns settings-hours-columns"><div>      <form id="settings-hours" onSubmit={handleHoursSubmit}>

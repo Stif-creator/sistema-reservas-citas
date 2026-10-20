@@ -95,7 +95,7 @@ test('client date guidance, next availability, no preference, repeat booking and
   await expect(page.getByRole('button', { name: 'Agregar al calendario' })).toHaveCount(0)
   await page.getByRole('link', { name: 'Ver mi reserva', exact: true }).click()
   const detailUrl = page.url()
-  await expect(page.getByRole('link', { name: 'Contactar al negocio', exact: true })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Opciones de tu cita' }).getByRole('link', { name: 'Contactar al negocio', exact: true })).toBeVisible()
   await page.getByRole('link', { name: 'Reservar nuevamente', exact: true }).click()
   await expect(input).toBeVisible()
   await expect(page.locator('.booking-flow')).toContainText('Luis Prueba')
@@ -111,7 +111,8 @@ test('client date guidance, next availability, no preference, repeat booking and
     expect(content).toContain('BEGIN:VCALENDAR')
     expect(content).toContain('Luis Prueba')
     await page.goto('/cliente')
-    await expect(page.getByRole('heading', { name: 'Tu próxima cita', exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Ya tienes un momento reservado.', exact: true })).toBeVisible()
+    await expect(page.locator('.client-next-card')).toContainText('Consulta integral')
     await page.screenshot({ path: 'test-results/client-new-home-mobile.png', fullPage: true })
   } finally { await checkEnv.cleanup() }
   expect(errors).toEqual([])

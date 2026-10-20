@@ -33,6 +33,7 @@ const Agenda = lazy(() => import('../pages/Agenda'))
 const Notifications = lazy(() => import('../pages/Notifications'))
 const Clients = lazy(() => import('../pages/Clients'))
 const Promotions = lazy(() => import('../pages/Promotions'))
+const Waitlist = lazy(() => import('../pages/Waitlist'))
 const ClientExtras = lazy(() => import('../pages/client/ClientExtras'))
 const PublicBooking = lazy(() => import('../pages/PublicBooking'))
 
@@ -93,7 +94,7 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         >
-          <Route path="/plataforma/negocios" element={<PlatformBusinesses />} /><Route path="/seguridad" element={<AccountSecurity />} /><Route path="/dashboard" element={<Dashboard />} /><Route path="/avisos" element={<Notifications />} /><Route path="/clientes" element={<ProtectedRoute allowedRoles={['admin']}><Clients /></ProtectedRoute>} /><Route path="/promociones" element={<ProtectedRoute allowedRoles={['admin']}><Promotions /></ProtectedRoute>} />
+          <Route path="/plataforma/negocios" element={<PlatformBusinesses />} /><Route path="/seguridad" element={<AccountSecurity />} /><Route path="/dashboard" element={<Dashboard />} /><Route path="/avisos" element={<Notifications />} /><Route path="/lista-espera" element={<ProtectedRoute allowedRoles={['admin', 'professional']}><Waitlist /></ProtectedRoute>} /><Route path="/clientes" element={<ProtectedRoute allowedRoles={['admin']}><Clients /></ProtectedRoute>} /><Route path="/promociones" element={<ProtectedRoute allowedRoles={['admin']}><Promotions /></ProtectedRoute>} />
           <Route path="/reservas" element={<ProtectedRoute allowedRoles={['admin', 'professional']}><Reservations /></ProtectedRoute>} />
           <Route path="/reservas/nueva" element={<ProtectedRoute allowedRoles={['admin']}><Reservations manual /></ProtectedRoute>} />
           <Route path="/reservas/:reservationId" element={<ProtectedRoute allowedRoles={['admin', 'professional']}><Reservations detail /></ProtectedRoute>} />

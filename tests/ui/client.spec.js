@@ -31,12 +31,12 @@ test('client layouts use real scoped data and live branding on desktop and mobil
     await page.setViewportSize({ width: 1440, height: 1000 })
     await page.goto(`/b/${businessId}`)
     await expect(page.locator('#nosotros, #contacto')).toHaveCount(0)
-    await page.getByRole('link', { name: 'Nosotros', exact: true }).click()
+    await page.getByRole('navigation', { name: 'Navegación principal' }).getByRole('link', { name: 'Nosotros', exact: true }).click()
     await expect(page).toHaveURL(new RegExp(`/b/${businessId}/nosotros$`))
     await expect(page.getByRole('heading', { name: 'Nuestra historia' })).toBeVisible()
     await env.withSecurityRulesDisabled(context => updateDoc(doc(context.firestore(), 'businesses', businessId), { about: { title: 'Somos Estudio Violeta', story: 'Una historia cercana.', mission: 'Escucharte.', values: 'Respeto\nCercanía' } }))
     await expect(page.getByRole('heading', { name: 'Somos Estudio Violeta' })).toBeVisible()
-    await page.getByRole('link', { name: 'Contacto', exact: true }).click()
+    await page.getByRole('navigation', { name: 'Navegación principal' }).getByRole('link', { name: 'Contacto', exact: true }).click()
     await expect(page).toHaveURL(new RegExp(`/b/${businessId}/contacto$`))
     await page.getByLabel('Nombre completo').fill('María Prueba')
     await page.getByLabel('Correo electrónico').fill('cliente@example.test')
@@ -56,7 +56,7 @@ test('client layouts use real scoped data and live branding on desktop and mobil
     await page.getByLabel('Confirmar contraseña').fill('test-password')
     await page.getByRole('button', { name: 'Crear cuenta', exact: true }).click()
     await expect(page).toHaveURL(/\/cliente$/)
-    await expect(page.getByRole('heading', { name: 'Hola, María.', exact: false })).toBeVisible()
+    await expect(page.locator('.client-home-copy h1')).toContainText('María.')
     await expect(page.getByRole('heading', { name: 'Masaje relajante', exact: true })).toBeVisible()
     await expect(page.getByText('Servicio privado', { exact: true })).toHaveCount(0)
     await expect(page.getByText('Servicio inactivo', { exact: true })).toHaveCount(0)
@@ -72,7 +72,7 @@ test('client layouts use real scoped data and live branding on desktop and mobil
     await expect(page.locator('.client-site')).toHaveCSS('--on-brand', '#101b30')
     await page.reload()
     await expect(page.getByRole('heading', { name: 'Masaje relajante', exact: true })).toBeVisible()
-    await page.getByRole('link', { name: 'Servicios', exact: true }).click()
+    await page.getByRole('navigation', { name: 'Navegación principal' }).getByRole('link', { name: 'Servicios', exact: true }).click()
     await page.getByRole('button', { name: 'Peluquería', exact: true }).click()
     await expect(page.getByRole('heading', { name: 'Corte de cabello' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Masaje relajante' })).toHaveCount(0)
@@ -105,7 +105,7 @@ test('client layouts use real scoped data and live branding on desktop and mobil
     for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: width === 1440 ? 1000 : 844 })
       for (const [path, title, name] of [
-        ['/cliente', 'Hola, María.', 'home'], ['/cliente/servicios', 'Servicios', 'services'],
+        ['/cliente', 'Qué gusto verte', 'home'], ['/cliente/servicios', 'Servicios', 'services'],
         [`/cliente/servicios/${businessId}-massage`, 'Masaje relajante', 'service-detail'],
         ['/cliente/reservas', 'Mis reservas', 'reservations'], [`/cliente/reservas/own-${suffix}`, 'Detalle de reserva', 'reservation-detail'],
         ['/cliente/perfil', 'Mi perfil', 'profile'],

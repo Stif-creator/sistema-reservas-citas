@@ -66,7 +66,7 @@ function ClientWorkspace({ businessId }) {
     catalogError: catalog.errors.services || catalog.errors.categories || '', endSession }
   return <ClientContext.Provider value={value}>
     <div className={`public-site client-site ${bookingPage ? "client-booking-page" : ""}`} style={brandVariables(business?.appearance)}>
-      <SiteHeader business={business} homeTo="/cliente" links={links}>
+      <SiteHeader business={business} homeTo="/cliente" links={links} clientMode>
         <NotificationLink />
         <Link className="client-user-link" to="/cliente/perfil"><UserRound size={17} />{userDoc.firstName}</Link>
         <Link className="public-button" to="/cliente/reservas">Mis reservas</Link>
@@ -81,7 +81,7 @@ function ClientWorkspace({ businessId }) {
       {!bookingPage && <nav className="client-mobile-nav" aria-label="Navegación rápida">
         {[["/cliente", "Inicio", Home], ["/cliente/reservar", "Reservar", CalendarPlus], ["/cliente/reservas", "Mis citas", CalendarDays], ["/cliente/perfil", "Mi cuenta", UserRound]].map(([to, label, Icon]) => <NavLink key={to} to={to} end={to === '/cliente'}><Icon size={21} /><span>{label}</span></NavLink>)}
       </nav>}
-      <SiteFooter business={business} homeTo="/cliente" contactTo="/cliente/contacto" />
+      <SiteFooter business={business} homeTo="/cliente" contactTo="/cliente/contacto" clientMode />
     </div>
   </ClientContext.Provider>
 }

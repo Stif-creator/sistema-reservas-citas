@@ -67,6 +67,7 @@ test('Sprint 3 public selections expose only public data and still require ident
 
 test('Sprint 3 favorites and waiting lists are owned, deduplicated and removable', async () => {
   const f = await fixture()
+  await db.doc(`professionals/second-${f.businessId}`).set({ businessId: f.businessId, userId: f.users.pro2, displayName: 'Segundo profesional', serviceIds: [f.serviceId], isActive: true })
   const favorite = { action:'favorite', kind:'service', targetId:f.serviceId, enabled:true }
   await f.call(f.users.client, favorite); await f.call(f.users.client, favorite)
   assert.equal((await f.call(f.users.client, { action:'hub' })).favorites.length, 1)
@@ -76,8 +77,17 @@ test('Sprint 3 favorites and waiting lists are owned, deduplicated and removable
   await f.call(f.users.client, { ...favorite, enabled:false })
   const waiting = { action:'wait', serviceId:f.serviceId, professionalId:f.professionalId, date:f.date }
   await f.call(f.users.client, waiting); await f.call(f.users.client, waiting)
+  const secondWaiting = { ...waiting, professionalId: `second-${f.businessId}` }
+  await f.call(f.users.other, secondWaiting)
   assert.equal((await f.call(f.users.client, { action:'hub' })).waiting.length, 1)
-  await f.call(f.users.other, { ...waiting, action:'unwait' })
+  const adminInbox = await f.call(f.users.admin, { action:'waitlist' })
+  assert.equal(adminInbox.length, 2)
+  assert(adminInbox.some(entry => entry.clientName === 'client Test' && entry.clientPhone === '70000000'))
+  assert(adminInbox.every(entry => entry.businessTimeZone === 'America/La_Paz'))
+  assert.equal((await f.call(f.users.pro, { action:'waitlist' })).length, 1)
+  assert.equal((await f.call(f.users.pro2, { action:'waitlist' })).length, 1)
+  await rejects(f.call(f.users.client, { action:'waitlist' }), 'permission-denied')
+  await f.call(f.users.other, { ...secondWaiting, action:'unwait' })
   assert.equal((await f.call(f.users.client, { action:'hub' })).waiting.length, 1)
   await f.call(f.users.client, { ...waiting, action:'unwait' })
   assert.equal((await f.call(f.users.client, { action:'hub' })).waiting.length, 0)

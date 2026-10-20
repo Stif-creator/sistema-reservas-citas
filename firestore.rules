@@ -9,6 +9,18 @@ service cloud.firestore {
     function superadmin() {
       return userActive() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('globalRole', 'user') == 'superadmin';
     }
+    function hexColor(value) {
+      return value is string && value.matches('^#[0-9a-fA-F]{6}$');
+    }
+    function validAppearance(appearance) {
+      return appearance is map
+        && appearance.keys().hasOnly(['primaryColor', 'secondaryColor', 'accentColor', 'surfaceColor'])
+        && appearance.keys().hasAll(['primaryColor', 'secondaryColor', 'accentColor', 'surfaceColor'])
+        && hexColor(appearance.primaryColor)
+        && hexColor(appearance.secondaryColor)
+        && hexColor(appearance.accentColor)
+        && hexColor(appearance.surfaceColor);
+    }
     function publicBusiness(bid) {
       let business = get(/databases/$(database)/documents/businesses/$(bid)).data;
       return business.status == 'active' && business.settings.publicPageEnabled == true;
@@ -83,7 +95,11 @@ service cloud.firestore {
         && (superadmin() || !('appearance' in request.resource.data) || request.resource.data.appearance == { 'primaryColor': '#1672ed', 'secondaryColor': '#eaf3ff' })
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.businessIds == [bid]
         && request.resource.data.createdAt == request.time;
-      allow update: if admin(bid) && (superadmin() || !request.resource.data.diff(resource.data).affectedKeys().hasAny(['name', 'appearance'])) && request.resource.data.diff(resource.data).affectedKeys()
+      allow update: if admin(bid)
+        && (superadmin() || !request.resource.data.diff(resource.data).affectedKeys().hasAny(['name', 'appearance']))
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['appearance'])
+          || (superadmin() && validAppearance(request.resource.data.appearance)))
+        && request.resource.data.diff(resource.data).affectedKeys()
         .hasOnly(['name', 'description', 'about', 'logo', 'cover', 'appearance', 'contact', 'location', 'weeklyHours', 'settings', 'updatedAt']);
       allow delete: if signedIn() && resource.data.ownerUserId == request.auth.uid && recent(resource.data) && provisioning();
     }

@@ -1,0 +1,231 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1120" viewBox="0 0 1600 1120" fill="none">
+  <defs>
+    <linearGradient id="canvas" x1="0" y1="0" x2="1600" y2="1120" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F6F4F0"/>
+      <stop offset="1" stop-color="#EFEEE9"/>
+    </linearGradient>
+    <linearGradient id="hero" x1="312" y1="180" x2="1226" y2="486" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#233D38"/>
+      <stop offset="1" stop-color="#44675B"/>
+    </linearGradient>
+    <linearGradient id="photo" x1="690" y1="734" x2="946" y2="926" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#D8C6AE"/>
+      <stop offset="1" stop-color="#B4C0A7"/>
+    </linearGradient>
+    <filter id="shadow" x="0" y="0" width="1" height="1" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse">
+      <feGaussianBlur stdDeviation="14"/>
+    </filter>
+    <clipPath id="servicePhoto"><rect x="348" y="731" width="250" height="154" rx="14"/></clipPath>
+    <clipPath id="phone"><rect x="1212" y="159" width="324" height="691" rx="38"/></clipPath>
+  </defs>
+
+  <rect width="1600" height="1120" fill="url(#canvas)"/>
+  <text x="48" y="56" fill="#6F786F" font-family="Arial, sans-serif" font-size="12" font-weight="700" letter-spacing="2.4">PROPUESTA DE REDISEÑO · PORTAL DEL CLIENTE</text>
+  <text x="48" y="91" fill="#20332E" font-family="Georgia, serif" font-size="25">Más personal, más claro, más fácil reservar.</text>
+  <text x="1240" y="64" fill="#7D857D" font-family="Arial, sans-serif" font-size="12" font-weight="600">VISTA MÓVIL</text>
+
+  <rect x="36" y="121" width="1124" height="906" rx="22" fill="#D9D8D1" opacity=".48"/>
+  <rect x="36" y="116" width="1124" height="906" rx="22" fill="#FFFFFF"/>
+
+  <rect x="36" y="116" width="1124" height="66" rx="22" fill="#FFFFFF"/>
+  <path d="M36 160V138C36 125.85 45.85 116 58 116H1138C1150.15 116 1160 125.85 1160 138V160H36Z" fill="#FFFFFF"/>
+  <rect x="67" y="132" width="34" height="34" rx="12" fill="#E7EEE8"/>
+  <path d="M77 151C79 143 89 143 91 151M84 140V140.1" stroke="#315449" stroke-width="2" stroke-linecap="round"/>
+  <text x="112" y="147" fill="#263B34" font-family="Arial, sans-serif" font-size="15" font-weight="700">ESTUDIO AURA</text>
+  <text x="112" y="161" fill="#879087" font-family="Arial, sans-serif" font-size="9" letter-spacing="1.1">BIENESTAR Y CUIDADO PERSONAL</text>
+
+  <text x="389" y="154" fill="#68756C" font-family="Arial, sans-serif" font-size="12">Inicio</text>
+  <text x="458" y="154" fill="#68756C" font-family="Arial, sans-serif" font-size="12">Servicios</text>
+  <text x="543" y="154" fill="#68756C" font-family="Arial, sans-serif" font-size="12">Nosotros</text>
+  <text x="627" y="154" fill="#68756C" font-family="Arial, sans-serif" font-size="12">Contacto</text>
+  <rect x="902" y="130" width="38" height="38" rx="13" fill="#F5F6F2"/>
+  <path d="M920 139V141M913 142.5C913 140.57 914.57 139 916.5 139H923.5C925.43 139 927 140.57 927 142.5V150.5C927 152.43 925.43 154 923.5 154H916.5C914.57 154 913 152.43 913 150.5V142.5Z" stroke="#52665B" stroke-width="1.5"/>
+  <path d="M916 146H924M916 149H922" stroke="#52665B" stroke-width="1.4" stroke-linecap="round"/>
+  <circle cx="929" cy="139" r="3.5" fill="#C78367"/>
+  <rect x="953" y="130" width="171" height="38" rx="12" fill="#29483E"/>
+  <path d="M973 149H985M979 143V155" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round"/>
+  <text x="995" y="154" fill="#FFFFFF" font-family="Arial, sans-serif" font-size="11" font-weight="700">Reservar cita</text>
+
+  <rect x="36" y="182" width="1124" height="829" fill="#FBFAF7"/>
+  <rect x="36" y="182" width="1124" height="829" fill="#FBFAF7"/>
+
+  <rect x="72" y="207" width="1052" height="279" rx="20" fill="url(#hero)"/>
+  <circle cx="1036" cy="202" r="143" fill="#B4C6B0" opacity=".11"/>
+  <circle cx="1017" cy="451" r="108" fill="#D9B695" opacity=".11"/>
+  <path d="M917 430C949 396 987 386 1011 389C1037 392 1058 407 1071 429" stroke="#D9E1D5" stroke-opacity=".23" stroke-width="1.4"/>
+  <path d="M907 448C948 402 988 397 1019 403C1047 409 1073 425 1088 450" stroke="#D9E1D5" stroke-opacity=".23" stroke-width="1.4"/>
+  <rect x="108" y="242" width="158" height="26" rx="13" fill="#FFFFFF" fill-opacity=".12"/>
+  <circle cx="124" cy="255" r="4" fill="#D5B797"/>
+  <text x="136" y="259" fill="#E8EEE7" font-family="Arial, sans-serif" font-size="9" font-weight="700" letter-spacing="1.5">TU ESPACIO DE BIENESTAR</text>
+  <text x="108" y="318" fill="#FFFFFF" font-family="Georgia, serif" font-size="39">Qué gusto verte,</text>
+  <text x="108" y="365" fill="#FFFFFF" font-family="Georgia, serif" font-size="43">María.</text>
+  <text x="109" y="397" fill="#E1E9E1" font-family="Arial, sans-serif" font-size="13">Un momento para ti empieza con una buena cita.</text>
+  <rect x="108" y="424" width="159" height="39" rx="12" fill="#F4E9DC"/>
+  <text x="128" y="448" fill="#29483E" font-family="Arial, sans-serif" font-size="11" font-weight="700">Encuentra tu momento</text>
+  <path d="M250 443H257M254 439L258 443L254 447" stroke="#29483E" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="916" y="244" width="163" height="197" rx="81.5" fill="#D8C6AE" opacity=".2"/>
+  <path d="M936 381C951 339 968 323 994 319C1023 315 1043 341 1057 380V409H936V381Z" fill="#D4C3AC"/>
+  <ellipse cx="995" cy="301" rx="39" ry="46" fill="#E7D6C0"/>
+  <path d="M957 300C957 264 975 244 1000 244C1024 244 1038 262 1035 291C1023 279 1012 272 1001 272C989 272 977 281 957 300Z" fill="#3D332C"/>
+  <path d="M951 401C966 380 1026 378 1041 401" stroke="#F0E8DA" stroke-opacity=".7" stroke-width="2"/>
+
+  <text x="82" y="529" fill="#8B7764" font-family="Arial, sans-serif" font-size="9" font-weight="700" letter-spacing="1.6">TU PRÓXIMA VISITA</text>
+  <text x="82" y="560" fill="#263B34" font-family="Georgia, serif" font-size="25">Ya tienes un momento reservado.</text>
+  <rect x="72" y="578" width="1052" height="111" rx="17" fill="#FFFFFF"/>
+  <rect x="72.5" y="578.5" width="1051" height="110" rx="16.5" stroke="#E8E8E0"/>
+  <rect x="91" y="596" width="76" height="76" rx="14" fill="#F0F3ED"/>
+  <text x="129" y="621" fill="#718076" font-family="Arial, sans-serif" font-size="9" text-anchor="middle" font-weight="700" letter-spacing="1">JUN</text>
+  <text x="129" y="652" fill="#29483E" font-family="Georgia, serif" font-size="28" text-anchor="middle">24</text>
+  <path d="M188 613H271" stroke="#E7E8E1"/>
+  <text x="188" y="617" fill="#293A34" font-family="Arial, sans-serif" font-size="14" font-weight="700">Masaje relajante</text>
+  <text x="188" y="639" fill="#748076" font-family="Arial, sans-serif" font-size="11">Con Ana Pérez · 10:30 a. m.</text>
+  <rect x="188" y="649" width="91" height="21" rx="10.5" fill="#EEF3EC"/>
+  <circle cx="201" cy="659.5" r="3" fill="#557B60"/>
+  <text x="210" y="663" fill="#54705B" font-family="Arial, sans-serif" font-size="9" font-weight="700">CONFIRMADA</text>
+  <path d="M588 604V664" stroke="#ECEDE7"/>
+  <text x="613" y="622" fill="#8A9289" font-family="Arial, sans-serif" font-size="9" font-weight="700" letter-spacing="1">FALTAN</text>
+  <text x="613" y="648" fill="#34483F" font-family="Georgia, serif" font-size="20">5 días</text>
+  <text x="613" y="667" fill="#788179" font-family="Arial, sans-serif" font-size="9">¡Te esperamos!</text>
+  <rect x="855" y="614" width="115" height="38" rx="11" fill="#FFFFFF"/>
+  <rect x="855.5" y="614.5" width="114" height="37" rx="10.5" stroke="#DDE3DA"/>
+  <text x="877" y="637" fill="#3D574B" font-family="Arial, sans-serif" font-size="10" font-weight="700">Ver detalles</text>
+  <path d="M952 628L956 633L952 638" stroke="#3D574B" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="982" y="614" width="120" height="38" rx="11" fill="#29483E"/>
+  <text x="999" y="637" fill="#FFFFFF" font-family="Arial, sans-serif" font-size="10" font-weight="700">Cambiar cita</text>
+  <path d="M1077 627L1082 632L1077 637M1082 632H1070" stroke="#FFFFFF" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <text x="82" y="733" fill="#8B7764" font-family="Arial, sans-serif" font-size="9" font-weight="700" letter-spacing="1.6">ELIGE CÓMO QUIERES CUIDARTE</text>
+  <text x="82" y="764" fill="#263B34" font-family="Georgia, serif" font-size="25">Servicios pensados para ti</text>
+  <text x="1006" y="758" fill="#526D5E" font-family="Arial, sans-serif" font-size="10" font-weight="700">Ver todos los servicios  →</text>
+
+  <rect x="72" y="788" width="338" height="193" rx="16" fill="#FFFFFF"/>
+  <rect x="72.5" y="788.5" width="337" height="192" rx="15.5" stroke="#EAEAE4"/>
+  <rect x="88" y="804" width="98" height="160" rx="12" fill="url(#photo)"/>
+  <g clip-path="url(#servicePhoto)">
+    <rect x="88" y="804" width="98" height="160" fill="url(#photo)"/>
+    <ellipse cx="147" cy="853" rx="24" ry="31" fill="#E9D7C1"/>
+    <path d="M116 943C120 896 126 879 147 878C168 878 176 901 181 944H116Z" fill="#9E7F65"/>
+    <path d="M105 904C117 875 130 866 148 870" stroke="#75856B" stroke-width="9" stroke-linecap="round"/>
+    <circle cx="108" cy="891" r="16" fill="#849078"/>
+    <circle cx="172" cy="925" r="20" fill="#B7A68C"/>
+    <rect x="97" y="816" width="56" height="18" rx="9" fill="#FFFFFF" fill-opacity=".89"/>
+    <text x="125" y="828" fill="#526D5E" font-family="Arial, sans-serif" font-size="7" font-weight="700" text-anchor="middle">MÁS ELEGIDO</text>
+  </g>
+  <text x="201" y="830" fill="#283A33" font-family="Arial, sans-serif" font-size="13" font-weight="700">Masaje relajante</text>
+  <text x="201" y="851" fill="#788178" font-family="Arial, sans-serif" font-size="10">Pausa, calma y bienestar</text>
+  <circle cx="206" cy="877" r="7" fill="#F0F3ED"/>
+  <path d="M204 877H208M206 875V879" stroke="#607565" stroke-width="1.1" stroke-linecap="round"/>
+  <text x="218" y="880" fill="#788178" font-family="Arial, sans-serif" font-size="9">60 min</text>
+  <text x="201" y="911" fill="#2F493D" font-family="Georgia, serif" font-size="18">Bs 150</text>
+  <path d="M201 937H383" stroke="#ECEDE7"/>
+  <text x="201" y="955" fill="#526D5E" font-family="Arial, sans-serif" font-size="9" font-weight="700">Reservar servicio  →</text>
+
+  <rect x="428" y="788" width="338" height="193" rx="16" fill="#FFFFFF"/>
+  <rect x="428.5" y="788.5" width="337" height="192" rx="15.5" stroke="#EAEAE4"/>
+  <rect x="444" y="804" width="98" height="160" rx="12" fill="#E9DFD1"/>
+  <path d="M454 931C464 900 486 879 513 867C526 861 536 861 542 866V964H454V931Z" fill="#B5A48E"/>
+  <path d="M460 875C481 854 505 847 531 851" stroke="#75856B" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="482" cy="859" r="13" fill="#849078"/>
+  <circle cx="521" cy="854" r="12" fill="#AAB195"/>
+  <path d="M458 921C478 906 503 908 535 925" stroke="#F2EBDF" stroke-width="5"/>
+  <text x="557" y="830" fill="#283A33" font-family="Arial, sans-serif" font-size="13" font-weight="700">Ritual facial</text>
+  <text x="557" y="851" fill="#788178" font-family="Arial, sans-serif" font-size="10">Renueva el brillo natural</text>
+  <circle cx="562" cy="877" r="7" fill="#F0F3ED"/>
+  <path d="M560 877H564M562 875V879" stroke="#607565" stroke-width="1.1" stroke-linecap="round"/>
+  <text x="574" y="880" fill="#788178" font-family="Arial, sans-serif" font-size="9">45 min</text>
+  <text x="557" y="911" fill="#2F493D" font-family="Georgia, serif" font-size="18">Bs 120</text>
+  <path d="M557 937H739" stroke="#ECEDE7"/>
+  <text x="557" y="955" fill="#526D5E" font-family="Arial, sans-serif" font-size="9" font-weight="700">Reservar servicio  →</text>
+
+  <rect x="784" y="788" width="338" height="193" rx="16" fill="#FFFFFF"/>
+  <rect x="784.5" y="788.5" width="337" height="192" rx="15.5" stroke="#EAEAE4"/>
+  <rect x="800" y="804" width="98" height="160" rx="12" fill="#E7D8C8"/>
+  <rect x="811" y="820" width="76" height="130" rx="36" fill="#DBC8B0"/>
+  <path d="M812 926C831 902 860 899 888 923V950H812V926Z" fill="#7A7864"/>
+  <circle cx="850" cy="863" r="25" fill="#EBDAC5"/>
+  <path d="M827 858C831 837 843 832 855 834C870 837 876 847 875 860C863 851 850 849 827 858Z" fill="#4A4038"/>
+  <path d="M807 932C825 910 876 910 892 936" stroke="#F7F0E6" stroke-width="4"/>
+  <text x="913" y="830" fill="#283A33" font-family="Arial, sans-serif" font-size="13" font-weight="700">Manicure natural</text>
+  <text x="913" y="851" fill="#788178" font-family="Arial, sans-serif" font-size="10">Un detalle solo para ti</text>
+  <circle cx="918" cy="877" r="7" fill="#F0F3ED"/>
+  <path d="M916 877H920M918 875V879" stroke="#607565" stroke-width="1.1" stroke-linecap="round"/>
+  <text x="930" y="880" fill="#788178" font-family="Arial, sans-serif" font-size="9">40 min</text>
+  <text x="913" y="911" fill="#2F493D" font-family="Georgia, serif" font-size="18">Bs 80</text>
+  <path d="M913 937H1095" stroke="#ECEDE7"/>
+  <text x="913" y="955" fill="#526D5E" font-family="Arial, sans-serif" font-size="9" font-weight="700">Reservar servicio  →</text>
+
+  <text x="82" y="1000" fill="#8A9188" font-family="Arial, sans-serif" font-size="9">Una experiencia cercana, desde la primera reserva hasta tu próxima visita.</text>
+
+  <rect x="1205" y="156" width="338" height="700" rx="42" fill="#14231F" opacity=".14" filter="url(#shadow)"/>
+  <rect x="1200" y="147" width="348" height="716" rx="43" fill="#22342E"/>
+  <rect x="1212" y="159" width="324" height="691" rx="38" fill="#FBFAF7"/>
+  <g clip-path="url(#phone)">
+    <rect x="1212" y="159" width="324" height="691" fill="#FBFAF7"/>
+    <rect x="1324" y="159" width="100" height="22" rx="11" fill="#22342E"/>
+    <text x="1234" y="188" fill="#33483E" font-family="Arial, sans-serif" font-size="9" font-weight="700">9:41</text>
+    <path d="M1487 177H1499M1489 173H1499M1492 169H1499" stroke="#44574D" stroke-width="1.6" stroke-linecap="round"/>
+    <rect x="1503" y="170" width="17" height="9" rx="2" stroke="#44574D" stroke-width="1.2"/>
+    <rect x="1505" y="172" width="12" height="5" rx="1" fill="#557463"/>
+    <rect x="1232" y="199" width="29" height="29" rx="10" fill="#E7EEE8"/>
+    <path d="M1241 218C1243 211 1251 211 1253 218M1247 207V207.1" stroke="#315449" stroke-width="1.8" stroke-linecap="round"/>
+    <text x="1269" y="213" fill="#263B34" font-family="Arial, sans-serif" font-size="11" font-weight="700">ESTUDIO AURA</text>
+    <text x="1269" y="224" fill="#879087" font-family="Arial, sans-serif" font-size="6.5" letter-spacing=".8">TU ESPACIO DE BIENESTAR</text>
+    <rect x="1476" y="198" width="38" height="34" rx="11" fill="#FFFFFF"/>
+    <path d="M1488 210H1502M1488 215H1499" stroke="#52665B" stroke-width="1.3" stroke-linecap="round"/>
+    <circle cx="1504" cy="204" r="3" fill="#C78367"/>
+    <rect x="1232" y="250" width="284" height="183" rx="19" fill="url(#hero)"/>
+    <circle cx="1491" cy="246" r="72" fill="#B4C6B0" opacity=".12"/>
+    <text x="1252" y="280" fill="#E7D8C8" font-family="Arial, sans-serif" font-size="7" font-weight="700" letter-spacing="1">TU RINCÓN DE CALMA</text>
+    <text x="1252" y="316" fill="#FFFFFF" font-family="Georgia, serif" font-size="27">Hola, María.</text>
+    <text x="1252" y="338" fill="#E1E9E1" font-family="Arial, sans-serif" font-size="9">Hoy también mereces un momento</text>
+    <text x="1252" y="351" fill="#E1E9E1" font-family="Arial, sans-serif" font-size="9">para ti.</text>
+    <rect x="1252" y="375" width="133" height="34" rx="11" fill="#F4E9DC"/>
+    <text x="1265" y="396" fill="#29483E" font-family="Arial, sans-serif" font-size="9" font-weight="700">Reservar una cita  →</text>
+    <text x="1234" y="465" fill="#8B7764" font-family="Arial, sans-serif" font-size="7" font-weight="700" letter-spacing="1.3">TU PRÓXIMA VISITA</text>
+    <text x="1234" y="488" fill="#263B34" font-family="Georgia, serif" font-size="18">Un momento reservado</text>
+    <rect x="1232" y="502" width="284" height="101" rx="15" fill="#FFFFFF"/>
+    <rect x="1232.5" y="502.5" width="283" height="100" rx="14.5" stroke="#E8E8E0"/>
+    <rect x="1245" y="515" width="52" height="58" rx="11" fill="#F0F3ED"/>
+    <text x="1271" y="531" fill="#718076" font-family="Arial, sans-serif" font-size="7" text-anchor="middle" font-weight="700">JUN</text>
+    <text x="1271" y="558" fill="#29483E" font-family="Georgia, serif" font-size="23" text-anchor="middle">24</text>
+    <text x="1308" y="531" fill="#293A34" font-family="Arial, sans-serif" font-size="10" font-weight="700">Masaje relajante</text>
+    <text x="1308" y="549" fill="#748076" font-family="Arial, sans-serif" font-size="8">Ana Pérez · 10:30 a. m.</text>
+    <rect x="1308" y="559" width="78" height="17" rx="8.5" fill="#EEF3EC"/>
+    <circle cx="1318" cy="567.5" r="2.5" fill="#557B60"/>
+    <text x="1325" y="571" fill="#54705B" font-family="Arial, sans-serif" font-size="6.5" font-weight="700">CONFIRMADA</text>
+    <text x="1234" y="632" fill="#8B7764" font-family="Arial, sans-serif" font-size="7" font-weight="700" letter-spacing="1.3">PARA TU PRÓXIMO MOMENTO</text>
+    <text x="1234" y="655" fill="#263B34" font-family="Georgia, serif" font-size="18">Servicios para ti</text>
+    <rect x="1232" y="670" width="137" height="111" rx="13" fill="#FFFFFF"/>
+    <rect x="1232.5" y="670.5" width="136" height="110" rx="12.5" stroke="#EAEAE4"/>
+    <rect x="1240" y="678" width="121" height="52" rx="9" fill="#DED1BE"/>
+    <circle cx="1301" cy="698" r="12" fill="#E9D7C1"/>
+    <path d="M1281 727C1285 711 1291 707 1301 707C1311 707 1317 714 1321 727H1281Z" fill="#9E7F65"/>
+    <text x="1241" y="748" fill="#283A33" font-family="Arial, sans-serif" font-size="8.5" font-weight="700">Masaje relajante</text>
+    <text x="1241" y="765" fill="#2F493D" font-family="Georgia, serif" font-size="12">Bs 150</text>
+    <rect x="1380" y="670" width="136" height="111" rx="13" fill="#FFFFFF"/>
+    <rect x="1380.5" y="670.5" width="135" height="110" rx="12.5" stroke="#EAEAE4"/>
+    <rect x="1388" y="678" width="120" height="52" rx="9" fill="#E9DFD1"/>
+    <circle cx="1448" cy="698" r="12" fill="#EBDAC5"/>
+    <path d="M1428 727C1432 711 1438 707 1448 707C1458 707 1464 714 1468 727H1428Z" fill="#7A7864"/>
+    <text x="1389" y="748" fill="#283A33" font-family="Arial, sans-serif" font-size="8.5" font-weight="700">Ritual facial</text>
+    <text x="1389" y="765" fill="#2F493D" font-family="Georgia, serif" font-size="12">Bs 120</text>
+    <rect x="1212" y="792" width="324" height="58" fill="#FFFFFF"/>
+    <path d="M1212 792H1536" stroke="#E7E8E1"/>
+    <path d="M1257 807H1268M1262.5 802V813" stroke="#557463" stroke-width="1.7" stroke-linecap="round"/>
+    <text x="1262" y="830" fill="#557463" font-family="Arial, sans-serif" font-size="7" text-anchor="middle" font-weight="700">INICIO</text>
+    <path d="M1336 804V814M1331 808H1341M1332 814H1340" stroke="#A0A79F" stroke-width="1.3" stroke-linecap="round"/>
+    <text x="1336" y="830" fill="#7F8980" font-family="Arial, sans-serif" font-size="7" text-anchor="middle">SERVICIOS</text>
+    <rect x="1397" y="803" width="12" height="12" rx="3" stroke="#A0A79F" stroke-width="1.3"/>
+    <path d="M1400 801V805M1406 801V805M1398 808H1408" stroke="#A0A79F" stroke-width="1.1" stroke-linecap="round"/>
+    <text x="1403" y="830" fill="#7F8980" font-family="Arial, sans-serif" font-size="7" text-anchor="middle">MIS CITAS</text>
+    <circle cx="1477" cy="807" r="5" stroke="#A0A79F" stroke-width="1.3"/>
+    <path d="M1468 818C1470 812 1484 812 1486 818" stroke="#A0A79F" stroke-width="1.3" stroke-linecap="round"/>
+    <text x="1477" y="830" fill="#7F8980" font-family="Arial, sans-serif" font-size="7" text-anchor="middle">MI CUENTA</text>
+  </g>
+  <rect x="1324" y="159" width="100" height="22" rx="11" fill="#22342E"/>
+  <text x="1240" y="895" fill="#647068" font-family="Arial, sans-serif" font-size="10" font-weight="700" letter-spacing="1.3">DIRECCIÓN VISUAL</text>
+  <text x="1240" y="920" fill="#31463D" font-family="Arial, sans-serif" font-size="12">• Marca del negocio presente, sin competir</text>
+  <text x="1240" y="944" fill="#31463D" font-family="Arial, sans-serif" font-size="12">• La próxima cita ocupa el primer plano</text>
+  <text x="1240" y="968" fill="#31463D" font-family="Arial, sans-serif" font-size="12">• Reserva siempre visible; móvil con barra inferior</text>
+  <text x="1240" y="1007" fill="#8A9188" font-family="Arial, sans-serif" font-size="10">Concepto adaptable a los colores de cada negocio.</text>
+</svg>

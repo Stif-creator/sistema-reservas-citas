@@ -96,8 +96,7 @@ test('Sprint 3 public booking resumes after login, preferences, admin clients an
     await page.getByRole('combobox', { name:'Profesional', exact:true }).selectOption(professionalId)
     await page.getByLabel('Fecha de interés').fill(date)
     await page.getByRole('button', { name:'Registrar interés' }).click()
-    await page.getByRole('button', { name:'Retirar de la lista' }).click()
-    await expect(page.getByText('No tienes solicitudes en espera.')).toBeVisible()
+    await expect(page.getByRole('button', { name:'Retirar de la lista' })).toBeVisible()
     let clientApiCalls = 0
     await staff.route('**/booking', route => {
       if (route.request().postDataJSON()?.action === 'clients') { clientApiCalls++; return route.fulfill({ status:502, body:'Gateway unavailable' }) }
@@ -112,6 +111,9 @@ test('Sprint 3 public booking resumes after login, preferences, admin clients an
     await expect(staff.getByText('Datos de contacto guardados.')).toBeVisible()
     await expect(staff.getByRole('heading', { name:'Historial del cliente' })).toBeVisible()
     expect(clientApiCalls).toBe(0)
+    await staff.goto('/lista-espera')
+    await expect(staff.getByText('María Prueba')).toBeVisible()
+    await expect(staff.getByRole('link', { name:'70000099' })).toBeVisible()
     await staff.unroute('**/booking')
     // A failed hub request must not hide the services, which come from Firestore.
     let hubOffline = true, optionsCalls = 0
@@ -149,7 +151,6 @@ test('Sprint 3 public booking resumes after login, preferences, admin clients an
     await pro.getByRole('button', {name:'Confirmar',exact:true}).click()
     await pro.getByRole('button', {name:'Aplicar cambio',exact:true}).click()
     await expect(pro.locator('.agenda-appointment')).toContainText('Confirmada')
-
     await expect(pro.locator('.assigned-service-card')).toHaveCount(1)
     await pro.locator('.assigned-services').screenshot({path:'test-results/assigned-services-desktop.png'})
     await pro.setViewportSize({width:390,height:844})
@@ -157,6 +158,9 @@ test('Sprint 3 public booking resumes after login, preferences, admin clients an
     await pro.screenshot({path:'test-results/pro-agenda-mobile.png',fullPage:true,animations:'disabled'})
     await pro.locator('.assigned-services').screenshot({path:'test-results/assigned-services-mobile.png', animations:'disabled'})
     await pro.setViewportSize({width:1280,height:720})
+    await pro.goto('/lista-espera')
+    await expect(pro.getByText('María Prueba')).toBeVisible()
+    await expect(pro.getByText('Consulta integral')).toBeVisible()
     await page.goto('/cliente/servicios')
     await expect(page.locator('.client-service-card')).toHaveCount(2)
     await page.getByRole('button', { name:'Quitar de favoritos: Consulta integral', exact:true }).click()

@@ -1,8 +1,12 @@
 .public-site {
   --brand: #1672ed;
   --brand-secondary: #eaf3ff;
+  --brand-accent: #d97706;
+  --brand-surface: #f4f6f8;
   --on-brand: #fff;
-  --brand-soft: color-mix(in srgb, var(--brand) 8%, white);
+  --on-brand-accent: #000;
+  --on-brand-surface: #000;
+  --brand-soft: color-mix(in srgb, var(--brand) 8%, var(--brand-surface));
   --brand-ink: color-mix(in srgb, var(--brand) 38%, #101b30);
   min-height: 100vh;
   background: #fff;

@@ -5,6 +5,7 @@ import { BookingError } from './bookingError.js'
 const fail = (code, message) => { throw new BookingError(code, message) }
 const id = value => typeof value === 'string' && /^[^/\s]{1,200}$/.test(value)
 const text = (value, max) => typeof value === 'string' ? value.trim().slice(0, max) : ''
+const fullName = user => [user.firstName, user.lastName].filter(Boolean).join(' ').trim()
 const record = snap => snap.exists ? { ...snap.data(), id: snap.id } : null
 const rows = snap => {
   if (snap.size > 2000) fail('resource-exhausted', 'Demasiados resultados. Reduce el rango o contacta al administrador.')
@@ -13,7 +14,7 @@ const rows = snap => {
 const ms = value => value?.toMillis?.() ?? value
 const serial = value => value instanceof Timestamp ? value.toMillis() : Array.isArray(value) ? value.map(serial) : value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).map(([k, v]) => [k, serial(v)])) : value
 const scoped = (db, collection, businessId) => db.collection(collection).where('businessId', '==', businessId).limit(2001)
-export const engagementActions = ['hub', 'favorite', 'wait', 'unwait', 'review', 'clients', 'clientUpdate', 'promotionSave', 'reminderSave', 'notificationRead']
+export const engagementActions = ['hub', 'waitlist', 'favorite', 'wait', 'unwait', 'review', 'clients', 'clientUpdate', 'promotionSave', 'reminderSave', 'notificationRead']
 
 export function discountedService(service, promotions, now = Date.now()) {
   const valid = promotions.filter(p => p.isActive && Number.isInteger(p.percent) && p.percent >= 1 && p.percent <= 90 && p.serviceId === service.id && ms(p.startAt) <= now && ms(p.endAt) > now)
@@ -27,6 +28,40 @@ export async function executeEngagement(db, uid, input, actor) {
   const client = () => { if (actor.member.role !== 'client') fail('permission-denied', 'Esta acción requiere una cuenta de cliente.') }
   const stamp = Timestamp.now()
   const own = collection => scoped(db, collection, businessId).where('userId', '==', uid)
+  if (action === 'waitlist') {
+    if (!['admin', 'professional'].includes(actor.member.role)) fail('permission-denied', 'Esta lista es solo para el equipo del negocio.')
+    const [entries, professionals, business] = await Promise.all([
+      scoped(db, 'waitingList', businessId).get().then(rows),
+      actor.member.role === 'professional'
+        ? scoped(db, 'professionals', businessId).where('userId', '==', uid).get().then(rows)
+        : Promise.resolve([]),
+      db.doc(`businesses/${businessId}`).get().then(record),
+    ])
+    const visibleEntries = actor.member.role === 'admin'
+      ? entries
+      : entries.filter(entry => professionals.some(profile => profile.id === entry.professionalId))
+    let businessTimeZone = business?.settings?.timezone || 'America/La_Paz'
+    try { new Intl.DateTimeFormat('es-BO', { timeZone: businessTimeZone }) }
+    catch { businessTimeZone = 'America/La_Paz' }
+    const clientIds = [...new Set(visibleEntries.map(entry => entry.userId))]
+    const [clients, users] = await Promise.all([
+      Promise.all(clientIds.map(userId => scoped(db, 'clients', businessId).where('userId', '==', userId).limit(1).get().then(snapshot => snapshot.docs[0] ? record(snapshot.docs[0]) : null))),
+      Promise.all(clientIds.map(userId => db.doc(`users/${userId}`).get().then(record))),
+    ])
+    const clientById = new Map(clientIds.map((userId, index) => [userId, { client: clients[index], user: users[index] }]))
+    return serial(visibleEntries
+      .map(entry => {
+        const { client, user } = clientById.get(entry.userId) || {}
+        return {
+          ...entry,
+          businessTimeZone,
+          clientName: fullName(client || {}) || fullName(user || {}) || user?.email || 'Cliente',
+          clientPhone: client?.phone || user?.phone || '',
+          clientEmail: client?.email || user?.email || '',
+        }
+      })
+      .sort((a, b) => a.date.localeCompare(b.date) || ms(b.createdAt) - ms(a.createdAt)))
+  }
   if (action === 'hub') {
     const [favorites, waiting, notifications, promotions, reviews, reminder] = await Promise.all([
       own('favorites').get().then(rows), own('waitingList').get().then(rows),

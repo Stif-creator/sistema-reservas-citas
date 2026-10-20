@@ -487,13 +487,21 @@ test('only a trusted superadmin can change colors across businesses; clients can
   await env.withSecurityRulesDisabled(context => setDoc(doc(context.firestore(), 'users', 'platform'), { status: 'active', globalRole: 'superadmin', businessIds: ['studio'] }))
   const owner = dbFor('owner'), platform = dbFor('platform')
   await assertFails(updateDoc(doc(owner, 'businesses', 'studio'), { 'appearance.primaryColor': '#123456' }))
+  await assertFails(updateDoc(doc(owner, 'businesses', 'studio'), { appearance: {
+    primaryColor: '#123456', secondaryColor: '#abcdef', accentColor: '#d97706', surfaceColor: '#f4f6f8',
+  } }))
   await assertFails(updateDoc(doc(owner, 'businesses', 'studio'), { name: 'Forbidden rename' }))
   await assertFails(updateDoc(doc(owner, 'businesses', 'studio'), { status: 'inactive' }))
   await assertSucceeds(updateDoc(doc(owner, 'businesses', 'studio'), { description: 'Updated business description' }))
   await assertFails(updateDoc(doc(owner, 'users', 'owner'), { globalRole: 'superadmin' }))
   await assertFails(updateDoc(doc(dbFor('client'), 'users', 'client'), { globalRole: 'superadmin' }))
   await assertSucceeds(getDocs(collection(platform, 'businesses')))
-  await assertSucceeds(updateDoc(doc(platform, 'businesses', 'private'), { appearance: { primaryColor: '#123456', secondaryColor: '#abcdef' } }))
+  await assertSucceeds(updateDoc(doc(platform, 'businesses', 'private'), { appearance: {
+    primaryColor: '#123456', secondaryColor: '#abcdef', accentColor: '#be123c', surfaceColor: '#f8fafc',
+  } }))
+  await assertFails(updateDoc(doc(platform, 'businesses', 'private'), { appearance: {
+    primaryColor: '#123456', secondaryColor: '#abcdef', accentColor: 'red', surfaceColor: '#f8fafc',
+  } }))
   await assertSucceeds(getDocs(query(collection(platform, 'reservations'), where('businessId', '==', 'studio'))))
   await env.withSecurityRulesDisabled(context => updateDoc(doc(context.firestore(), 'users', 'platform'), { status: 'inactive' }))
   await assertFails(updateDoc(doc(platform, 'businesses', 'private'), { name: 'Denied' }))
