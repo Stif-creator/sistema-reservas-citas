@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { CalendarDays, LogOut, UserRound } from 'lucide-react'
+import { Bell, CalendarDays, Heart, LogOut, UserRound } from 'lucide-react'
 import { useClientBusiness } from '../../context/client-context'
 import { useAuth } from '../../context/auth-context'
 
@@ -12,10 +12,10 @@ export default function ClientAccountLayout() {
       <p className="client-sidebar-name">Hola, {userDoc.firstName}</p>
       <nav aria-label="Mi cuenta">
         <NavLink to="/cliente/reservas"><CalendarDays size={18} />Mis reservas</NavLink>
-        <NavLink to="/cliente/avisos"><CalendarDays size={18} />Avisos</NavLink>
-        <NavLink to="/cliente/favoritos"><CalendarDays size={18} />Favoritos y espera</NavLink>
+        <NavLink to="/cliente/avisos"><Bell size={18} />Avisos</NavLink>
+        <NavLink to="/cliente/favoritos"><Heart size={18} />Favoritos y espera</NavLink>
         <NavLink to="/cliente/perfil"><UserRound size={18} />Mi perfil</NavLink>
-        <button onClick={endSession}><LogOut size={18} />Cerrar sesión</button>
+        <button type="button" onClick={endSession}><LogOut size={18} />Cerrar sesión</button>
       </nav>
     </aside>
     <div className="client-account-content"><Outlet /></div>

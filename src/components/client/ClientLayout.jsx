@@ -7,7 +7,7 @@ import { UserRound, Home, CalendarPlus, CalendarDays } from 'lucide-react'
 import { db } from '../../firebase/config'
 import { useAuth } from '../../context/auth-context'
 import { ClientContext } from '../../context/client-context'
-import { brandVariables } from '../../lib/brand'
+import { brandVariables, safeImageUrl } from '../../lib/brand'
 import SiteHeader from '../shared/SiteHeader'
 import SiteFooter from '../shared/SiteFooter'
 import '../public/public.css'
@@ -68,7 +68,12 @@ function ClientWorkspace({ businessId }) {
     <div className={`public-site client-site ${bookingPage ? "client-booking-page" : ""}`} style={brandVariables(business?.appearance)}>
       <SiteHeader business={business} homeTo="/cliente" links={links} clientMode>
         <NotificationLink />
-        <Link className="client-user-link" to="/cliente/perfil"><UserRound size={17} />{userDoc.firstName}</Link>
+        <Link className="client-user-link" to="/cliente/perfil" aria-label={`Mi perfil: ${userDoc.firstName}`}>
+          {safeImageUrl(userDoc.photoUrl)
+            ? <img src={safeImageUrl(userDoc.photoUrl)} alt="" />
+            : <UserRound size={17} aria-hidden="true" />}
+          <span>{userDoc.firstName}</span>
+        </Link>
         <Link className="public-button" to="/cliente/reservas">Mis reservas</Link>
       </SiteHeader>
       <main id="contenido" className="client-main" tabIndex={-1}>

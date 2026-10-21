@@ -11,6 +11,8 @@
 .client-site .public-footer { width: min(1180px, calc(100% - 64px)); min-height: 110px; }
 .client-user-link { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; max-width: 170px; overflow-wrap: anywhere; }
 .client-user-link svg { flex-shrink: 0; }
+.client-user-link > img { width: 28px; height: 28px; flex: none; border: 1px solid color-mix(in srgb, var(--brand) 20%, white); border-radius: 50%; object-fit: cover; }
+.client-user-link > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .client-overline { display: table; margin-bottom: 12px; padding: 5px 9px; border-radius: 999px; background: var(--brand-accent); color: var(--on-brand-accent); font-size: 10px; font-weight: 700; letter-spacing: 1.2px; }
 .client-home-hero { background: linear-gradient(115deg, white, var(--brand-soft), color-mix(in srgb, var(--brand-secondary) 35%, white)); border-bottom: 1px solid #edf0f6; }
 .client-hero-grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 60px; align-items: center; min-height: 420px; padding-top: 42px; padding-bottom: 42px; }
@@ -93,6 +95,8 @@
 .client-sidebar-name { font-size: 17px; font-weight: 650; margin-bottom: 24px; color: #14213d !important; }
 .client-sidebar nav { display: flex; flex-direction: column; gap: 6px; }
 .client-sidebar nav a, .client-sidebar nav button { display: flex; gap: 10px; align-items: center; font-size: 13px; text-align: left; padding: 12px; border-radius: 7px; color: #56627b; }
+.client-sidebar nav a svg, .client-sidebar nav button svg { flex: none; color: var(--brand-ink); }
+.client-sidebar nav a:focus-visible, .client-sidebar nav button:focus-visible { outline: 3px solid color-mix(in srgb, var(--brand) 55%, white); outline-offset: 2px; }
 .client-sidebar nav a[aria-current="page"] { background: var(--brand-soft); color: var(--brand-ink); font-weight: 650; box-shadow: inset 3px 0 var(--brand); }
 .client-sidebar nav button { border-top: 1px solid #e9edf4; margin-top: 14px; padding-top: 20px; border-radius: 0; }
 .client-account-content { min-width: 0; }
@@ -537,6 +541,7 @@
 .client-sidebar nav a, .client-sidebar nav button { min-height: 42px; border-radius: 10px; color: #5d6a61; font-size: 11px; }
 .client-sidebar nav a:hover, .client-sidebar nav button:hover { background: color-mix(in srgb, var(--brand) 7%, white); color: var(--brand-ink); }
 .client-sidebar nav a[aria-current="page"] { background: white; box-shadow: 0 3px 12px #1e30200a; color: var(--brand-ink); font-weight: 700; }
+.client-sidebar nav a[aria-current="page"] svg { color: var(--brand); }
 .client-site .client-account-content { min-width: 0; padding: 3px 0; }
 .client-site .client-account-content > section > h1, .client-site .client-account-content .client-page-heading h1 { font-family: Georgia, 'Times New Roman', serif; font-size: clamp(25px, 3vw, 34px); font-weight: 500; letter-spacing: -.035em; }
 .client-site .client-reservation-filters button { padding: 9px 15px; border: 1px solid transparent; border-radius: 999px; background: #f1f3ef; color: #5e6a61; font-size: 11px; }

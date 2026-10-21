@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { initializeTestEnvironment } from '@firebase/rules-unit-testing'
-import { collection, doc, getDocs, query, setDoc, Timestamp, updateDoc, where } from 'firebase/firestore'
+import { collection, doc, getDoc, getDocs, query, setDoc, Timestamp, updateDoc, where } from 'firebase/firestore'
 import { readFile } from 'node:fs/promises'
 
 test('client layouts use real scoped data and live branding on desktop and mobile', async ({ page }) => {
@@ -190,8 +190,17 @@ test('client layouts use real scoped data and live branding on desktop and mobil
         if (path === '/cliente/favoritos') {
           await expect(page.getByRole('heading', { name: 'Mis favoritos' })).toBeVisible()
           await expect(page.getByRole('heading', { name: 'Elegir favoritos' })).toBeVisible()
-          await expect(page.getByRole('heading', { name: 'Lista de espera' })).toBeVisible()
+          await expect(page.getByRole('heading', { name: 'Lista de espera', exact: true })).toBeVisible()
           await expect(page.getByText('Registra una fecha de interés si no encuentras disponibilidad.')).toBeVisible()
+        }
+        if (path === '/cliente/perfil') {
+          await expect(page.getByRole('heading', { name: 'Información personal' })).toBeVisible()
+          await expect(page.getByLabel('Correo electrónico')).toHaveAttribute('readonly', '')
+          await expect(page.getByRole('button', { name: 'Guardar cambios' })).toBeDisabled()
+          await expect(page.getByRole('button', { name: 'Cambiar foto' })).toBeVisible()
+          await expect(page.getByRole('heading', { name: 'Seguridad' })).toBeVisible()
+          await expect(page.getByRole('button', { name: 'Enviar enlace de cambio' })).toBeVisible()
+          await expect(page.getByRole('heading', { name: 'Zona de peligro' })).toHaveCount(0)
         }
         const layout = await page.evaluate(() => ({
           fits: document.documentElement.scrollWidth <= innerWidth,
@@ -211,16 +220,20 @@ test('client layouts use real scoped data and live branding on desktop and mobil
     }
     await page.setViewportSize({ width: 1440, height: 1000 })
     await page.goto('/cliente/favoritos')
-    await page.getByRole('button', { name: 'Agregar a favoritos: Masaje relajante', exact: true }).click()
-    await expect(page.getByRole('button', { name: 'Quitar de favoritos: Masaje relajante', exact: true })).toBeVisible()
+    const favoritesServices = page.getByRole('region', { name: 'Servicios favoritos', exact: true })
+    const discoverServices = page.getByRole('region', { name: 'Servicios', exact: true })
+    await discoverServices.getByRole('button', { name: 'Agregar a favoritos: Masaje relajante', exact: true }).click()
+    await expect(favoritesServices.getByRole('button', { name: 'Quitar de favoritos: Masaje relajante', exact: true })).toBeVisible()
     await expect(page.locator('.client-extras-summary').nth(0)).toContainText('1')
     await expect(page.locator('.client-extras-service-card a[href="/cliente/reservar?servicio=' + businessId + '-massage"]')).toBeVisible()
-    await expect(page.locator('.client-extras-service-card a[href="/cliente/servicios/' + businessId + '-massage"]')).toBeVisible()
+    await expect(page.locator('.client-extras-service-card .client-extras-actions a[href="/cliente/servicios/' + businessId + '-massage"]')).toBeVisible()
     await page.reload()
-    await expect(page.getByRole('button', { name: 'Quitar de favoritos: Masaje relajante', exact: true })).toBeVisible()
+    await expect(page.getByRole('region', { name: 'Servicios favoritos', exact: true }).getByRole('button', { name: 'Quitar de favoritos: Masaje relajante', exact: true })).toBeVisible()
 
-    await page.getByRole('button', { name: 'Agregar a favoritos: Ana Pérez', exact: true }).click()
-    await expect(page.getByRole('button', { name: 'Quitar de favoritos: Ana Pérez', exact: true })).toBeVisible()
+    const discoverProfessionals = page.getByRole('region', { name: 'Profesionales', exact: true })
+    const favoriteProfessionals = page.getByRole('region', { name: 'Profesionales favoritos', exact: true })
+    await discoverProfessionals.getByRole('button', { name: 'Agregar a favoritos: Ana Pérez', exact: true }).click()
+    await expect(favoriteProfessionals.getByRole('button', { name: 'Quitar de favoritos: Ana Pérez', exact: true })).toBeVisible()
     await expect(page.locator('.client-extras-summary').nth(1)).toContainText('1')
     const waitDate = new Date()
     waitDate.setDate(waitDate.getDate() + 4)
@@ -246,6 +259,53 @@ test('client layouts use real scoped data and live branding on desktop and mobil
     await expect(page).toHaveURL(/\/cliente$/)
     await page.goto('/cliente/perfil')
     await expect(page.getByText(email, { exact: true })).toBeVisible()
+    await expect(page.getByLabel('Correo electrónico')).toHaveAttribute('readonly', '')
+    await page.getByLabel('Teléfono').fill('123')
+    await page.getByRole('button', { name: 'Guardar cambios' }).click()
+    await expect(page.getByRole('alert')).toContainText('entre 8 y 15 dígitos')
+    await page.getByLabel('Teléfono').fill('+591 70000002')
+    await page.getByRole('button', { name: 'Guardar cambios' }).click()
+    await expect(page.getByRole('status')).toContainText('se guardaron correctamente')
+    await expect(page.locator('.client-profile-contact')).toContainText('+591 70000002')
+    await env.withSecurityRulesDisabled(async context => {
+      const user = await getDoc(doc(context.firestore(), 'users', uid))
+      expect(user.data().phone).toBe('+591 70000002')
+    })
+    await page.locator('input[type="file"][aria-label="Seleccionar una fotografía"]').setInputFiles({
+      name: 'not-an-image.txt', mimeType: 'text/plain', buffer: Buffer.from('not an image'),
+    })
+    await expect(page.getByRole('alert')).toContainText('JPG, PNG o WebP')
+    const validPng = {
+      name: 'profile.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/nFoAAAAASUVORK5CYII=', 'base64'),
+    }
+    await page.route('http://127.0.0.1:3001/images', route => route.fulfill({
+      status: 500, contentType: 'application/json', body: JSON.stringify({ error: { message: 'Upload failed' } }),
+    }))
+    await page.locator('input[type="file"][aria-label="Seleccionar una fotografía"]').setInputFiles(validPng)
+    await page.getByRole('button', { name: 'Guardar foto', exact: true }).click()
+    await expect(page.locator('.client-profile-photo-error')).toContainText('Upload failed')
+    await expect(page.locator('.client-profile-summary .client-profile-avatar img')).toHaveCount(0)
+    await page.unroute('http://127.0.0.1:3001/images')
+    const uploadedPhoto = 'https://res.cloudinary.com/test/image/upload/profile.png'
+    await page.route('http://127.0.0.1:3001/images', route => route.fulfill({
+      status: 200, contentType: 'application/json', body: JSON.stringify({ data: { url: uploadedPhoto } }),
+    }))
+    await page.locator('input[type="file"][aria-label="Seleccionar una fotografía"]').setInputFiles(validPng)
+    await expect(page.locator('.client-profile-summary .client-profile-avatar img')).toHaveAttribute('src', /^blob:/)
+    await page.getByRole('button', { name: 'Guardar foto', exact: true }).click()
+    await expect(page.locator('.client-profile-photo-success')).toContainText('fotografía se guardó')
+    await expect(page.locator('.client-user-link img')).toHaveAttribute('src', uploadedPhoto)
+    await page.getByRole('button', { name: 'Quitar imagen', exact: true }).click()
+    await expect(page.locator('.client-profile-photo-controls')).toContainText('Se quitó la fotografía')
+    await expect(page.locator('.client-user-link img')).toHaveCount(0)
+    await env.withSecurityRulesDisabled(async context => {
+      const user = await getDoc(doc(context.firestore(), 'users', uid))
+      expect(user.data().photoUrl).toBeNull()
+    })
+    await page.getByRole('button', { name: 'Enviar enlace de cambio' }).click()
+    await expect(page.locator('.client-profile-security .client-profile-inline-success')).toContainText('Firebase aceptó la solicitud')
     await page.getByRole('button', { name: 'Cerrar sesión', exact: true }).click()
     await expect(page.getByRole('heading', { name: 'Inicia sesión' })).toBeVisible()
     await page.goto('/cliente/perfil')
