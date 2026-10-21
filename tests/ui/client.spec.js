@@ -4,7 +4,7 @@ import { collection, doc, getDocs, query, setDoc, Timestamp, updateDoc, where } 
 import { readFile } from 'node:fs/promises'
 
 test('client layouts use real scoped data and live branding on desktop and mobile', async ({ page }) => {
-  test.setTimeout(90000)
+  test.setTimeout(180000)
   const errors = []
   page.on('pageerror', error => errors.push(error.message))
   const suffix = Date.now()
@@ -18,7 +18,13 @@ test('client layouts use real scoped data and live branding on desktop and mobil
       const db = context.firestore()
       await setDoc(doc(db, 'businesses', businessId), { name: 'Estudio Violeta', ownerUserId: 'test-owner', status: 'active',
         description: 'Un espacio para cuidarte y disfrutar de tu tiempo.', appearance: { primaryColor: '#7c3aed', secondaryColor: '#f0e7ff', accentColor: '#c2410c', surfaceColor: '#fff7ed' },
-        contact: { phone: '+59170000000', email: 'hola@example.test' }, settings: { publicPageEnabled: true, timezone: 'America/La_Paz', currencyCode: 'BOB' } })
+        contact: { phone: '+59170000000', email: 'hola@example.test' },
+        location: { addressLine: 'Calle de Prueba 123', city: 'La Paz', stateRegion: 'La Paz', countryCode: 'BO', latitude: -16.5, longitude: -68.15 },
+        weeklyHours: { '1': [{ start: '09:00', end: '17:00' }], '2': [], '3': [], '4': [], '5': [], '6': [], '7': [] },
+        settings: { publicPageEnabled: true, timezone: 'America/La_Paz', currencyCode: 'BOB' } })
+      await setDoc(doc(db, 'users', `about-professional-${suffix}`), { status: 'active', firstName: 'Ana', lastName: 'Pérez' })
+      await setDoc(doc(db, 'memberships', `${businessId}_about-professional-${suffix}`), { businessId, userId: `about-professional-${suffix}`, role: 'professional', status: 'active' })
+      await setDoc(doc(db, 'professionals', `about-professional-${suffix}`), { businessId, userId: `about-professional-${suffix}`, displayName: 'Ana Pérez', jobTitle: 'Especialista', bio: 'Atención cercana y personalizada.', serviceIds: [`${businessId}-massage`], isActive: true })
       for (const [id, name] of [['care', 'Bienestar'], ['hair', 'Peluquería']]) {
         await setDoc(doc(db, 'categories', `${businessId}-${id}`), { businessId, name, isActive: true, displayOrder: 1 })
       }
@@ -130,6 +136,19 @@ test('client layouts use real scoped data and live branding on desktop and mobil
         await expect(page.locator('footer')).toHaveCount(1)
         await expect(page.getByRole('main')).toHaveCount(1)
         await expect(page.getByRole('alert')).toHaveCount(0)
+        if (path === '/cliente/nosotros') {
+          await expect(page.locator('.client-about-story-copy h2')).toHaveText('Nuestra historia')
+          await expect(page.locator('.client-about-story-copy')).toContainText('Una historia cercana.')
+          await expect(page.locator('.client-about-mission')).toContainText('Escucharte.')
+          await expect(page.locator('.client-about-values h2')).toHaveText('Nuestros valores')
+          await expect(page.locator('.client-about-person-card')).toContainText('Ana Pérez')
+          await expect(page.locator('.client-about-person-card')).toContainText('Atención cercana y personalizada.')
+          await expect(page.locator('.client-about-contact-card').filter({ hasText: 'Ubicación' })).toContainText('Calle de Prueba 123, La Paz, La Paz, BO')
+          await expect(page.locator('.client-about-contact-card').filter({ hasText: 'Horario de atención' })).toContainText('09:00–17:00')
+          await expect(page.getByRole('link', { name: 'Conoce nuestros servicios' })).toHaveAttribute('href', '/cliente/servicios')
+          await expect(page.getByRole('link', { name: 'Contáctanos' }).first()).toHaveAttribute('href', '/cliente/contacto')
+          await expect(page.locator('.client-about-hero')).toBeVisible()
+        }
         const layout = await page.evaluate(() => ({
           fits: document.documentElement.scrollWidth <= innerWidth,
           overflow: [...document.querySelectorAll('body *')].filter(element => element.getBoundingClientRect().right > innerWidth + 1)

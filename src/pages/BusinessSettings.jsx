@@ -317,7 +317,7 @@ function BusinessSettings() {
           </div>
         </Card></div><div className="settings-preview-column"><SettingsPreview {...{ tab, name, description, logoUrl, coverUrl, primaryColor, secondaryColor, accentColor, surfaceColor, about, contactPhone, contactWhatsapp, contactEmail, addressLine, city }} /></div></div></div>
 <div id="settings-panel-about" role="tabpanel" aria-labelledby="settings-tab-about" hidden={tab !== 'about'}><div className="settings-columns"><div className="settings-fields"><Card title="Página Nosotros">
-          <p className="mb-4 text-sm text-muted">Personaliza la historia, misión y valores que se muestran en la página pública y en el panel del cliente. Los campos vacíos utilizan el texto inicial.</p>
+          <p className="mb-4 text-sm text-muted">Personaliza tu historia, misión y valores. La visión es opcional y se muestra en Nosotros del cliente cuando tiene contenido. En esa página, las secciones vacías se ocultan; el portal público conserva sus textos iniciales.</p>
           <div className="grid gap-4">
             {aboutFields.map(([key, label, max]) => <Field key={key} label={label} htmlFor={`about-${key}`}>
               {key === 'title' ? <input id={`about-${key}`} value={about[key]} maxLength={max} onChange={event => setAbout(previous => ({ ...previous, [key]: event.target.value }))} className={fieldControlClasses(false)} />

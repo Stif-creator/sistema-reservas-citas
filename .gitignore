@@ -83,6 +83,16 @@ temp/
 *.orig
 *.rej
 
+# Local tool state, temporary test output and downloaded emulator binaries
+.codex/
+.playwright/
+playwright/.cache/
+test-results-*/
+*.pid
+*.pid.lock
+*.hprof
+.firebase-tools/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
