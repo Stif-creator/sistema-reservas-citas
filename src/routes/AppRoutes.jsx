@@ -27,6 +27,7 @@ const ClientServiceDetail = lazy(() => import('../pages/client/ClientServiceDeta
 const ClientReservations = lazy(() => import('../pages/client/ClientReservations'))
 const ClientReservationDetail = lazy(() => import('../pages/client/ClientReservationDetail'))
 const ClientProfile = lazy(() => import('../pages/client/ClientProfile'))
+const ClientProfessionals = lazy(() => import('../pages/client/ClientProfessionals'))
 const ClientBooking = lazy(() => import('../pages/client/ClientBooking'))
 const Reservations = lazy(() => import('../pages/Reservations'))
 const Agenda = lazy(() => import('../pages/Agenda'))
@@ -72,6 +73,7 @@ function AppRoutes() {
         <Route path="/cliente" element={<ProtectedRoute allowedRoles={['client']}><ClientLayout /></ProtectedRoute>}>
           <Route index element={<ClientHome />} />
           <Route path="nosotros" element={<BusinessInfo />} />
+          <Route path="profesionales" element={<ClientProfessionals />} />
           <Route path="contacto" element={<BusinessInfo contact />} />
           <Route path="servicios" element={<ClientServices />} />
           <Route path="servicios/:serviceId" element={<ClientServiceDetail />} />

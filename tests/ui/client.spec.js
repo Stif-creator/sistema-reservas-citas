@@ -18,13 +18,18 @@ test('client layouts use real scoped data and live branding on desktop and mobil
       const db = context.firestore()
       await setDoc(doc(db, 'businesses', businessId), { name: 'Estudio Violeta', ownerUserId: 'test-owner', status: 'active',
         description: 'Un espacio para cuidarte y disfrutar de tu tiempo.', appearance: { primaryColor: '#7c3aed', secondaryColor: '#f0e7ff', accentColor: '#c2410c', surfaceColor: '#fff7ed' },
-        contact: { phone: '+59170000000', email: 'hola@example.test' },
+        contact: { phone: '+59170000000', whatsapp: '+59171234567', email: 'hola@example.test' },
         location: { addressLine: 'Calle de Prueba 123', city: 'La Paz', stateRegion: 'La Paz', countryCode: 'BO', latitude: -16.5, longitude: -68.15 },
         weeklyHours: { '1': [{ start: '09:00', end: '17:00' }], '2': [], '3': [], '4': [], '5': [], '6': [], '7': [] },
         settings: { publicPageEnabled: true, timezone: 'America/La_Paz', currencyCode: 'BOB' } })
       await setDoc(doc(db, 'users', `about-professional-${suffix}`), { status: 'active', firstName: 'Ana', lastName: 'Pérez' })
       await setDoc(doc(db, 'memberships', `${businessId}_about-professional-${suffix}`), { businessId, userId: `about-professional-${suffix}`, role: 'professional', status: 'active' })
       await setDoc(doc(db, 'professionals', `about-professional-${suffix}`), { businessId, userId: `about-professional-${suffix}`, displayName: 'Ana Pérez', jobTitle: 'Especialista', bio: 'Atención cercana y personalizada.', serviceIds: [`${businessId}-massage`], isActive: true })
+      for (let index = 2; index <= 4; index += 1) {
+        const userId = `about-professional-${index}-${suffix}`
+        await setDoc(doc(db, 'memberships', `${businessId}_${userId}`), { businessId, userId, role: 'professional', status: 'active' })
+        await setDoc(doc(db, 'professionals', userId), { businessId, userId, displayName: `Profesional ${index}`, jobTitle: 'Atención especializada', bio: `Descripción del profesional ${index}.`, isActive: true })
+      }
       for (const [id, name] of [['care', 'Bienestar'], ['hair', 'Peluquería']]) {
         await setDoc(doc(db, 'categories', `${businessId}-${id}`), { businessId, name, isActive: true, displayOrder: 1 })
       }
@@ -47,7 +52,7 @@ test('client layouts use real scoped data and live branding on desktop and mobil
     await page.getByLabel('Nombre completo').fill('María Prueba')
     await page.getByLabel('Correo electrónico').fill('cliente@example.test')
     await page.getByLabel('Asunto').fill('Consulta & horarios')
-    await page.getByLabel('Mensaje', { exact: true }).fill('¿Atienden el sábado?')
+    await page.getByRole('textbox', { name: /Mensaje/ }).fill('¿Atienden el sábado?')
     await page.getByRole('button', { name: 'Preparar mensaje' }).click()
     const draft = await page.getByRole('link', { name: 'Abrir correo', exact: true }).getAttribute('href')
     expect(draft).toContain('mailto:hola@example.test?subject=')
@@ -141,13 +146,45 @@ test('client layouts use real scoped data and live branding on desktop and mobil
           await expect(page.locator('.client-about-story-copy')).toContainText('Una historia cercana.')
           await expect(page.locator('.client-about-mission')).toContainText('Escucharte.')
           await expect(page.locator('.client-about-values h2')).toHaveText('Nuestros valores')
-          await expect(page.locator('.client-about-person-card')).toContainText('Ana Pérez')
-          await expect(page.locator('.client-about-person-card')).toContainText('Atención cercana y personalizada.')
+          await expect(page.locator('.client-about-person-card')).toHaveCount(3)
+          await expect(page.locator('.client-about-person-card').filter({ hasText: 'Ana Pérez' })).toContainText('Atención cercana y personalizada.')
+          await page.getByRole('link', { name: 'Ver todos los profesionales' }).click()
+          await expect(page).toHaveURL('/cliente/profesionales')
+          await expect(page.locator('.client-about-person-card')).toHaveCount(4)
+          await expect(page.locator('.client-about-person-card').filter({ hasText: 'Descripción del profesional 4.' })).toBeVisible()
+          await expect(page.locator('.client-site')).toHaveCSS('--brand', '#7c3aed')
+          await page.getByRole('link', { name: 'Volver a Nosotros' }).click()
+          await expect(page).toHaveURL('/cliente/nosotros')
           await expect(page.locator('.client-about-contact-card').filter({ hasText: 'Ubicación' })).toContainText('Calle de Prueba 123, La Paz, La Paz, BO')
           await expect(page.locator('.client-about-contact-card').filter({ hasText: 'Horario de atención' })).toContainText('09:00–17:00')
           await expect(page.getByRole('link', { name: 'Conoce nuestros servicios' })).toHaveAttribute('href', '/cliente/servicios')
           await expect(page.getByRole('link', { name: 'Contáctanos' }).first()).toHaveAttribute('href', '/cliente/contacto')
           await expect(page.locator('.client-about-hero')).toBeVisible()
+        }
+        if (path === '/cliente/contacto' && width === 1440) {
+          await expect(page.getByRole('link', { name: 'Reservar una cita' })).toHaveAttribute('href', '/cliente/reservar')
+          await expect(page.locator('.contact-details-grid a[href="tel:+59170000000"]')).toBeVisible()
+          await expect(page.locator('.contact-details-grid a[href="mailto:hola@example.test"]')).toBeVisible()
+          await expect(page.getByRole('heading', { name: 'Horarios de atención' })).toBeVisible()
+          await expect(page.getByTitle('Ubicación de Estudio Violeta')).toHaveAttribute('src', /openstreetmap\.org\/export\/embed/)
+          await expect(page.getByRole('link', { name: 'Abrir mapa' })).toHaveAttribute('href', /openstreetmap\.org\/\?mlat=/)
+          await expect(page.getByRole('link', { name: '© OpenStreetMap contributors' })).toHaveAttribute('href', 'https://www.openstreetmap.org/copyright')
+          await page.getByRole('button', { name: 'Envíanos un mensaje' }).click()
+          await expect(page.locator('#contact-form')).toBeInViewport()
+          await expect(page.locator('.contact-direct-whatsapp')).toHaveAttribute('href', 'https://wa.me/59171234567')
+          const messageInput = page.getByLabel('Mensaje')
+          await expect(page.locator('.contact-character-count')).toHaveText('0/2000')
+          await messageInput.fill('Necesito información sobre sus servicios.')
+          await expect(page.locator('.contact-character-count')).toHaveText('41/2000')
+          await page.getByLabel('Nombre completo').fill('María Prueba')
+          await page.getByLabel('Correo electrónico').fill('maria@example.test')
+          await page.getByLabel('Teléfono (opcional)').fill('70000001')
+          await page.getByLabel('Asunto').fill('Consulta de servicios')
+          await page.getByRole('button', { name: 'Preparar mensaje' }).click()
+          await expect(page.locator('.contact-prepared')).toContainText('Mensaje preparado')
+          await expect(page.getByRole('link', { name: 'Abrir correo' })).toHaveAttribute('href', /^mailto:hola@example\.test\?subject=/)
+          await expect(page.locator('.contact-prepared').getByRole('link', { name: 'Abrir WhatsApp' })).toHaveAttribute('href', /^https:\/\/wa\.me\/59171234567\?text=/)
+          await expect(page.locator('.contact-prepared').getByRole('link', { name: 'Abrir WhatsApp' })).toHaveAttribute('target', '_blank')
         }
         const layout = await page.evaluate(() => ({
           fits: document.documentElement.scrollWidth <= innerWidth,

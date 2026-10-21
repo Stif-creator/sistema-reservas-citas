@@ -11,5 +11,5 @@ export const aboutFields = [
   ['story', 'Nuestra historia', 4000],
   ['mission', 'Nuestra misión', 1200],
   ['vision', 'Nuestra visión (opcional)', 1200],
-  ['values', 'Nuestros valores (uno por línea)', 1200],
+  ['values', 'Valores de tu negocio (uno por línea)', 1200],
 ]

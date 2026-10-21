@@ -342,6 +342,29 @@
 }
 .client-about-page .client-about-person-role { margin-top: 5px; font-size: 12px; font-weight: 650; }
 .client-about-page .client-about-person-bio { margin-top: 8px; font-size: 13px; white-space: pre-line; }
+.client-about-team-more { width: fit-content; margin-top: 16px; }
+
+.client-professional-directory-content { padding-block: 30px 40px; }
+.client-professional-back { margin-bottom: 24px; }
+.client-professional-directory .client-about-section-heading { margin-bottom: 22px; }
+.client-professional-directory .client-about-section-heading h1 {
+  color: var(--about-ink);
+  font-size: clamp(30px, 4vw, 44px);
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -.04em;
+}
+.client-professional-directory .client-about-section-heading > p { margin-top: 8px; }
+.client-about-person-detail { min-height: 138px; }
+.client-about-person-detail > div { flex: 1; }
+.client-professional-state { padding: 18px 0; }
+.client-professional-directory .public-alert button {
+  margin-left: 8px;
+  color: var(--brand-ink);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 
 .client-about-contact-grid {
   display: grid;

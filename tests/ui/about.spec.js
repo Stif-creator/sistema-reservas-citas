@@ -9,7 +9,7 @@ test('about uses saved content, optional vision, responsive layout and contrasti
   const businessId = `about-${suffix}`
   const accounts = {}
   const password = 'test-password'
-  for (const role of ['admin', 'client']) {
+  for (const role of ['admin', 'client', 'superadmin']) {
     const email = `about-${role}-${suffix}@example.test`
     const response = await fetch('http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=demo-key', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password, returnSecureToken: true }),
@@ -26,8 +26,8 @@ test('about uses saved content, optional vision, responsive layout and contrasti
         description: 'Información del taller de prueba.', about: { title: 'Conoce nuestro taller', story: 'Historia configurada por el negocio.', mission: 'Misión configurada.', values: 'Claridad\nRespeto\nPuntualidad' },
         settings: { publicPageEnabled: true, timezone: 'America/La_Paz', currencyCode: 'BOB' } })
       for (const [role, account] of Object.entries(accounts)) {
-        await setDoc(doc(db, 'users', account.uid), { id: account.uid, auth_uid: account.uid, firstName: role, lastName: 'Prueba', email: account.email, status: 'active', globalRole: 'user', businessIds: [businessId], onboardingComplete: true })
-        await setDoc(doc(db, 'memberships', `${businessId}_${account.uid}`), { businessId, userId: account.uid, role, status: 'active' })
+        await setDoc(doc(db, 'users', account.uid), { id: account.uid, auth_uid: account.uid, firstName: role, lastName: 'Prueba', email: account.email, status: 'active', globalRole: role === 'superadmin' ? 'superadmin' : 'user', businessIds: [businessId], onboardingComplete: true })
+        if (role !== 'superadmin') await setDoc(doc(db, 'memberships', `${businessId}_${account.uid}`), { businessId, userId: account.uid, role, status: 'active' })
       }
     })
     async function login(target, role) {
@@ -51,11 +51,27 @@ test('about uses saved content, optional vision, responsive layout and contrasti
     await admin.goto('http://127.0.0.1:4173/negocio')
     await admin.getByRole('tab', { name: 'Página nosotros', exact: true }).click()
     await admin.getByLabel('Nuestra visión (opcional)').fill('Visión escrita por la administración.')
+    await admin.getByLabel('Valores de tu negocio (uno por línea)').fill('Atención cercana\nCalidad en cada servicio\nRespeto por tu tiempo')
     await admin.getByRole('button', { name: 'Guardar cambios', exact: true }).click()
     await expect(admin.getByText('Cambios guardados.', { exact: true })).toBeVisible()
     await expect(page.locator('.client-about-vision')).toContainText('Visión escrita por la administración.')
+    await expect(page.locator('.client-about-value-card')).toContainText(['Atención cercana', 'Calidad en cada servicio', 'Respeto por tu tiempo'])
     await env.withSecurityRulesDisabled(async context => {
-      expect((await getDoc(doc(context.firestore(), 'businesses', businessId))).data().about.vision).toBe('Visión escrita por la administración.')
+      const about = (await getDoc(doc(context.firestore(), 'businesses', businessId))).data().about
+      expect(about.vision).toBe('Visión escrita por la administración.')
+      expect(about.values).toBe('Atención cercana\nCalidad en cada servicio\nRespeto por tu tiempo')
+    })
+    const superadmin = await adminContext.newPage()
+    await login(superadmin, 'superadmin')
+    await superadmin.goto('/negocio')
+    await superadmin.getByRole('tab', { name: 'Página nosotros', exact: true }).click()
+    await superadmin.getByLabel('Valores de tu negocio (uno por línea)').fill('Servicios profesionales\nOrganización y confianza')
+    await superadmin.getByRole('button', { name: 'Guardar cambios', exact: true }).click()
+    await expect(superadmin.getByText('Cambios guardados.', { exact: true })).toBeVisible()
+    await expect(page.locator('.client-about-value-card')).toContainText(['Servicios profesionales', 'Organización y confianza'])
+    await env.withSecurityRulesDisabled(async context => {
+      expect((await getDoc(doc(context.firestore(), 'businesses', businessId))).data().about.values)
+        .toBe('Servicios profesionales\nOrganización y confianza')
     })
 
     for (const [name, appearance] of Object.entries({

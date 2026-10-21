@@ -317,9 +317,10 @@ function BusinessSettings() {
           </div>
         </Card></div><div className="settings-preview-column"><SettingsPreview {...{ tab, name, description, logoUrl, coverUrl, primaryColor, secondaryColor, accentColor, surfaceColor, about, contactPhone, contactWhatsapp, contactEmail, addressLine, city }} /></div></div></div>
 <div id="settings-panel-about" role="tabpanel" aria-labelledby="settings-tab-about" hidden={tab !== 'about'}><div className="settings-columns"><div className="settings-fields"><Card title="Página Nosotros">
-          <p className="mb-4 text-sm text-muted">Personaliza tu historia, misión y valores. La visión es opcional y se muestra en Nosotros del cliente cuando tiene contenido. En esa página, las secciones vacías se ocultan; el portal público conserva sus textos iniciales.</p>
+          <p className="mb-4 text-sm text-muted">El administrador del negocio y el superadministrador pueden personalizar estos textos. Escribe valores propios de tu actividad, uno por línea; no hay textos específicos de un rubro. La visión es opcional y se muestra en Nosotros del cliente cuando tiene contenido.</p>
           <div className="grid gap-4">
-            {aboutFields.map(([key, label, max]) => <Field key={key} label={label} htmlFor={`about-${key}`}>
+            {aboutFields.map(([key, label, max]) => <Field key={key} label={label} htmlFor={`about-${key}`}
+              hint={key === 'values' ? 'Cada línea aparece como un valor independiente en la página Nosotros.' : undefined}>
               {key === 'title' ? <input id={`about-${key}`} value={about[key]} maxLength={max} onChange={event => setAbout(previous => ({ ...previous, [key]: event.target.value }))} className={fieldControlClasses(false)} />
                 : <textarea id={`about-${key}`} value={about[key]} rows={key === 'story' ? 6 : 3} maxLength={max} onChange={event => setAbout(previous => ({ ...previous, [key]: event.target.value }))} className={fieldControlClasses(false)} />}
             </Field>)}
