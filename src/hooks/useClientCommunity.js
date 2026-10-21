@@ -9,6 +9,7 @@ export default function useClientCommunity(businessId, userId) {
   const lock = useRef(false)
   const favoriteRevision = useRef(0)
   const [favoriteVersion, setFavoriteVersion] = useState(0)
+  const [waiting, setWaiting] = useState([])
   const [data, setData] = useState({ professionals: [], reviews: [] })
   const [communityLoading, setLoading] = useState(true)
   const [communityError, setError] = useState('')
@@ -23,6 +24,7 @@ export default function useClientCommunity(businessId, userId) {
         const result = await bookingRequest({ action: 'hub', businessId })
         if (active && revision === favoriteRevision.current) {
           setFavorites(result.favorites || [])
+          setWaiting(result.waiting || [])
           setFavoriteReady(true)
           setFavoriteError('')
         }
@@ -54,19 +56,19 @@ export default function useClientCommunity(businessId, userId) {
     window.addEventListener('focus', refresh)
     return () => { active = false; clearInterval(timer); window.removeEventListener('focus', refresh) }
   }, [businessId, version])
-  async function toggleFavorite(service) {
+  async function toggleFavorite(target, kind = 'service') {
     if (lock.current || !favoriteReady) return
     favoriteRevision.current += 1
     lock.current = true; setFavoriteBusy(true); setFavoriteError('')
-    const enabled = !favorites.some(f => f.kind === 'service' && f.targetId === service.id)
+    const enabled = !favorites.some(f => f.kind === kind && f.targetId === target.id)
     try {
-      await bookingRequest({ action: 'favorite', businessId, kind: 'service', targetId: service.id, enabled })
-      setFavorites(previous => enabled ? [...previous.filter(f => f.kind !== 'service' || f.targetId !== service.id), { kind: 'service', targetId: service.id, name: service.name }]
-        : previous.filter(f => f.kind !== 'service' || f.targetId !== service.id))
+      await bookingRequest({ action: 'favorite', businessId, kind, targetId: target.id, enabled })
+      setFavorites(previous => enabled ? [...previous.filter(f => f.kind !== kind || f.targetId !== target.id), { kind, targetId: target.id, name: target.name || target.displayName || 'Profesional' }]
+        : previous.filter(f => f.kind !== kind || f.targetId !== target.id))
     } catch (error) { setFavoriteError(error.message) }
     finally { lock.current = false; setFavoriteBusy(false) }
   }
-  return { ...data, favorites, favoriteReady, favoriteError, favoriteBusy, toggleFavorite,
+  return { ...data, favorites, waiting, favoriteReady, favoriteError, favoriteBusy, toggleFavorite,
     reloadFavorites: () => setFavoriteVersion(v => v + 1), communityLoading, communityError,
     reloadCommunity: () => setVersion(v => v + 1) }
 }

@@ -128,6 +128,7 @@ test('client layouts use real scoped data and live branding on desktop and mobil
         ['/cliente', 'Qué gusto verte', 'home'], ['/cliente/servicios', 'Servicios', 'services'],
         [`/cliente/servicios/${businessId}-massage`, 'Masaje relajante', 'service-detail'],
         ['/cliente/reservas', 'Mis reservas', 'reservations'], [`/cliente/reservas/own-${suffix}`, 'Detalle de reserva', 'reservation-detail'],
+        ['/cliente/favoritos', 'Favoritos y lista de espera', 'favorites'],
         ['/cliente/perfil', 'Mi perfil', 'profile'],
         ['/cliente/nosotros', 'Somos Estudio Violeta', 'about'],
         ['/cliente/contacto', 'Hablemos de tu próxima visita', 'contact'],
@@ -186,6 +187,12 @@ test('client layouts use real scoped data and live branding on desktop and mobil
           await expect(page.locator('.contact-prepared').getByRole('link', { name: 'Abrir WhatsApp' })).toHaveAttribute('href', /^https:\/\/wa\.me\/59171234567\?text=/)
           await expect(page.locator('.contact-prepared').getByRole('link', { name: 'Abrir WhatsApp' })).toHaveAttribute('target', '_blank')
         }
+        if (path === '/cliente/favoritos') {
+          await expect(page.getByRole('heading', { name: 'Mis favoritos' })).toBeVisible()
+          await expect(page.getByRole('heading', { name: 'Elegir favoritos' })).toBeVisible()
+          await expect(page.getByRole('heading', { name: 'Lista de espera' })).toBeVisible()
+          await expect(page.getByText('Registra una fecha de interés si no encuentras disponibilidad.')).toBeVisible()
+        }
         const layout = await page.evaluate(() => ({
           fits: document.documentElement.scrollWidth <= innerWidth,
           overflow: [...document.querySelectorAll('body *')].filter(element => element.getBoundingClientRect().right > innerWidth + 1)
@@ -202,6 +209,39 @@ test('client layouts use real scoped data and live branding on desktop and mobil
         await expect(page.getByRole('button', { name: 'Abrir menú' })).toHaveAttribute('aria-expanded', 'false')
       }
     }
+    await page.setViewportSize({ width: 1440, height: 1000 })
+    await page.goto('/cliente/favoritos')
+    await page.getByRole('button', { name: 'Agregar a favoritos: Masaje relajante', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Quitar de favoritos: Masaje relajante', exact: true })).toBeVisible()
+    await expect(page.locator('.client-extras-summary').nth(0)).toContainText('1')
+    await expect(page.locator('.client-extras-service-card a[href="/cliente/reservar?servicio=' + businessId + '-massage"]')).toBeVisible()
+    await expect(page.locator('.client-extras-service-card a[href="/cliente/servicios/' + businessId + '-massage"]')).toBeVisible()
+    await page.reload()
+    await expect(page.getByRole('button', { name: 'Quitar de favoritos: Masaje relajante', exact: true })).toBeVisible()
+
+    await page.getByRole('button', { name: 'Agregar a favoritos: Ana Pérez', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Quitar de favoritos: Ana Pérez', exact: true })).toBeVisible()
+    await expect(page.locator('.client-extras-summary').nth(1)).toContainText('1')
+    const waitDate = new Date()
+    waitDate.setDate(waitDate.getDate() + 4)
+    const waitDateValue = `${waitDate.getFullYear()}-${String(waitDate.getMonth() + 1).padStart(2, '0')}-${String(waitDate.getDate()).padStart(2, '0')}`
+    const waitForm = page.locator('.client-extras-wait-form')
+    await waitForm.getByLabel('Servicio').selectOption(`${businessId}-massage`)
+    await waitForm.getByLabel('Profesional').selectOption(`about-professional-${suffix}`)
+    await waitForm.getByLabel('Fecha de interés').fill(waitDateValue)
+    await waitForm.getByRole('button', { name: 'Registrar interés' }).click()
+    await expect(page.locator('.client-extras-inline-success')).toContainText('Esto no confirma ni reserva una cita.')
+    await expect(page.locator('.client-extras-request-card')).toHaveCount(1)
+    await expect(page.locator('.client-extras-summary').nth(2)).toContainText('1')
+    await waitForm.getByLabel('Servicio').selectOption(`${businessId}-massage`)
+    await waitForm.getByLabel('Profesional').selectOption(`about-professional-${suffix}`)
+    await waitForm.getByLabel('Fecha de interés').fill(waitDateValue)
+    await waitForm.getByRole('button', { name: 'Registrar interés' }).click()
+    await expect(page.locator('.client-extras-request-card')).toHaveCount(1)
+    await page.locator('.client-extras-request-card').getByRole('button', { name: 'Retirar' }).click()
+    await expect(page.locator('.client-extras-request-card')).toHaveCount(0)
+    await expect(page.locator('.client-extras-summary').nth(2)).toContainText('0')
+
     await page.goto('/usuarios')
     await expect(page).toHaveURL(/\/cliente$/)
     await page.goto('/cliente/perfil')
