@@ -1,17 +1,18 @@
 import { dateError, closedDay, collectSlots } from '../../lib/clientBooking'
 import { markFormSaved } from '../../lib/unsavedForms'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowLeft, Check, Clock3, UserRound } from 'lucide-react'
+import { ArrowLeft, Check, Clock3, Search, Sparkles, UserRound, Wallet } from 'lucide-react'
 import { bookingEnabled, bookingRequest } from '../../lib/bookingApi'
 import { useAuth } from '../../context/auth-context'
 import { addDays, dayKey } from '../../lib/calendarDates'
 import { formatAppointmentDate, formatPrice } from '../../lib/clientPresentation'
+import { safeImageUrl } from '../../lib/brand'
 import BookingStepper from './BookingStepper'
 import BookingSummary from './BookingSummary'
 import './booking.css'
 import { Link } from 'react-router-dom'
 
-export default function BookingFlow({ business, initialServiceId = '', initialProfessionalId = '', reservation, manual = false, onSuccess, publicMode = false, draft = null }) {
+export default function BookingFlow({ business, initialServiceId = '', initialProfessionalId = '', reservation, manual = false, onSuccess, publicMode = false, draft = null, catalogServices = [], catalogCategories = [], catalogProfessionals = [] }) {
   const { userDoc, currentUser, membership } = useAuth()
   const [options, setOptions] = useState(null)
   const [optionsError, setOptionsError] = useState('')
@@ -32,22 +33,39 @@ export default function BookingFlow({ business, initialServiceId = '', initialPr
   const [notes, setNotes] = useState('')
   const pending = useRef(null)
   const availabilityLoading = useRef(false)
-  const service = options?.services.find(item => item.id === serviceId)
-  const professional = options?.professionals.find(item => item.id === professionalId)
+  const serviceRows = options?.services.map(item => ({
+    ...(catalogServices.find(service => service.id === item.id) || {}),
+    ...item,
+  })) || []
+  const professionalRows = options?.professionals.map(item => {
+    const catalogProfessional = catalogProfessionals.find(pro => pro.id === item.id)
+    return { ...catalogProfessional, ...item, photoUrl: item.photoUrl || catalogProfessional?.photoUrl || '' }
+  }) || []
+  const service = serviceRows.find(item => item.id === serviceId)
+  const professional = professionalRows.find(item => item.id === professionalId)
   const selectionKey = `${serviceId}:${professionalId}:${date}`
   const queryKey = `${selectionKey}:${refresh}`
   const [now, setNow] = useState(Date.now)
   const today = dayKey(now, zone)
   const [searching, setSearching] = useState(false)
+  const [serviceSearch, setServiceSearch] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState('')
   const [searchMessage, setSearchMessage] = useState('')
   const searchRun = useRef({ id: 0 })
   const [searchThrough, setSearchThrough] = useState('')
   const maxDate = addDays(today, business.settings?.maxAdvanceDays ?? 90)
   const invalidDate = dateError(date, today, maxDate)
-  const eligible = options?.professionals.filter(p => p.serviceIds.includes(serviceId)) || []
+  const eligible = professionalRows.filter(p => p.serviceIds.includes(serviceId))
   const candidateIds = professionalId === 'any' ? eligible.map(p => p.id) : [professionalId].filter(Boolean)
   const candidateKey = candidateIds.join(',')
-  const chosenProfessional = options?.professionals.find(p => p.id === chosen?.professionalId) || professional
+  const chosenProfessional = professionalRows.find(p => p.id === chosen?.professionalId) || professional
+  const categoryName = categoryId => catalogCategories.find(category => category.id === categoryId)?.name
+  const serviceCategories = [...new Set(serviceRows.map(item => categoryName(item.categoryId)).filter(Boolean))]
+  const visibleServices = serviceRows.filter(item => {
+    const matchesSearch = `${item.name} ${item.description || ''} ${categoryName(item.categoryId) || ''}`
+      .toLocaleLowerCase().includes(serviceSearch.trim().toLocaleLowerCase())
+    return matchesSearch && (!categoryFilter || categoryName(item.categoryId) === categoryFilter)
+  })
   const blocked = saving || uncertain || searching
   useEffect(() => {
     const run = searchRun.current
@@ -164,18 +182,39 @@ export default function BookingFlow({ business, initialServiceId = '', initialPr
     <BookingStepper step={step} /><p className="booking-progress">Paso {step + 1} de 4 · {step === 3 ? "Revisa antes de enviar" : "Tu selección se conserva al volver"}</p>
     {error && <p className="booking-error" role="alert">{error}</p>}
     {reservation && <p className="booking-notice">La cita actual se conserva hasta que confirmes un nuevo horario disponible.</p>}
-    {step === 0 && <section><h2>Selecciona un servicio</h2><p>Elige el servicio para tu próxima visita.</p><div className="booking-choices">
-      {options.services.map(item => <button key={item.id} className={`booking-choice ${serviceId === item.id ? 'selected' : ''}`} onClick={() => { if (serviceId !== item.id) { setServiceId(item.id); setProfessionalId(''); clearSelection() } setStep(1) }}>
-        <h3>{item.name}</h3><span><Clock3 size={16} />{item.durationMinutes} minutos</span><strong>{formatPrice(item.price, item.currencyCode)}</strong><span className="booking-choice-action">Seleccionar</span>
-      {item.promotionTitle && <span>{item.promotionTitle} · Antes {formatPrice(item.originalPrice, item.currencyCode)}</span>}
-      </button>)}
-    </div>{!options.services.length && <p>No hay servicios disponibles en este momento.</p>}</section>}
-    {step === 1 && <section><h2>Selecciona un profesional</h2><p>{service?.name || 'El servicio ya no está disponible. Vuelve a elegir un servicio.'}</p><div className="booking-choices">
+    {step === 0 && <section className="booking-step-content"><h2>Selecciona un servicio</h2><p>Elige el servicio que mejor se adapte a lo que necesitas.</p>
+      <div className="booking-catalog-tools">
+        <label className="booking-search"><Search size={17} aria-hidden="true" /><span className="sr-only">Buscar un servicio</span><input type="search" value={serviceSearch} onChange={event => setServiceSearch(event.target.value)} placeholder="Buscar por nombre o categoría…" /></label>
+        {serviceCategories.length > 0 && <label className="booking-category-filter">Categoría<select value={categoryFilter} onChange={event => setCategoryFilter(event.target.value)}><option value="">Todas las categorías</option>{serviceCategories.map(name => <option key={name} value={name}>{name}</option>)}</select></label>}
+      </div>
+      <div className="booking-choices">
+      {visibleServices.map(item => {
+        const image = safeImageUrl(item.image?.url || item.imageUrl)
+        return <button type="button" key={item.id} aria-label={`${item.name}${categoryName(item.categoryId) ? `, ${categoryName(item.categoryId)}` : ''}`} aria-pressed={serviceId === item.id} className={`booking-choice booking-service-choice ${serviceId === item.id ? 'selected' : ''}`} onClick={() => { if (serviceId !== item.id) { setServiceId(item.id); setProfessionalId(''); clearSelection() } setStep(1) }}>
+          <span className="booking-service-art">{image ? <img src={image} alt="" loading="lazy" /> : <Sparkles size={24} aria-hidden="true" />}</span>
+          <span className="booking-service-copy">
+            {categoryName(item.categoryId) && <small className="booking-service-category">{categoryName(item.categoryId)}</small>}
+            <strong>{item.name}</strong>
+            {item.description && <span className="booking-service-description">{item.description}</span>}
+            <span className="booking-service-meta"><span><Clock3 size={14} />{item.durationMinutes} min</span><strong><Wallet size={14} />{formatPrice(item.price, item.currencyCode)}</strong></span>
+            {item.promotionTitle && <span className="booking-service-promotion">{item.promotionTitle} · Antes {formatPrice(item.originalPrice, item.currencyCode)}</span>}
+            <span className="booking-choice-action">Seleccionar servicio</span>
+          </span>
+        </button>
+      })}
+      {!visibleServices.length && <p className="booking-empty">{options.services.length ? 'No hay servicios que coincidan con la búsqueda.' : 'No hay servicios disponibles en este momento.'}</p>}
+    </div></section>}
+    {step === 1 && <section className="booking-step-content"><h2>Selecciona un profesional</h2><p>{service?.name || 'El servicio ya no está disponible. Vuelve a elegir un servicio.'}</p><div className="booking-choices booking-professional-choices">
       {!reservation && eligible.length > 1 && <button className="booking-choice" onClick={() => { if (professionalId !== 'any') { setProfessionalId('any'); clearSelection() } setStep(2) }}><UserRound size={26} /><h3>Sin preferencia de profesional</h3><p>Consulta los horarios de todos los profesionales de este servicio. Verás quién te atenderá antes de confirmar.</p><span className="booking-choice-action">Ver disponibilidad</span></button>}
-      {service && options.professionals.filter(item => item.serviceIds.includes(serviceId)).map(item => <button key={item.id} className={`booking-choice ${professionalId === item.id ? 'selected' : ''}`} onClick={() => { if (professionalId !== item.id) { setProfessionalId(item.id); clearSelection() } setStep(2) }}>
-        <span className="booking-avatar"><UserRound size={26} /></span><h3>{item.displayName}</h3><span>{item.jobTitle || 'Profesional'}</span><p>{item.bio}</p><span className="booking-choice-action">Seleccionar</span>
-      </button>)}
-    </div>{!options.professionals.some(item => item.serviceIds.includes(serviceId)) && <p>No hay profesionales disponibles para este servicio.</p>}</section>}
+      {service && professionalRows.filter(item => item.serviceIds.includes(serviceId)).map(item => {
+        const photo = safeImageUrl(item.photoUrl)
+        return <button type="button" key={item.id} aria-pressed={professionalId === item.id} className={`booking-choice booking-professional-choice ${professionalId === item.id ? 'selected' : ''}`} onClick={() => { if (professionalId !== item.id) { setProfessionalId(item.id); clearSelection() } setStep(2) }}>
+          <span className="booking-professional-avatar">{photo ? <img src={photo} alt="" loading="lazy" /> : <UserRound size={24} aria-hidden="true" />}</span>
+          <span className="booking-professional-copy"><strong>{item.displayName}</strong><small>{item.jobTitle || 'Profesional'}</small>{item.bio && <span>{item.bio}</span>}</span>
+          <span className="booking-choice-action">Seleccionar profesional</span>
+        </button>
+      })}
+    </div>{!eligible.length && <p>No hay profesionales disponibles para este servicio.</p>}</section>}
     {step === 2 && <section><h2>Selecciona fecha y hora</h2><p>{service?.name} · {professionalId === 'any' ? 'Sin preferencia de profesional' : professional?.displayName} · Zona horaria: {zone}</p>
       <div className="booking-date-grid"><div className="booking-panel">
         <label className="booking-field">Fecha de la cita<input type="date" value={date} min={today} max={maxDate} required disabled={searching}
@@ -196,7 +235,7 @@ export default function BookingFlow({ business, initialServiceId = '', initialPr
         {invalidDate ? <p>Corrige la fecha para consultar horarios.</p> : searching ? <p role="status">Buscando el próximo día con horarios…</p> : availability.key !== queryKey ? <p role="status">Consultando horarios…</p> : availability.error ? <div><p role="alert" className="booking-error">No pudimos consultar los horarios. {availability.error}</p><button className="booking-button secondary" onClick={refreshAvailability}>Reintentar consulta</button></div>
           : availability.slots.length ? <div role="group" aria-label="Horarios disponibles">{['Mañana', 'Tarde'].map((period, index) => {
             const slots = availability.slots.filter(slot => (Number(slot.label.split(':')[0]) < 12 ? 0 : 1) === index)
-            return slots.length > 0 && <div className="booking-slot-period" key={period}><h4>{period}</h4><div className="booking-slots">{slots.map(slot => <button type="button" key={`${slot.start}-${slot.professionalId}`} aria-pressed={chosen?.start === slot.start && chosen?.professionalId === slot.professionalId} onClick={() => { setChosen(slot); setError('') }}>{slot.label}{professionalId === 'any' && <small>{options.professionals.find(p => p.id === slot.professionalId)?.displayName}</small>}</button>)}</div></div>
+            return slots.length > 0 && <div className="booking-slot-period" key={period}><h4>{period}</h4><div className="booking-slots">{slots.map(slot => <button type="button" key={`${slot.start}-${slot.professionalId}`} aria-pressed={chosen?.start === slot.start && chosen?.professionalId === slot.professionalId} onClick={() => { setChosen(slot); setError('') }}>{slot.label}{professionalId === 'any' && <small>{professionalRows.find(p => p.id === slot.professionalId)?.displayName}</small>}</button>)}</div></div>
           })}</div>
           : <div className="booking-empty"><h4>{closedDay(business, date) ? 'El negocio no atiende este día' : 'No hay horarios disponibles para esta fecha'}</h4><p>Elige otra fecha o utiliza «Ver próximo día disponible».</p>{!publicMode && membership?.role === 'client' && <Link to="/cliente/favoritos">Registrar interés en la lista de espera</Link>}</div>}
       </div></div>

@@ -8,7 +8,7 @@ import BookingSummary from '../../components/booking/BookingSummary'
 import { dateMillis } from '../../lib/clientPresentation'
 
 export default function ClientBooking({ reschedule = false, receipt = false }) {
-  const { business } = useClientBusiness()
+  const { business, services = [], categories = [], professionals = [] } = useClientBusiness()
   const { reservationId } = useParams()
   const [search] = useSearchParams()
   const navigate = useNavigate()
@@ -24,7 +24,7 @@ export default function ClientBooking({ reschedule = false, receipt = false }) {
     <AppointmentTools reservation={reservation} business={business} />
   </div></section>
   return <section className="public-container client-section"><div className="client-page-heading"><div><h1>{reschedule ? 'Reprogramar cita' : 'Reserva tu cita'}</h1><p>Elige el servicio y el horario que mejor se adapten a ti.</p></div><Link className="client-back" to="/cliente/reservas">Mis reservas</Link></div>
-    <BookingFlow key={reservation?.id || search.toString() || 'new'} business={business} initialServiceId={search.get('servicio') || ''} initialProfessionalId={search.get('profesional') || ''} reservation={reschedule ? reservation : undefined}
+    <BookingFlow key={reservation?.id || search.toString() || 'new'} business={business} catalogServices={services} catalogCategories={categories} catalogProfessionals={professionals} initialServiceId={search.get('servicio') || ''} initialProfessionalId={search.get('profesional') || ''} reservation={reschedule ? reservation : undefined}
       onSuccess={result => navigate(reschedule ? `/cliente/reservas/${result.id}` : `/cliente/reserva-exitosa/${result.id}`, { replace: true })} />
   </section>
 }
