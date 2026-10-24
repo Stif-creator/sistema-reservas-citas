@@ -34,7 +34,7 @@ function localRange(from, to, zone) {
 export default function Reservations({ detail = false, manual = false }) {
   const { membership } = useAuth()
   const [appliedRange, setAppliedRange] = useState(null)
-  const { business, items, loading, error } = useBusinessReservations(!detail && !manual ? appliedRange?.query || null : null)
+  const { business, items, loading, rangeFallback, error } = useBusinessReservations(!detail && !manual ? appliedRange?.query || null : null)
   const { reservationId } = useParams()
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
@@ -123,6 +123,7 @@ export default function Reservations({ detail = false, manual = false }) {
         </div>
         <p className="reservation-timezone">Zona horaria del negocio: <strong>{zone}</strong></p>
         {rangeError && <p className="reservation-range-error" role="alert">{rangeError}</p>}
+        {rangeFallback && <p className="reservation-index-notice" role="status">El filtro de fechas está funcionando con respaldo local. Publica los índices de Firestore para optimizar las lecturas.</p>}
         <div className="reservation-filter-actions"><button className="booking-button" type="button" onClick={() => applyRange(dateFrom, dateTo)}><CalendarDays size={16} />Aplicar filtros</button></div>
       </section>
       <div className="reservation-results-heading"><div><h2>Resultados</h2><span>{filtered.length} {filtered.length === 1 ? 'reserva' : 'reservas'}</span></div></div>

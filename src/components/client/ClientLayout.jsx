@@ -10,6 +10,7 @@ import { ClientContext } from '../../context/client-context'
 import { brandVariables, safeImageUrl } from '../../lib/brand'
 import SiteHeader from '../shared/SiteHeader'
 import SiteFooter from '../shared/SiteFooter'
+import { NotificationsProvider } from '../../context/NotificationsContext'
 import '../public/public.css'
 import '../shared/site.css'
 import './client.css'
@@ -64,7 +65,7 @@ function ClientWorkspace({ businessId }) {
   const value = { ...community, business, services: catalog.services, categories: catalog.categories,
     catalogLoading: !catalog.ready.services || !catalog.ready.categories,
     catalogError: catalog.errors.services || catalog.errors.categories || '', endSession }
-  return <ClientContext.Provider value={value}>
+  return <NotificationsProvider><ClientContext.Provider value={value}>
     <div className={`public-site client-site ${bookingPage ? "client-booking-page" : ""}`} style={brandVariables(business?.appearance)}>
       <SiteHeader business={business} homeTo="/cliente" links={links} clientMode>
         <NotificationLink />
@@ -88,5 +89,5 @@ function ClientWorkspace({ businessId }) {
       </nav>}
       <SiteFooter business={business} homeTo="/cliente" contactTo="/cliente/contacto" clientMode />
     </div>
-  </ClientContext.Provider>
+  </ClientContext.Provider></NotificationsProvider>
 }

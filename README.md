@@ -74,75 +74,50 @@ Al iniciar sesión o registrarse como **Cliente**, `/dashboard` redirige a `/cli
 `ClientLayout` carga el negocio y su catálogo y aplica `appearance.primaryColor` y `appearance.secondaryColor` en tiempo real. `ClientAccountLayout` comparte el menú de cuenta entre reservas, detalle y perfil. `SiteHeader`, `SiteFooter` y `BusinessBrand` se reutilizan también en `PublicHomeLayout`; las vistas no repiten encabezados ni pies de página. El menú móvil es desplegable y los colores de texto se adaptan al contraste.
 
 El catálogo solo muestra servicios activos y públicos del negocio de la membresía. El cliente puede consultarlo aunque el administrador desactive la página pública externa; las reglas habilitan únicamente la lectura del catálogo y categorías de su negocio, sin dar acceso a perfiles privados de profesionales ni a la administración. La consulta de reservas filtra por negocio y usuario autenticado. No se generan citas, valoraciones, profesionales o confirmaciones ficticias para completar la interfaz.
-
 La referencia visual guía las tarjetas, la distribución y el menú de cuenta. `BookingFlow`, `BookingStepper`, `BookingSummary` y `ReservationActions` se comparten entre cliente y administración. La edición de perfil permanece fuera de este Sprint. Avisos, favoritos y reserva desde el portal externo se implementan en el Sprint 3.
-
 `tests/ui/client.spec.js` comprueba registro y redirección, filtros, aislamiento de citas, identidad en vivo, catálogo con página pública desactivada, navegación móvil y cierre de sesión. Genera capturas de las seis vistas a 1440 y 390 píxeles en `test-results/client-*.png`. Los datos usados en las pruebas se crean únicamente en los emuladores.
-
 ### Probar el Sprint 2 sin Blaze ni datos reales
-
 ```sh
 npm install
 npm install --prefix functions
 npm run demo
 ```
-
 Abre http://127.0.0.1:5173. Este comando inicia los emuladores Authentication y Firestore en `demo-citaspro`, la API Node.js en el puerto 3001 y la interfaz. Habilita las reservas solo para esa sesión local, sin credenciales privadas ni emulador de Functions. El proyecto empieza vacío: crea un negocio, configura horarios, crea un servicio, registra un profesional y asígnale servicio y horario. Luego registra una cuenta Cliente desde el enlace público del negocio. Las cuentas y datos del Firebase real no se copian al emulador. Detener la demostración descarta los datos locales.
-
 ### Garantías y políticas del guardado
-
 La API `POST /booking` verifica el ID token de Firebase Authentication (incluyendo revocación y cuentas deshabilitadas) y usa su UID, nunca una identidad enviada en el formulario. La lógica compartida verifica membresía, calcula precio y duración desde Firestore y devuelve al cliente únicamente datos publicables de los profesionales. El navegador no puede escribir directamente `reservations`, `bookingLocks` ni `bookingRequests` con las reglas nuevas. `GET /health` permite comprobar que el proceso está activo; no comprueba las credenciales ni el acceso a Firestore.
-
 Cada creación, reprogramación y cambio de estado lee y modifica `bookingLocks/{businessId}` en una transacción. Esto serializa las reservas del negocio, incluso cuando aún no existe una cita para el horario solicitado. Se usan intervalos con márgenes de preparación y limpieza; una cita que termina exactamente cuando comienza la siguiente no se cruza. Una clave de solicitud hace seguros los reintentos; una revisión de la reserva detecta cambios concurrentes. El cálculo puro de horarios se comparte entre navegador y servidor en `functions/shared`.
-
 `business.settings` controla `timezone`, `bookingIntervalMinutes`, `minAdvanceMinutes`, `maxAdvanceDays`, `cancellationLimitHours` y `autoConfirmBookings`. Los negocios nuevos usan 15 minutos de intervalo, 60 minutos de anticipación mínima, 90 días máximos, 24 horas para cancelar/reprogramar y confirmación manual. Reprogramar vuelve a aplicar la política de confirmación y el precio/duración vigente; un cambio de precio durante el formulario exige revisar de nuevo la disponibilidad. Una cita solo puede finalizarse después de su fin y marcarse no asistida después de su inicio. Las reservas finalizadas, canceladas y no asistidas no admiten nuevos cambios.
-
 La disponibilidad del cliente se actualiza al cambiar la selección, cada 15 segundos y al recuperar el foco; el guardado siempre la vuelve a validar. Crear un bloqueo no cancela automáticamente citas existentes. Las consultas del backend admiten hasta 2000 documentos por conjunto consultado; si se supera ese volumen, se detienen con un mensaje y requieren ampliar la estrategia de consulta/archivo. No se omiten citas silenciosamente.
-
 ### Publicar sin facturación: Render + Firebase Hosting
-
 Repositorio: [Stif-creator/sistema-reservas-citas](https://github.com/Stif-creator/sistema-reservas-citas). Los archivos nuevos deben estar subidos a la rama que conectes: Render no puede desplegar cambios que solo existen en tu computadora. Esta preparación no realiza commits ni publica servicios automáticamente.
-
 1. En Render, conecta el repositorio que contiene estos cambios y crea un **Web Service** gratuito. `render.yaml` también permite crearlo como Blueprint. Para configuración manual: Root Directory `functions`, Build Command `npm ci`, Start Command `node server.js`, Health Check Path `/health`, Node.js 22 (definido en `functions/package.json`). No se necesita disco ni base de datos en Render.
 2. En Firebase → Configuración del proyecto → Cuentas de servicio, genera la clave privada del Admin SDK. En Render → Environment → **Secret Files**, crea `firebase-service-account.json` con ese JSON. No lo guardes en el repositorio ni en variables `VITE_*`. Render lo monta en `/etc/secrets/firebase-service-account.json`.
 3. Configura estas variables **del servidor en Render**:
-
    ```dotenv
    NODE_ENV=production
    GCLOUD_PROJECT=sistema-reservas-jf745-2026
    GOOGLE_APPLICATION_CREDENTIALS=/etc/secrets/firebase-service-account.json
    ALLOWED_ORIGINS=https://sistema-reservas-jf745-2026.web.app,https://sistema-reservas-jf745-2026.firebaseapp.com
-   ```
-
    Usa el ID real del proyecto y los dominios reales de Hosting, sin barra final; agrega el dominio personalizado si lo configuras. `PORT` lo asigna Render. No configures variables de emuladores en Render. Si usas Blueprint, agrega el Secret File y vuelve a desplegar antes de probar la API.
 4. Despliega Render y comprueba `https://TU-SERVICIO.onrender.com/health`. Para probar contra Firebase real desde el frontend local, agrega también `http://localhost:5173` y/o `http://127.0.0.1:5173` a `ALLOWED_ORIGINS`. Un origen autorizado no sustituye la autenticación ni los permisos.
 5. Configura el frontend en `.env` (conserva sus variables Firebase):
-
    ```dotenv
    VITE_BOOKING_ENABLED=true
    VITE_BOOKING_PROVIDER=http
    VITE_BOOKING_API_URL=https://TU-SERVICIO.onrender.com
    ```
-
 6. Una vez operativo el servidor, publica reglas, índices y frontend **sin desplegar Functions**:
-
    ```sh
    npx firebase login
    npx firebase deploy --only firestore:rules,firestore:indexes --project sistema-reservas-jf745-2026
    npm run build
    npx firebase deploy --only hosting --project sistema-reservas-jf745-2026
    ```
-
    Usa Firebase Hosting clásico. Si es la primera publicación, habilita Hosting en la consola del proyecto. Comprueba los dominios en Authentication → Settings → Authorized domains. Espera a que los índices estén listos y prueba una reserva, su confirmación y cancelación con cuentas del mismo negocio. No ejecutes `firebase deploy` sin `--only`: el repositorio conserva la configuración opcional de Functions.
-
 Render gratuito se suspende tras 15 minutos sin tráfico y puede tardar alrededor de un minuto en despertar. La interfaz espera hasta 120 segundos; si no recibe respuesta conserva la clave de la operación para poder reintentar sin duplicarla. Los planes gratuitos tienen cuotas y no garantizan disponibilidad continua. Referencias: [Render gratuito](https://render.com/docs/free), [configuración de Render](https://render.com/docs/blueprint-spec), [Firebase Admin SDK](https://firebase.google.com/docs/admin/setup) y [verificación de tokens](https://firebase.google.com/docs/auth/admin/verify-id-tokens).
-
 Para ejecutar la API localmente contra Firebase real, copia `functions/.env.example` a `.env.server` en la raíz, completa la ruta privada de credenciales y ejecuta `npm run server` en otra terminal. Configura `VITE_BOOKING_API_URL=http://localhost:3001` en el frontend. Esta modalidad sí utiliza datos reales; `npm run demo` es la alternativa aislada.
-
 ### Volver a Cloud Functions después de configurar Blaze
-
 Cloud Functions requiere el plan Blaze para desplegarse; el uso de emuladores no lo requiere ([documentación oficial](https://firebase.google.com/docs/functions/get-started)). No se habilita facturación desde este repositorio. Después de configurar el plan en el proyecto correcto:
-
 ```sh
 npx firebase deploy --only functions:booking --config firebase.production.json --project sistema-reservas-jf745-2026
 npx firebase deploy --only firestore:rules --config firebase.production.json --project sistema-reservas-jf745-2026

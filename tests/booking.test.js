@@ -150,6 +150,10 @@ test('Sprint 3 notifications are atomic and reminders follow settings, reschedul
   let reminder = (await db.doc(`notifications/reminder_${result.id}`).get()).data()
   assert.equal(reminder.visibleAt.toMillis(), f.time('10:00') - 48*3600000)
   await f.call(f.users.client, { action:'reschedule', reservationId:result.id, revision:1, date:f.date, startAt:f.time('11:00'), expectedPrice:100, expectedDuration:30, requestId:randomUUID() })
+  await f.call(f.users.client, { action:'notificationReadAll' })
+  const allNotices = (await db.collection('notifications').where('businessId', '==', f.businessId).get()).docs.map(item => ({ id:item.id, ...item.data() }))
+  assert(allNotices.filter(item => item.recipientUserId === f.users.client).every(item => item.read === true))
+  assert(allNotices.filter(item => item.recipientUserId !== f.users.client).some(item => item.read === false))
   reminder = (await db.doc(`notifications/reminder_${result.id}`).get()).data()
   assert.equal(reminder.visibleAt.toMillis(), f.time('11:00') - 48*3600000)
   for (const hours of [24, 1]) {

@@ -22,6 +22,7 @@
 .reservation-page .reservation-timezone { margin-top:12px; color:var(--reservation-muted); font-size:11px; }
 .reservation-page .reservation-timezone strong { color:#35445e; font-weight:600; }
 .reservation-page .reservation-range-error { margin-top:8px; color:#a82d36; font-size:12px; }
+.reservation-page .reservation-index-notice { margin-top:8px; padding:9px 11px; border:1px solid #f2dda1; border-radius:8px; background:#fff9e8; color:#684c0b; font-size:12px; }
 .reservation-page .reservation-filter-actions { display:flex; justify-content:flex-end; margin-top:12px; }
 .reservation-page .reservation-filter-actions .booking-button { min-height:40px; padding:9px 16px; }
 .reservation-page .reservation-results-heading { padding:17px 0 2px; }

@@ -14,7 +14,7 @@ const rows = snap => {
 const ms = value => value?.toMillis?.() ?? value
 const serial = value => value instanceof Timestamp ? value.toMillis() : Array.isArray(value) ? value.map(serial) : value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).map(([k, v]) => [k, serial(v)])) : value
 const scoped = (db, collection, businessId) => db.collection(collection).where('businessId', '==', businessId).limit(2001)
-export const engagementActions = ['hub', 'waitlist', 'favorite', 'wait', 'unwait', 'review', 'clients', 'clientUpdate', 'promotionSave', 'reminderSave', 'notificationRead']
+export const engagementActions = ['hub', 'waitlist', 'favorite', 'wait', 'unwait', 'review', 'clients', 'clientUpdate', 'promotionSave', 'reminderSave', 'notificationRead', 'notificationReadAll']
 
 export function discountedService(service, promotions, now = Date.now()) {
   const valid = promotions.filter(p => p.isActive && Number.isInteger(p.percent) && p.percent >= 1 && p.percent <= 90 && p.serviceId === service.id && ms(p.startAt) <= now && ms(p.endAt) > now)
@@ -82,6 +82,17 @@ export async function executeEngagement(db, uid, input, actor) {
       tx.update(ref, { read: true, readAt: stamp })
     })
     return { ok: true }
+  }
+  if (action === 'notificationReadAll') {
+    const snapshot = await scoped(db, 'notifications', businessId).where('recipientUserId', '==', uid).get()
+    if (snapshot.size > 2000) fail('resource-exhausted', 'Hay demasiados avisos para marcar en una sola operación.')
+    const unread = snapshot.docs.filter(item => item.data().read !== true)
+    for (let offset = 0; offset < unread.length; offset += 450) {
+      const batch = db.batch()
+      for (const item of unread.slice(offset, offset + 450)) batch.update(item.ref, { read: true, readAt: stamp })
+      await batch.commit()
+    }
+    return { ok: true, updated: unread.length }
   }
   if (action === 'favorite') {
     client()
@@ -224,13 +235,13 @@ export async function executeEngagement(db, uid, input, actor) {
 }
 
 export function reminderFor(r, hours, stamp) {
-  return { businessId: r.businessId, recipientUserId: r.clientUserId, reservationId: r.id, type: 'reminder', title: `Recordatorio: ${r.serviceName}`, message: hours === 1 ? 'Tu cita es en menos de una hora. Consulta el detalle.' : `Tu cita se aproxima: recordatorio de ${hours} horas. Consulta el detalle.`, visibleAt: Timestamp.fromMillis(Math.max(stamp.toMillis(), ms(r.startAt) - hours * 3600000)), expiresAt: r.startAt, read: false, createdAt: stamp }
+  return { businessId: r.businessId, recipientUserId: r.clientUserId, reservationId: r.id, type: 'reminder', title: `Recordatorio: ${r.serviceName}`, message: hours === 1 ? 'Tu cita es en menos de una hora. Consulta el detalle.' : `Tu cita se aproxima: recordatorio de ${hours} horas. Consulta el detalle.`, serviceName: r.serviceName || '', professionalName: r.professionalName || '', appointmentStartAt: r.startAt, visibleAt: Timestamp.fromMillis(Math.max(stamp.toMillis(), ms(r.startAt) - hours * 3600000)), expiresAt: r.startAt, read: false, createdAt: stamp }
 }
 
 export function bookingNotices(db, tx, reservation, revision, action, hours, stamp, ownerId) {
   const labels = { pending: 'pendiente', confirmed: 'confirmada', cancelled: 'cancelada', completed: 'finalizada', no_show: 'no asistida' }
   for (const recipientUserId of new Set([reservation.clientUserId, reservation.professionalUserId, ownerId].filter(Boolean))) {
-    tx.set(db.doc(`notifications/${reservation.id}_${revision}_${recipientUserId}`), { businessId: reservation.businessId, recipientUserId, reservationId: reservation.id, type: 'change', title: action === 'reschedule' ? 'Cita reprogramada' : `Cita ${labels[reservation.status]}`, message: `${reservation.serviceName} · ${reservation.professionalName}`, read: false, visibleAt: stamp, createdAt: stamp })
+    tx.set(db.doc(`notifications/${reservation.id}_${revision}_${recipientUserId}`), { businessId: reservation.businessId, recipientUserId, reservationId: reservation.id, type: 'change', title: action === 'reschedule' ? 'Cita reprogramada' : `Cita ${labels[reservation.status]}`, message: `${reservation.serviceName} · ${reservation.professionalName}`, serviceName: reservation.serviceName || '', professionalName: reservation.professionalName || '', appointmentStartAt: reservation.startAt, status: reservation.status, read: false, visibleAt: stamp, createdAt: stamp })
   }
   scheduleReminders(db, tx, reservation, hours, stamp)
 }
