@@ -96,16 +96,77 @@ export async function executeEngagement(db, uid, input, actor) {
   }
   if (action === 'wait' || action === 'unwait') {
     client()
-    if (!id(input.serviceId) || !id(input.professionalId) || !/^\d{4}-\d{2}-\d{2}$/.test(input.date || '')) fail('invalid-argument', 'Selecciona servicio, profesional y fecha.')
-    const key = createHash('sha256').update(`${businessId}:${uid}:${input.serviceId}:${input.professionalId}:${input.date}`).digest('hex')
+    const professionalId = input.professionalId === 'none' || input.professionalId === '' || input.professionalId == null ? null : input.professionalId
+    if (!id(input.serviceId) || (professionalId && !id(professionalId)) || !/^\d{4}-\d{2}-\d{2}$/.test(input.date || '')) fail('invalid-argument', 'Selecciona servicio y fecha válidos.')
+    const normalizedDate = new Date(`${input.date}T12:00:00Z`)
+    if (Number.isNaN(normalizedDate.getTime()) || normalizedDate.toISOString().slice(0, 10) !== input.date) fail('invalid-argument', 'Selecciona una fecha válida.')
+    const key = createHash('sha256').update(`${businessId}:${uid}:${input.serviceId}:${professionalId || 'none'}:${input.date}`).digest('hex')
     const ref = db.doc(`waitingList/${key}`)
     if (action === 'unwait') { await ref.delete(); return { ok: true } }
-    const service = record(await db.doc(`services/${input.serviceId}`).get())
-    const professional = record(await db.doc(`professionals/${input.professionalId}`).get())
-    if (service?.businessId !== businessId || !service.isActive || !service.isPublic || professional?.businessId !== businessId || !professional.isActive || !professional.serviceIds?.includes(input.serviceId)) fail('failed-precondition', 'El servicio o profesional no está disponible.')
-    const day = Date.parse(`${input.date}T23:59:59Z`)
-    if (!Number.isFinite(day) || day < Date.now() || day > Date.now() + 366 * 86400000) fail('invalid-argument', 'Selecciona una fecha futura dentro del próximo año.')
-    await ref.set({ businessId, userId: uid, serviceId: input.serviceId, professionalId: input.professionalId, date: input.date, serviceName: service.name, professionalName: professional.displayName || 'Profesional', createdAt: stamp })
+    const zone = actor.business.settings?.timezone || 'America/La_Paz'
+    let today
+    try {
+      today = new Intl.DateTimeFormat('en-CA', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(Date.now())
+    } catch {
+      fail('failed-precondition', 'La zona horaria del negocio no es válida. Contacta al administrador.')
+    }
+    const requestedDay = Date.parse(`${input.date}T00:00:00Z`)
+    const todayDay = Date.parse(`${today}T00:00:00Z`)
+    if (input.date <= today || requestedDay > todayDay + 366 * 86400000) fail('invalid-argument', 'Selecciona una fecha futura dentro del próximo año.')
+    const serviceRef = db.doc(`services/${input.serviceId}`)
+    const professionalRef = professionalId ? db.doc(`professionals/${professionalId}`) : null
+    const membersQuery = scoped(db, 'memberships', businessId)
+    const superadminsQuery = db.collection('users').where('globalRole', '==', 'superadmin')
+    await db.runTransaction(async tx => {
+      const existing = record(await tx.get(ref))
+      if (existing) {
+        if (existing.userId !== uid || existing.businessId !== businessId) fail('permission-denied', 'Solicitud no disponible.')
+        return
+      }
+      const [service, professional, members, superadmins] = await Promise.all([
+        tx.get(serviceRef).then(record),
+        professionalRef ? tx.get(professionalRef).then(record) : Promise.resolve(null),
+        tx.get(membersQuery),
+        tx.get(superadminsQuery),
+      ])
+      if (members.size > 2000) fail('resource-exhausted', 'Demasiados miembros para notificar esta solicitud. Contacta al administrador.')
+      if (service?.businessId !== businessId || !service.isActive || !service.isPublic) fail('failed-precondition', 'El servicio no está disponible.')
+      if (professionalId && (professional?.businessId !== businessId || !professional.isActive || !professional.serviceIds?.includes(input.serviceId) || !id(professional.userId))) fail('failed-precondition', 'El profesional no está disponible para este servicio.')
+      const adminIds = members.docs
+        .map(doc => record(doc))
+        .filter(member => member.role === 'admin' && member.status === 'active' && id(member.userId))
+        .map(member => member.userId)
+      const adminUsers = await Promise.all([...new Set(adminIds)].map(userId => tx.get(db.doc(`users/${userId}`)).then(record)))
+      const recipientIds = new Set(adminUsers.filter(user => user?.status === 'active').map(user => user.id))
+      if (professionalId) {
+        const [professionalMember, professionalUser] = await Promise.all([
+          tx.get(db.doc(`memberships/${businessId}_${professional.userId}`)).then(record),
+          tx.get(db.doc(`users/${professional.userId}`)).then(record),
+        ])
+        if (professionalMember?.role !== 'professional' || professionalMember.status !== 'active' || professionalUser?.status !== 'active') fail('failed-precondition', 'El profesional no tiene una cuenta activa.')
+        recipientIds.add(professional.userId)
+      }
+      for (const doc of superadmins.docs) if (doc.data().status === 'active') recipientIds.add(doc.id)
+      recipientIds.delete(uid)
+      const clientName = fullName(actor.user) || 'Un cliente'
+      const professionalName = professional?.displayName || (professionalId ? 'Profesional' : 'Sin preferencia')
+      const dateLabel = new Intl.DateTimeFormat('es-BO', { dateStyle: 'long', timeZone: 'UTC' }).format(normalizedDate)
+      tx.create(ref, {
+        businessId, userId: uid, serviceId: input.serviceId, professionalId, date: input.date,
+        serviceName: service.name, professionalName, createdAt: stamp,
+      })
+      for (const recipientUserId of recipientIds) {
+        const notificationId = createHash('sha256').update(`${businessId}:${key}:${recipientUserId}`).digest('hex')
+        tx.create(db.doc(`notifications/${notificationId}`), {
+          businessId, recipientUserId, waitlistId: key, serviceId: input.serviceId,
+          serviceName: service.name, professionalId, professionalName,
+          clientName, date: input.date, type: 'waitlist',
+          title: 'Nueva solicitud de lista de espera',
+          message: `${clientName} registró interés en «${service.name}» para el ${dateLabel}${professionalId ? ` con ${professionalName}` : ''}.`,
+          visibleAt: stamp, createdAt: stamp, read: false,
+        })
+      }
+    })
     return { ok: true }
   }
   if (action === 'review') {

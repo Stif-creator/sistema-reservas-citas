@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { CalendarDays, Mail, Phone, RefreshCw, Scissors, UserRound, Users } from 'lucide-react'
 import DataList from '../components/ui/DataList'
 import Alert from '../components/ui/Alert'
@@ -32,6 +33,7 @@ function formatCreatedAt(value, timeZone) {
 export default function Waitlist() {
   const { membership, isSuperadmin } = useAuth()
   const { data, error, refreshing, reload } = useSprintData('waitlist')
+  const [searchParams] = useSearchParams()
   const [filter, setFilter] = useState('all')
   const [today, setToday] = useState('')
   const entries = Array.isArray(data) ? data : EMPTY_ENTRIES
@@ -44,6 +46,9 @@ export default function Waitlist() {
   }, [timeZone])
   const upcoming = useMemo(() => today ? entries.filter(entry => entry.date >= today) : [], [entries, today])
   const visible = filter === 'upcoming' ? upcoming : entries
+  const requestedId = searchParams.get('solicitud')
+  const requestedEntry = requestedId ? entries.find(entry => entry.id === requestedId) : null
+  const listItems = requestedId ? requestedEntry ? [requestedEntry] : [] : visible
   const isProfessional = membership.role === 'professional'
   const servicesRequested = new Set(entries.map(entry => entry.serviceId)).size
 
@@ -66,25 +71,33 @@ export default function Waitlist() {
       <button type="button" aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>Todas ({entries.length})</button>
       <button type="button" aria-pressed={filter === 'upcoming'} onClick={() => setFilter('upcoming')}>Fechas próximas ({upcoming.length})</button>
     </div>
+    {requestedId && requestedEntry && <p className="waitlist-request-context" role="status">Solicitud abierta desde una notificación. <Link to="/lista-espera">Volver a todas las solicitudes</Link></p>}
     {error && data === null
       ? null
       : refreshing && data === null
       ? <p role="status" className="panel-loading">Cargando solicitudes de espera…</p>
-      : !error && visible.length === 0
-        ? <div className="waitlist-empty"><span><CalendarDays size={24} /></span><h2>{entries.length ? 'No hay fechas próximas' : 'Todavía no hay solicitudes'}</h2><p>{entries.length ? 'Las solicitudes anteriores siguen disponibles en el filtro «Todas».' : 'Cuando un cliente deje sus datos en la lista de espera, aparecerá aquí para que el equipo pueda contactarlo.'}</p></div>
-        : <DataList label="Solicitudes de espera" items={visible} searchText={entry => `${entry.clientName} ${entry.clientPhone} ${entry.clientEmail} ${entry.serviceName} ${entry.professionalName} ${entry.date}`}>
-          {rows => <div className="waitlist-list">{rows.map(entry => <article className="waitlist-card" key={entry.id}>
-            <div className="waitlist-client-icon"><UserRound size={21} /></div>
-            <div className="waitlist-client"><h2>{entry.clientName || 'Cliente'}</h2><p>{entry.serviceName}</p><span>{entry.professionalName}</span></div>
-            <div className="waitlist-date"><CalendarDays size={17} /><div><strong>{formatDate(entry.date)}</strong><small>Fecha de interés, no es una reserva</small></div></div>
-            <div className="waitlist-contact">
-              {entry.clientPhone && <a href={`tel:${entry.clientPhone}`}><Phone size={15} />{entry.clientPhone}</a>}
-              {entry.clientEmail && <a href={`mailto:${encodeURIComponent(entry.clientEmail)}?subject=${encodeURIComponent(`Consulta sobre ${entry.serviceName}`)}`}><Mail size={15} />Contactar por correo</a>}
-              {!entry.clientPhone && !entry.clientEmail && <span>El cliente no tiene contacto disponible.</span>}
-            </div>
-            <p className="waitlist-created">{formatCreatedAt(entry.createdAt, timeZone) ? `Registrada ${formatCreatedAt(entry.createdAt, timeZone)}` : 'Solicitud registrada'}</p>
-          </article>)}</div>}
-        </DataList>}
+      : !error && listItems.length === 0
+        ? <div className="waitlist-empty"><span><CalendarDays size={24} /></span><h2>{requestedId ? 'Solicitud no disponible' : entries.length ? 'No hay fechas próximas' : 'Todavía no hay solicitudes'}</h2><p>{requestedId ? 'No encontramos esta solicitud entre las que puedes consultar. Puede haberse retirado o pertenecer a otro negocio.' : entries.length ? 'Las solicitudes anteriores siguen disponibles en el filtro «Todas».' : 'Cuando un cliente deje sus datos en la lista de espera, aparecerá aquí para que el equipo pueda contactarlo.'}</p>{requestedId && <Link to="/lista-espera">Volver a todas las solicitudes</Link>}</div>
+        : requestedEntry
+          ? <div className="waitlist-list"><WaitlistCard entry={requestedEntry} timeZone={timeZone} /></div>
+          : <DataList label="Solicitudes de espera" items={listItems} searchText={entry => `${entry.clientName} ${entry.clientPhone} ${entry.clientEmail} ${entry.serviceName} ${entry.professionalName} ${entry.date}`}>
+            {rows => <div className="waitlist-list">{rows.map(entry => <WaitlistCard key={entry.id} entry={entry} timeZone={timeZone} />)}</div>}
+          </DataList>}
     {isSuperadmin && <p className="waitlist-platform-note">Las solicitudes pertenecen al negocio seleccionado. La lista no muestra solicitudes de otros negocios.</p>}
   </section>
+}
+
+function WaitlistCard({ entry, timeZone }) {
+  const registeredAt = formatCreatedAt(entry.createdAt, timeZone)
+  return <article className="waitlist-card" id={`waitlist-${entry.id}`}>
+    <div className="waitlist-client-icon"><UserRound size={21} /></div>
+    <div className="waitlist-client"><h2>{entry.clientName || 'Cliente'}</h2><p>{entry.serviceName}</p><span>{entry.professionalName}</span></div>
+    <div className="waitlist-date"><CalendarDays size={17} /><div><strong>{formatDate(entry.date)}</strong><small>Fecha de interés, no es una reserva</small></div></div>
+    <div className="waitlist-contact">
+      {entry.clientPhone && <a href={`tel:${entry.clientPhone}`}><Phone size={15} />{entry.clientPhone}</a>}
+      {entry.clientEmail && <a href={`mailto:${encodeURIComponent(entry.clientEmail)}?subject=${encodeURIComponent(`Consulta sobre ${entry.serviceName}`)}`}><Mail size={15} />Contactar por correo</a>}
+      {!entry.clientPhone && !entry.clientEmail && <span>El cliente no tiene contacto disponible.</span>}
+    </div>
+    <p className="waitlist-created">{registeredAt ? `Registrada ${registeredAt}` : 'Solicitud registrada'}</p>
+  </article>
 }

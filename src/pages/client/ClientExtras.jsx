@@ -247,8 +247,8 @@ function WaitForm({ services, professionals, settings, disabled, busy, error, su
     event.preventDefault()
     const issue = dateError(date, minDate, maxDate)
     setDateIssue(issue)
-    if (issue || !serviceId || !professionalId) return
-    if (await onSubmit({ serviceId, professionalId, date })) {
+    if (issue || !serviceId) return
+    if (await onSubmit({ serviceId, professionalId: professionalId === 'none' ? null : professionalId, date })) {
       setServiceId('')
       setProfessionalId('')
       setDate('')
@@ -261,7 +261,7 @@ function WaitForm({ services, professionals, settings, disabled, busy, error, su
       <option value="">Seleccionar servicio</option>{services.map(service => <option key={service.id} value={service.id}>{service.name}</option>)}
     </select></label>
     <label>Profesional<select required value={professionalId} onChange={event => setProfessionalId(event.target.value)} disabled={disabled || !serviceId || !availableProfessionals.length}>
-      <option value="">Seleccionar profesional</option>{availableProfessionals.map(professional => <option key={professional.id} value={professional.id}>{professional.displayName}</option>)}
+      <option value="">Seleccionar profesional</option><option value="none">Sin preferencia</option>{availableProfessionals.map(professional => <option key={professional.id} value={professional.id}>{professional.displayName}</option>)}
     </select></label>
     {serviceId && !availableProfessionals.length && <p className="client-extras-field-help">No hay profesionales activos asociados a este servicio.</p>}
     <label>Fecha de interés<input type="date" required min={minDate} max={maxDate} value={date} disabled={disabled} aria-describedby="client-extras-date-help" onChange={event => { setDate(event.target.value); setDateIssue('') }} /></label>

@@ -254,6 +254,13 @@ test('client layouts use real scoped data and live branding on desktop and mobil
     await page.locator('.client-extras-request-card').getByRole('button', { name: 'Retirar' }).click()
     await expect(page.locator('.client-extras-request-card')).toHaveCount(0)
     await expect(page.locator('.client-extras-summary').nth(2)).toContainText('0')
+    await waitForm.getByLabel('Servicio').selectOption(`${businessId}-massage`)
+    await waitForm.getByLabel('Profesional').selectOption('none')
+    await waitForm.getByLabel('Fecha de interés').fill(waitDateValue)
+    await waitForm.getByRole('button', { name: 'Registrar interés' }).click()
+    await expect(page.locator('.client-extras-request-card')).toContainText('Sin preferencia')
+    await page.locator('.client-extras-request-card').getByRole('button', { name: 'Retirar' }).click()
+    await expect(page.locator('.client-extras-request-card')).toHaveCount(0)
 
     await page.goto('/usuarios')
     await expect(page).toHaveURL(/\/cliente$/)

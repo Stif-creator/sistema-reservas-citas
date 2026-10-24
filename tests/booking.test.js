@@ -93,6 +93,49 @@ test('Sprint 3 favorites and waiting lists are owned, deduplicated and removable
   assert.equal((await f.call(f.users.client, { action:'hub' })).waiting.length, 0)
 })
 
+test('waitlist requests notify scoped admins, active superadmins and only the selected professional', async () => {
+  const f = await fixture()
+  const superadminId = `superadmin-${randomUUID()}`
+  await db.doc(`users/${superadminId}`).set({ status: 'active', globalRole: 'superadmin' })
+  const selected = { action: 'wait', serviceId: f.serviceId, professionalId: f.professionalId, date: f.date }
+
+  await Promise.all([f.call(f.users.client, selected), f.call(f.users.client, selected)])
+  const selectedWait = (await db.collection('waitingList').where('businessId', '==', f.businessId).get()).docs
+    .find(doc => doc.data().professionalId === f.professionalId)
+  assert(selectedWait)
+  let notices = await db.collection('notifications').where('waitlistId', '==', selectedWait.id).get()
+  const dateLabel = new Intl.DateTimeFormat('es-BO', { dateStyle: 'long', timeZone: 'UTC' }).format(new Date(`${f.date}T12:00:00Z`))
+  assert.deepEqual(new Set(notices.docs.map(doc => doc.data().recipientUserId)), new Set([f.users.admin, f.users.pro, superadminId]))
+  assert(notices.docs.every(doc => doc.data().businessId === f.businessId && doc.data().type === 'waitlist' && doc.data().read === false))
+  assert(notices.docs.every(doc => doc.data().message.includes('Consulta') && doc.data().message.includes(dateLabel)))
+  assert.equal((await f.call(superadminId, { action: 'hub' })).notifications.filter(item => item.waitlistId === selectedWait.id).length, 1)
+  assert.equal((await f.call(f.users.pro2, { action: 'hub' })).notifications.some(item => item.waitlistId === selectedWait.id), false)
+
+  await f.call(f.users.client, selected)
+  notices = await db.collection('notifications').where('waitlistId', '==', selectedWait.id).get()
+  assert.equal(notices.size, 3, 'idempotent duplicate requests must not create duplicate notices')
+
+  const noPreference = { ...selected, professionalId: null }
+  await f.call(f.users.client, noPreference)
+  const noPreferenceWait = (await db.collection('waitingList').where('businessId', '==', f.businessId).get()).docs
+    .find(doc => doc.data().professionalId === null)
+  assert(noPreferenceWait)
+  assert.equal(noPreferenceWait.data().professionalName, 'Sin preferencia')
+  notices = await db.collection('notifications').where('waitlistId', '==', noPreferenceWait.id).get()
+  assert.deepEqual(new Set(notices.docs.map(doc => doc.data().recipientUserId)), new Set([f.users.admin, superadminId]))
+
+  await rejects(f.call(f.users.client, { ...selected, date: '2026-02-30' }), 'invalid-argument')
+  await db.doc(`services/${f.serviceId}`).update({ isActive: false })
+  const nextDate = new Date(Date.parse(`${f.date}T12:00:00Z`) + 86400000).toISOString().slice(0, 10)
+  await rejects(f.call(f.users.client, { ...selected, date: nextDate }), 'failed-precondition')
+  await rejects(f.call(f.users.pro, selected), 'permission-denied')
+  await rejects(f.call(f.users.client, { ...selected, businessId: `other-${f.businessId}` }), 'permission-denied')
+  const unrelatedService = `unrelated-service-${f.businessId}`
+  await db.doc(`services/${unrelatedService}`).set({ businessId: f.businessId, name: 'Otro servicio', isActive: true, isPublic: true })
+  await rejects(f.call(f.users.client, { ...selected, serviceId: unrelatedService, date: nextDate }), 'failed-precondition')
+  assert.equal((await db.collection('notifications').where('businessId', '==', f.businessId).get()).size, 5)
+})
+
 test('Sprint 3 notifications are atomic and reminders follow settings, rescheduling and cancellation', async () => {
   const f = await fixture(), request = f.create()
   const result = await f.call(f.users.client, request)
