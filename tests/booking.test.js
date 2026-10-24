@@ -93,7 +93,7 @@ test('Sprint 3 favorites and waiting lists are owned, deduplicated and removable
   assert.equal((await f.call(f.users.client, { action:'hub' })).waiting.length, 0)
 })
 
-test('waitlist requests notify scoped admins, active superadmins and only the selected professional', async () => {
+test('waitlist requests notify scoped admins and only the selected professional', async () => {
   const f = await fixture()
   const superadminId = `superadmin-${randomUUID()}`
   await db.doc(`users/${superadminId}`).set({ status: 'active', globalRole: 'superadmin' })
@@ -105,15 +105,15 @@ test('waitlist requests notify scoped admins, active superadmins and only the se
   assert(selectedWait)
   let notices = await db.collection('notifications').where('waitlistId', '==', selectedWait.id).get()
   const dateLabel = new Intl.DateTimeFormat('es-BO', { dateStyle: 'long', timeZone: 'UTC' }).format(new Date(`${f.date}T12:00:00Z`))
-  assert.deepEqual(new Set(notices.docs.map(doc => doc.data().recipientUserId)), new Set([f.users.admin, f.users.pro, superadminId]))
+  assert.deepEqual(new Set(notices.docs.map(doc => doc.data().recipientUserId)), new Set([f.users.admin, f.users.pro]))
   assert(notices.docs.every(doc => doc.data().businessId === f.businessId && doc.data().type === 'waitlist' && doc.data().read === false))
   assert(notices.docs.every(doc => doc.data().message.includes('Consulta') && doc.data().message.includes(dateLabel)))
-  assert.equal((await f.call(superadminId, { action: 'hub' })).notifications.filter(item => item.waitlistId === selectedWait.id).length, 1)
+  assert.equal((await db.collection('notifications').where('recipientUserId', '==', superadminId).get()).size, 0)
   assert.equal((await f.call(f.users.pro2, { action: 'hub' })).notifications.some(item => item.waitlistId === selectedWait.id), false)
 
   await f.call(f.users.client, selected)
   notices = await db.collection('notifications').where('waitlistId', '==', selectedWait.id).get()
-  assert.equal(notices.size, 3, 'idempotent duplicate requests must not create duplicate notices')
+  assert.equal(notices.size, 2, 'idempotent duplicate requests must not create duplicate notices')
 
   const noPreference = { ...selected, professionalId: null }
   await f.call(f.users.client, noPreference)
@@ -122,7 +122,7 @@ test('waitlist requests notify scoped admins, active superadmins and only the se
   assert(noPreferenceWait)
   assert.equal(noPreferenceWait.data().professionalName, 'Sin preferencia')
   notices = await db.collection('notifications').where('waitlistId', '==', noPreferenceWait.id).get()
-  assert.deepEqual(new Set(notices.docs.map(doc => doc.data().recipientUserId)), new Set([f.users.admin, superadminId]))
+  assert.deepEqual(new Set(notices.docs.map(doc => doc.data().recipientUserId)), new Set([f.users.admin]))
 
   await rejects(f.call(f.users.client, { ...selected, date: '2026-02-30' }), 'invalid-argument')
   await db.doc(`services/${f.serviceId}`).update({ isActive: false })
@@ -133,7 +133,7 @@ test('waitlist requests notify scoped admins, active superadmins and only the se
   const unrelatedService = `unrelated-service-${f.businessId}`
   await db.doc(`services/${unrelatedService}`).set({ businessId: f.businessId, name: 'Otro servicio', isActive: true, isPublic: true })
   await rejects(f.call(f.users.client, { ...selected, serviceId: unrelatedService, date: nextDate }), 'failed-precondition')
-  assert.equal((await db.collection('notifications').where('businessId', '==', f.businessId).get()).size, 5)
+  assert.equal((await db.collection('notifications').where('businessId', '==', f.businessId).get()).size, 3)
 })
 
 test('Sprint 3 notifications are atomic and reminders follow settings, rescheduling and cancellation', async () => {
@@ -318,12 +318,30 @@ test('platform creates linked businesses, protects lifecycle and preserves histo
   await rejects(executeBooking(db, f.users.admin, create), 'permission-denied')
   await executeBooking(db, platform, create)
   await executeBooking(db, platform, create)
+  let platformNotices = await db.collection('notifications').where('recipientUserId', '==', platform).get()
+  assert.equal(platformNotices.size, 1, 'a retried business creation creates one global alert')
+  assert.equal(platformNotices.docs[0].data().type, 'platform')
+  assert.equal(platformNotices.docs[0].data().event, 'platformCreate')
+  assert.equal(platformNotices.docs[0].data().businessName, 'Test tenant')
+  assert.equal('clientName' in platformNotices.docs[0].data(), false)
+  await executeBooking(db, platform, { action: 'notificationRead', id: platformNotices.docs[0].id })
+  assert.equal((await db.doc(`notifications/${platformNotices.docs[0].id}`).get()).data().read, true)
+  const legacyPersonalRef = db.doc(`notifications/legacy-personal-${platform}`)
+  await legacyPersonalRef.set({ businessId: bid, recipientUserId: platform, type: 'change', read: false })
   assert.equal((await db.doc(`memberships/${bid}_${f.users.admin}`).get()).data().role, 'admin')
   assert.deepEqual((await db.doc(`users/${f.users.admin}`).get()).data().businessIds, [f.businessId, bid])
   assert.equal((await db.doc(`businesses/${bid}`).get()).data().settings.publicPageEnabled, false)
   const status = value => ({ action: 'platformStatus', businessId: bid, status: value, confirmName: 'Test tenant' })
   await rejects(executeBooking(db, platform, status('deleted')), 'failed-precondition')
   await executeBooking(db, platform, status('inactive'))
+  await executeBooking(db, platform, status('inactive'))
+  platformNotices = await db.collection('notifications').where('recipientUserId', '==', platform).where('type', '==', 'platform').get()
+  assert.equal(platformNotices.size, 2, 'repeating the same status does not create another alert')
+  assert(platformNotices.docs.some(doc => doc.data().event === 'platformStatus' && doc.data().status === 'inactive'))
+  await executeBooking(db, platform, { action: 'notificationReadAll' })
+  platformNotices = await db.collection('notifications').where('recipientUserId', '==', platform).where('type', '==', 'platform').get()
+  assert(platformNotices.docs.every(doc => doc.data().read === true))
+  assert.equal((await legacyPersonalRef.get()).data().read, false, 'global read-all leaves legacy personal notices untouched')
   await rejects(executeBooking(db, f.users.admin, { action: 'options', businessId: bid }), 'permission-denied')
   await db.doc(`reservations/${bid}-history`).set({ businessId: bid, status: 'confirmed' })
   await rejects(executeBooking(db, platform, status('deleted')), 'failed-precondition')

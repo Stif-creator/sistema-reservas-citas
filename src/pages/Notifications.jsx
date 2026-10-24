@@ -1,8 +1,7 @@
 import { useMemo, useState } from 'react'
-import { ArrowUpDown, ArrowUpRight, Bell, CalendarDays, Check, CheckCheck, CircleX, Clock3, ExternalLink, RefreshCw, Search, Settings2, ShieldCheck } from 'lucide-react'
+import { ArrowUpDown, Bell, CalendarDays, Check, CheckCheck, CircleX, Clock3, ExternalLink, RefreshCw, Search, Settings2, ShieldCheck, Building2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import DataList from '../components/ui/DataList'
-import PageHeader from '../components/ui/PageHeader'
 import Alert from '../components/ui/Alert'
 import useNotifications from '../hooks/useNotifications'
 import { useAuth } from '../context/auth-context'
@@ -14,6 +13,9 @@ import './notifications.css'
 
 function categoryOf(item) {
   if (item.type === 'reminder') return 'reminder'
+  if (item.type === 'platform') return 'platform'
+  if (item.type === 'waitlist') return 'waitlist'
+  if (item.type === 'block') return 'block'
   const title = `${item.title || ''} ${item.message || ''}`.toLocaleLowerCase('es')
   if (/cancel/.test(title)) return 'cancelled'
   if (/finaliz|complet/.test(title)) return 'completed'
@@ -26,20 +28,18 @@ function categoryOf(item) {
 const categoryLabels = {
   reminder: 'Recordatorio', confirmed: 'Confirmación', cancelled: 'Cancelación',
   completed: 'Finalización', rescheduled: 'Reprogramación', requested: 'Solicitud', change: 'Cambio',
-  block: 'Disponibilidad', waitlist: 'Lista de espera', other: 'Aviso',
+  block: 'Disponibilidad', waitlist: 'Lista de espera', platform: 'Plataforma', other: 'Aviso',
 }
 const categoryIcons = {
   reminder: Clock3, confirmed: CalendarDays, cancelled: CircleX, completed: CheckCheck,
-  rescheduled: ArrowUpDown, requested: Bell, change: Bell, block: CalendarDays, waitlist: Bell, other: Bell,
+  rescheduled: ArrowUpDown, requested: Bell, change: Bell, block: CalendarDays, waitlist: Bell, platform: Building2, other: Bell,
 }
 const normalize = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es')
 const eventMillis = item => dateMillis(item.appointmentStartAt || item.createdAt || item.visibleAt)
 const noticeMillis = item => dateMillis(item.visibleAt || item.createdAt)
 
-function ClientNotifications() {
-  const { business } = useClientBusiness()
+function NotificationsCenter({ role, zone = 'America/La_Paz' }) {
   const { items, now, error, busy, markingId, markRead, markAllRead, reload, loading } = useNotifications()
-  const zone = business?.settings?.timezone || 'America/La_Paz'
   const [readFilter, setReadFilter] = useState('all')
   const [typeFilter, setTypeFilter] = useState('all')
   const [search, setSearch] = useState('')
@@ -55,8 +55,7 @@ function ClientNotifications() {
   const stats = [
     { label: 'Total de avisos', value: items.length, icon: Bell, tone: 'brand' },
     { label: 'Sin leer', value: unread.length, icon: ShieldCheck, tone: 'unread' },
-    { label: 'Confirmaciones', value: items.filter(item => categoryOf(item) === 'confirmed').length, icon: Check, tone: 'success' },
-    { label: 'Recordatorios', value: items.filter(item => categoryOf(item) === 'reminder').length, icon: Clock3, tone: 'reminder' },
+    { label: 'Leídos', value: items.length - unread.length, icon: Check, tone: 'success' },
   ]
 
   function applyRange(from = dateFrom, to = dateTo) {
@@ -104,10 +103,18 @@ function ClientNotifications() {
     setDateFrom(''); setDateTo(''); setAppliedRange(null); setQuickRange('all'); setRangeError('')
   }
 
-  return <section className="client-notifications" aria-labelledby="notifications-title">
+  const description = role === 'superadmin'
+    ? 'Supervisa altas y cambios de estado de los negocios de la plataforma.'
+    : role === 'professional'
+      ? 'Consulta las citas y solicitudes de lista de espera asignadas a ti.'
+      : role === 'admin'
+        ? 'Gestiona las notificaciones relacionadas con las citas y la actividad de tu negocio.'
+        : 'Sigue los cambios de tus citas y los recordatorios en un solo lugar.'
+  const staffTheme = role !== 'client' ? { '--brand': 'var(--admin-accent, #5546f5)', '--brand-ink': '#302886', '--brand-secondary': '#eeedff', '--brand-surface': '#f7f8fc', '--brand-soft': '#eeedff', '--brand-accent': 'var(--admin-accent, #5546f5)', '--on-brand': '#fff' } : undefined
+  return <section className={`client-notifications role-${role} ${role === 'client' ? '' : 'booking-scope'}`} style={staffTheme} aria-labelledby="notifications-title">
     <div className="notice-page-heading">
-      <div><span className="client-overline"><Bell size={14} aria-hidden="true" />CENTRO DE NOTIFICACIONES</span><h1 id="notifications-title">Avisos y recordatorios</h1><p>Sigue los cambios de tus citas y los recordatorios en un solo lugar.</p></div>
-      <button className="notice-settings" type="button" onClick={reload} disabled={loading || busy}><Settings2 size={17} />{loading ? 'Actualizando…' : 'Actualizar avisos'}</button>
+      <div><span className="client-overline"><Bell size={14} aria-hidden="true" />{role === 'superadmin' ? 'AVISOS GLOBALES' : role === 'professional' ? 'AVISOS PERSONALES' : role === 'admin' ? 'AVISOS DEL NEGOCIO' : 'CENTRO DE NOTIFICACIONES'}</span><h1 id="notifications-title">Avisos y recordatorios</h1><p>{description}</p></div>
+      <div className="notice-heading-actions"><button className="notice-settings" type="button" onClick={reload} disabled={loading || busy}><Settings2 size={17} />{loading ? 'Actualizando…' : 'Actualizar avisos'}</button>{unread.length > 0 && <button className="notice-mark-all-button notice-mark-all-top" type="button" disabled={busy} onClick={markAllRead}>{markingId === '*' ? 'Marcando…' : <><CheckCheck size={16} />Marcar todos como leídos</>}</button>}</div>
     </div>
     {error && <Alert tone="error">{error}</Alert>}
     {loading && !error && <p className="client-loading" role="status">Cargando tus avisos…</p>}
@@ -127,23 +134,26 @@ function ClientNotifications() {
         </div>
       </section>
       <div className="notice-list-heading"><h2>Lista de avisos</h2><label>Ordenar por<select aria-label="Ordenar avisos" value={sort} onChange={event => setSort(event.target.value)}><option value="recent">Fecha (más reciente)</option><option value="oldest">Fecha (más antigua)</option></select></label></div>
-      {unread.length > 0 && <div className="notice-mark-all"><span>{unread.length} {unread.length === 1 ? 'aviso sin leer' : 'avisos sin leer'}</span><button type="button" className="notice-mark-all-button" disabled={busy} onClick={markAllRead}>{markingId === '*' ? 'Marcando…' : <><CheckCheck size={16} />Marcar todos como leídos</>}</button></div>}
-      {items.length === 0 ? <div className="notice-empty"><span><Bell size={23} aria-hidden="true" /></span><h2>Aún no tienes avisos</h2><p>Aquí aparecerán las actualizaciones y recordatorios de tus citas.</p></div>
+      {items.length === 0 ? <div className="notice-empty"><span><Bell size={23} aria-hidden="true" /></span><h2>Aún no tienes avisos</h2><p>{role === 'superadmin' ? 'Aquí aparecerán los eventos globales relevantes de la plataforma.' : 'Aquí aparecerán las actualizaciones y recordatorios que te corresponden.'}</p></div>
         : <DataList label="avisos" items={filtered} search={false} resetKey={`${readFilter}:${typeFilter}:${search}:${sort}:${appliedRange?.from || ''}:${appliedRange?.to || ''}`}>
           {rows => <div className="notice-list">{rows.map(item => {
             const category = categoryOf(item)
             const Icon = categoryIcons[category] || Bell
             const service = item.serviceName || (item.type === 'change' ? item.message?.split(' · ')[0] : '') || item.title?.replace(/^Recordatorio:\s*/i, '') || 'Tu cita'
             const professional = item.professionalName || (item.type === 'change' ? item.message?.split(' · ')[1] : '') || ''
-            const related = Boolean(item.reservationId)
+            const related = Boolean(item.reservationId || item.waitlistId || item.type === 'platform')
             const appointmentDate = item.appointmentStartAt || item.expiresAt || item.createdAt || item.visibleAt
             const status = item.status && reservationStatuses[item.status]
+            const destination = item.type === 'platform' ? '/plataforma/negocios'
+              : item.waitlistId ? `/lista-espera?solicitud=${encodeURIComponent(item.waitlistId)}`
+                : item.reservationId ? `${role === 'client' ? '/cliente' : ''}/reservas/${encodeURIComponent(item.reservationId)}` : ''
+            const actionLabel = item.type === 'platform' ? 'Ver negocio' : item.waitlistId ? 'Ver solicitud' : 'Ver cita'
             return <article key={item.id} className={`notice-row ${item.read ? 'is-read' : 'is-unread'} notice-row-${category}`}>
               <span className="notice-row-icon"><Icon size={21} aria-hidden="true" /></span>
               <div className="notice-copy"><h3>{item.title || 'Actualización de tu cita'} {!item.read && <span className="notice-new">Nuevo</span>}</h3><p className="notice-meta">{service}{professional ? ` · ${professional}` : ''}</p><p className="notice-message">{item.message}</p></div>
               <div className="notice-appointment-date"><span><CalendarDays size={14} aria-hidden="true" />{formatAppointmentDate(appointmentDate, zone)}</span><span><Clock3 size={14} aria-hidden="true" />{formatAppointmentDate(appointmentDate, zone, true)}</span></div>
               <div className="notice-row-state"><span className="notice-category">{categoryLabels[category] || 'Aviso'}</span>{status && <small>{status}</small>}</div>
-              <div className="notice-row-actions">{related && <Link className="notice-view" to={`/cliente/reservas/${encodeURIComponent(item.reservationId)}`} onClick={() => { if (!item.read) markRead(item.id) }}><ExternalLink size={14} />Ver cita</Link>}{!item.read && <button className="notice-mark-read" type="button" disabled={busy} onClick={() => markRead(item.id)} aria-label={`Marcar como leído: ${item.title || 'aviso'}`}>{markingId === item.id ? 'Guardando…' : <><Check size={15} />Marcar leído</>}</button>}</div>
+              <div className="notice-row-actions">{related && <Link className="notice-view" to={destination} onClick={() => { if (!item.read) markRead(item.id) }}><ExternalLink size={14} />{actionLabel}</Link>}{!item.read && <button className="notice-mark-read" type="button" disabled={busy} onClick={() => markRead(item.id)} aria-label={`Marcar como leído: ${item.title || 'aviso'}`}>{markingId === item.id ? 'Guardando…' : <><Check size={15} />Marcar leído</>}</button>}</div>
               {!item.read && <span className="notice-unread-dot" aria-label="No leído" />}
             </article>
           })}</div>}
@@ -153,17 +163,13 @@ function ClientNotifications() {
 }
 
 export default function Notifications() {
-  const { membership } = useAuth()
-  if (membership.role === 'client') return <ClientNotifications />
-  return <StaffNotifications />
+  const { membership, isSuperadmin } = useAuth()
+  if (isSuperadmin) return <NotificationsCenter role="superadmin" />
+  if (membership?.role === 'client') return <ClientNotifications />
+  return <NotificationsCenter role={membership?.role || 'admin'} />
 }
 
-function StaffNotifications() {
-  const { items, error, busy, markingId, markRead, reload, loading } = useNotifications()
-  const base = ''
-  return <section className="booking-scope space-y-4"><PageHeader title="Avisos y recordatorios" description="Sigue los cambios de tus citas y los recordatorios en un solo lugar." /><button className="booking-button secondary" disabled={loading || busy} onClick={reload}>{loading ? 'Conectando con el servidor…' : 'Actualizar avisos'}</button>
-    {error && <Alert tone="error">{error}</Alert>}{loading && !error && <p role="status" className="panel-loading">Cargando avisos…</p>}
-    {!loading && !error && items.length === 0 && <div className="panel-empty"><Bell size={28} aria-hidden="true" /><div><h2>No tienes avisos por ahora.</h2><p>Aquí aparecerán los cambios y recordatorios de tus citas.</p></div></div>}
-    {items.length > 0 && <DataList label="Avisos" items={items || []} searchText={n => `${n.title} ${n.message} ${n.read ? 'Leído' : 'Nuevo'}`}>{rows => <>{rows.map(n => <article key={n.id} className={`booking-panel admin-notification ${n.read ? 'is-read' : 'is-new'}`}><span className="admin-notification-icon"><Bell size={21} aria-hidden="true" /></span><h2>{n.title} {!n.read && <small>· Nuevo</small>}</h2><p>{n.message}</p><div className="flex gap-4 flex-wrap">{n.reservationId && <Link to={`${base}/reservas/${encodeURIComponent(n.reservationId)}`} className="booking-button secondary"><ArrowUpRight size={15} />Ver cita</Link>}{!n.read && <button className="booking-button secondary" disabled={busy} onClick={() => markRead(n.id)}><CheckCheck size={15} />{markingId === n.id ? 'Guardando…' : 'Marcar como leído'}</button>}</div></article>)}</>}</DataList>}
-  </section>
+function ClientNotifications() {
+  const { business } = useClientBusiness()
+  return <NotificationsCenter role="client" zone={business?.settings?.timezone || 'America/La_Paz'} />
 }

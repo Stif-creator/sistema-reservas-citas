@@ -1,6 +1,14 @@
 {
   "indexes": [
     {
+      "collectionGroup": "notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "recipientUserId", "order": "ASCENDING" },
+        { "fieldPath": "type", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "businesses",
       "queryScope": "COLLECTION",
       "fields": [

@@ -123,7 +123,15 @@ export async function executeBooking(db, uid, input) {
   if (['platformCreate', 'platformStatus'].includes(action)) return executePlatform(db, uid, input)
   if (['blockCreate', 'blockApprove', 'blockReject', 'blockDelete'].includes(action)) return executeBlocks(db, uid, input, context)
   const reader = { get: ref => ref.get() }
-  if (engagementActions.includes(action)) return executeEngagement(db, uid, input, await context(db, reader, uid, businessId))
+  if (engagementActions.includes(action)) {
+    if (['notificationRead', 'notificationReadAll'].includes(action)) {
+      if (!uid) fail('unauthenticated', 'Inicia sesión para continuar.')
+      const user = record(await reader.get(db.doc(`users/${uid}`)))
+      if (user?.status === 'active' && user.globalRole === 'superadmin')
+        return executeEngagement(db, uid, input, { uid, user, member: { role: 'admin', businessId: null }, business: null, isSuperadmin: true })
+    }
+    return executeEngagement(db, uid, input, await context(db, reader, uid, businessId))
+  }
   if (action === 'options' || action === 'publicOptions') {
     const actor = action === 'publicOptions' ? await publicContext(db, reader, businessId) : await context(db, reader, uid, businessId)
     const [services, professionals, members, clients, promotions, reviews] = await Promise.all([

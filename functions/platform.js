@@ -32,6 +32,9 @@ export async function executePlatform(db, uid, input) {
     if (actor?.status !== 'active' || actor.globalRole !== 'superadmin') fail('permission-denied', 'Solo el superadministrador puede gestionar negocios.')
     const ref = db.doc(`businesses/${input.businessId}`)
     const existing = await tx.get(ref)
+    const supervisorSnapshot = await tx.get(db.collection('users').where('globalRole', '==', 'superadmin').limit(200))
+    const supervisors = supervisorSnapshot.docs.filter(doc => doc.data().status === 'active')
+    if (supervisorSnapshot.size === 200) fail('resource-exhausted', 'Hay demasiadas cuentas de supervisión para generar el aviso.')
     const stamp = FieldValue.serverTimestamp()
     if (input.action === 'platformCreate') {
       const name = typeof input.name === 'string' ? input.name.trim() : ''
@@ -52,10 +55,16 @@ export async function executePlatform(db, uid, input) {
       tx.create(db.doc(`memberships/${ref.id}_${owner.id}`), { businessId: ref.id, userId: owner.id, role: 'admin', status: 'active', permissions: {}, firstName: profile.firstName || '', lastName: profile.lastName || '', email, createdAt: stamp })
       if (newOwner) tx.create(owner.ref, { ...profile, id: owner.id, auth_uid: owner.id, globalRole: 'user', onboardingComplete: true, mustChangePassword: true, createdAt: stamp })
       tx.update(owner.ref, { businessIds: FieldValue.arrayUnion(ref.id), defaultBusinessId: ref.id, updatedAt: stamp })
+      const noticeRef = db.collection('notifications').doc(`platform_${createHash('sha256').update(`${ref.id}:created`).digest('hex')}`)
+      for (const supervisor of supervisors) tx.create(noticeRef.parent.doc(`${noticeRef.id}_${supervisor.id}`), {
+        businessId: ref.id, businessName: name, recipientUserId: supervisor.id, type: 'platform', event: 'platformCreate',
+        title: 'Nuevo negocio registrado', message: `${name} se registró en la plataforma.`, read: false, visibleAt: stamp, createdAt: stamp,
+      })
     } else {
       if (!existing.exists) fail('not-found', 'El negocio no existe.')
       const business = existing.data()
       if (!['active', 'inactive', 'deleted'].includes(input.status)) fail('invalid-argument', 'Estado inválido.')
+      if (business.status === input.status) return { ok: true, businessId: ref.id, unchanged: true }
       if (input.status === 'deleted') {
         if (business.status === 'active') fail('failed-precondition', 'Desactiva el negocio antes de eliminarlo.')
         if (input.confirmName !== business.name) fail('invalid-argument', 'Escribe el nombre exacto del negocio para confirmar.')
@@ -65,6 +74,12 @@ export async function executePlatform(db, uid, input) {
         if (pending.docs.some(d => ['pending', 'confirmed'].includes(d.data().status))) fail('failed-precondition', 'Resuelve las reservas pendientes o confirmadas antes de eliminar el negocio.')
       }
       tx.update(ref, { status: input.status, updatedAt: stamp, archivedAt: input.status === 'deleted' ? stamp : null })
+      const statusLabel = input.status === 'active' ? 'activado' : input.status === 'inactive' ? 'suspendido' : 'archivado'
+      const eventKey = db.collection('auditLogs').doc().id
+      for (const supervisor of supervisors) tx.create(db.collection('notifications').doc(`platform_${eventKey}_${supervisor.id}`), {
+        businessId: ref.id, businessName: business.name, recipientUserId: supervisor.id, type: 'platform', event: 'platformStatus',
+        status: input.status, title: `Negocio ${statusLabel}`, message: `${business.name} fue ${statusLabel}.`, read: false, visibleAt: stamp, createdAt: stamp,
+      })
     }
     tx.set(db.collection('auditLogs').doc(), { businessId: ref.id, actorUserId: uid, action: input.action, status: input.status || 'active', createdAt: stamp })
     return { ok: true, businessId: ref.id }

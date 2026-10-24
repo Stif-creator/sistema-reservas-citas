@@ -78,13 +78,18 @@ export async function executeEngagement(db, uid, input, actor) {
     const ref = db.doc(`notifications/${input.id}`)
     await db.runTransaction(async tx => {
       const value = record(await tx.get(ref))
-      if (value?.businessId !== businessId || value.recipientUserId !== uid) fail('permission-denied', 'Aviso no disponible.')
+      if (!value || value.recipientUserId !== uid || (actor.isSuperadmin
+        ? value.type !== 'platform'
+        : value.businessId !== businessId)) fail('permission-denied', 'Aviso no disponible.')
       tx.update(ref, { read: true, readAt: stamp })
     })
     return { ok: true }
   }
   if (action === 'notificationReadAll') {
-    const snapshot = await scoped(db, 'notifications', businessId).where('recipientUserId', '==', uid).get()
+    const source = actor.isSuperadmin
+      ? db.collection('notifications').where('recipientUserId', '==', uid).where('type', '==', 'platform')
+      : scoped(db, 'notifications', businessId).where('recipientUserId', '==', uid)
+    const snapshot = await source.limit(2001).get()
     if (snapshot.size > 2000) fail('resource-exhausted', 'Hay demasiados avisos para marcar en una sola operación.')
     const unread = snapshot.docs.filter(item => item.data().read !== true)
     for (let offset = 0; offset < unread.length; offset += 450) {
@@ -127,18 +132,16 @@ export async function executeEngagement(db, uid, input, actor) {
     const serviceRef = db.doc(`services/${input.serviceId}`)
     const professionalRef = professionalId ? db.doc(`professionals/${professionalId}`) : null
     const membersQuery = scoped(db, 'memberships', businessId)
-    const superadminsQuery = db.collection('users').where('globalRole', '==', 'superadmin')
     await db.runTransaction(async tx => {
       const existing = record(await tx.get(ref))
       if (existing) {
         if (existing.userId !== uid || existing.businessId !== businessId) fail('permission-denied', 'Solicitud no disponible.')
         return
       }
-      const [service, professional, members, superadmins] = await Promise.all([
+      const [service, professional, members] = await Promise.all([
         tx.get(serviceRef).then(record),
         professionalRef ? tx.get(professionalRef).then(record) : Promise.resolve(null),
         tx.get(membersQuery),
-        tx.get(superadminsQuery),
       ])
       if (members.size > 2000) fail('resource-exhausted', 'Demasiados miembros para notificar esta solicitud. Contacta al administrador.')
       if (service?.businessId !== businessId || !service.isActive || !service.isPublic) fail('failed-precondition', 'El servicio no está disponible.')
@@ -157,7 +160,6 @@ export async function executeEngagement(db, uid, input, actor) {
         if (professionalMember?.role !== 'professional' || professionalMember.status !== 'active' || professionalUser?.status !== 'active') fail('failed-precondition', 'El profesional no tiene una cuenta activa.')
         recipientIds.add(professional.userId)
       }
-      for (const doc of superadmins.docs) if (doc.data().status === 'active') recipientIds.add(doc.id)
       recipientIds.delete(uid)
       const clientName = fullName(actor.user) || 'Un cliente'
       const professionalName = professional?.displayName || (professionalId ? 'Profesional' : 'Sin preferencia')
