@@ -18,11 +18,12 @@ export function formatAppointmentDate(value, zone = 'America/La_Paz', timeOnly =
 }
 
 export const reservationStatuses = {
-  expired: 'Vencida sin confirmar', awaiting_closure: 'Pendiente de cierre',
+  expired: 'Vencida sin confirmar', awaiting_closure: 'Pendiente de cierre', in_progress: 'En curso',
   pending: 'Pendiente', confirmed: 'Confirmada', completed: 'Finalizada', cancelled: 'Cancelada', no_show: 'No asistida',
 }
 
 export function reservationDisplayStatus(item, now = Date.now()) {
+  if (item.status === 'confirmed' && dateMillis(item.startAt) <= now && dateMillis(item.endAt) > now) return 'in_progress'
   if (dateMillis(item.endAt) <= now) {
     if (item.status === 'pending') return 'expired'
     if (item.status === 'confirmed') return 'awaiting_closure'
