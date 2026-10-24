@@ -59,3 +59,13 @@ test('production administrator edits legacy service fields and they persist', as
   assert.equal((await getDoc(ref)).data().price, 125.5)
   await assertFails(updateDoc(doc(env.authenticatedContext('outsider').firestore(), 'services', 'demo-document'), { price: 1 }))
 })
+
+test('business location writes are scoped to admins and reject invalid or partial coordinates', async () => {
+  const location = { latitude: -16.4897, longitude: -68.1193, addressLine: 'Calle de prueba 123', city: 'La Paz', stateRegion: 'La Paz', countryCode: 'BO' }
+  await assertSucceeds(updateDoc(doc(env.authenticatedContext('owner').firestore(), 'businesses', 'studio'), { location }))
+  await assertFails(updateDoc(doc(env.authenticatedContext('client').firestore(), 'businesses', 'studio'), { location }))
+  await assertFails(updateDoc(doc(env.authenticatedContext('pro').firestore(), 'businesses', 'studio'), { location }))
+  await assertFails(updateDoc(doc(env.authenticatedContext('outsider').firestore(), 'businesses', 'studio'), { location }))
+  await assertFails(updateDoc(doc(env.authenticatedContext('owner').firestore(), 'businesses', 'studio'), { location: { ...location, latitude: 86 } }))
+  await assertFails(updateDoc(doc(env.authenticatedContext('owner').firestore(), 'businesses', 'studio'), { location: { ...location, longitude: null } }))
+})

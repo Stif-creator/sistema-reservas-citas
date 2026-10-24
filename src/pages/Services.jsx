@@ -27,9 +27,11 @@ import Button from '../components/ui/Button'
 import Alert from '../components/ui/Alert'
 import Badge from '../components/ui/Badge'
 import { Pencil } from 'lucide-react'
+import { useFeedback } from '../context/feedback-context'
 
 function Services() {
   const { membership } = useAuth()
+  const { confirm } = useFeedback()
   const businessId = membership?.businessId
 
   const [currencyCode, setCurrencyCode] = useState('')
@@ -146,8 +148,8 @@ function Services() {
     setSvcFieldErrors({})
   }
 
-  function loadServiceForEdit(service) {
-    if (!confirmDiscard()) return
+  async function loadServiceForEdit(service) {
+    if (!await confirmDiscard(document, confirm)) return
     setSvcEditingId(service.id)
     setSvcName(service.name ?? '')
     setSvcDescription(service.description ?? '')
@@ -274,7 +276,7 @@ function Services() {
   }
 
   async function toggleServiceActive(service) {
-    if (service.isActive && !window.confirm('Desactivar este registro? Dejará de estar disponible para nuevas reservas.')) return
+    if (service.isActive && !await confirm({ title: '¿Desactivar servicio?', description: 'Dejará de estar disponible para nuevas reservas.', confirmLabel: 'Desactivar servicio' })) return
     setSvcError('')
     try {
       await updateDoc(doc(db, 'services', service.id), {
@@ -513,7 +515,7 @@ function Services() {
                   {svcSaving ? 'Guardando...' : svcEditingId ? 'Guardar cambios' : 'Crear servicio'}
                 </Button>
                 {svcEditingId && (
-                  <Button type="button" variant="secondary" onClick={() => { if (confirmDiscard()) resetServiceForm() }} disabled={svcSaving || imageUploading}>
+                  <Button type="button" variant="secondary" onClick={async () => { if (await confirmDiscard(document, confirm)) resetServiceForm() }} disabled={svcSaving || imageUploading}>
                     Cancelar edición
                   </Button>
                 )}

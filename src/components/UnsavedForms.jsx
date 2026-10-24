@@ -2,19 +2,19 @@ import { useEffect, useRef } from 'react'
 import { useBlocker, useLocation } from 'react-router-dom'
 
 import { forms, values, dirty, confirmDiscard } from '../lib/unsavedForms'
+import { useFeedback } from '../context/feedback-context'
 
 export default function UnsavedForms({ children }) {
   const location = useLocation()
   const shown = useRef(false)
+  const { confirm } = useFeedback()
   const blocker = useBlocker(({ currentLocation, nextLocation }) => currentLocation.pathname !== nextLocation.pathname && [...forms.keys()].some(dirty))
   useEffect(() => { forms.clear() }, [location.pathname])
   useEffect(() => {
     if (blocker.state !== 'blocked' || shown.current) return
     shown.current = true
-    if (confirmDiscard()) blocker.proceed()
-    else blocker.reset()
-    shown.current = false
-  }, [blocker])
+    confirmDiscard(document, confirm).then(accepted => { if (accepted) blocker.proceed(); else blocker.reset() }).finally(() => { shown.current = false })
+  }, [blocker, confirm])
   useEffect(() => {
     function track(event) {
       const form = event.target.closest?.('.admin-shell form, .editor-dialog form, .admin-shell [data-draft]')

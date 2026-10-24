@@ -11,9 +11,11 @@ import { fieldControlClasses } from '../components/ui/fieldStyles'
 import Button from '../components/ui/Button'
 import Alert from '../components/ui/Alert'
 import Badge from '../components/ui/Badge'
+import { useFeedback } from '../context/feedback-context'
 
 export default function Categories() {
   const { membership } = useAuth()
+  const { confirm } = useFeedback()
   const businessId = membership?.businessId
   // --- Categorías ---
   const [categories, setCategories] = useState([])
@@ -66,8 +68,8 @@ export default function Categories() {
     setCatFieldErrors({})
   }
 
-  function loadCategoryForEdit(category) {
-    if (!confirmDiscard()) return
+  async function loadCategoryForEdit(category) {
+    if (!await confirmDiscard(document, confirm)) return
     setCatEditingId(category.id)
     setCatName(category.name ?? '')
     setCatDescription(category.description ?? '')
@@ -132,7 +134,7 @@ export default function Categories() {
   }
 
   async function toggleCategoryActive(category) {
-    if (category.isActive && !window.confirm('Desactivar este registro? Dejará de estar disponible para nuevas reservas.')) return
+    if (category.isActive && !await confirm({ title: '¿Desactivar categoría?', description: 'Dejará de estar disponible para nuevas reservas.', confirmLabel: 'Desactivar categoría' })) return
     setCatError('')
     try {
       await updateDoc(doc(db, 'categories', category.id), {
@@ -242,7 +244,7 @@ export default function Categories() {
               {catSaving ? 'Guardando...' : catEditingId ? 'Guardar cambios' : 'Crear categoría'}
             </Button>
             {catEditingId && (
-              <Button type="button" variant="secondary" onClick={() => { if (confirmDiscard()) resetCategoryForm() }}>
+              <Button type="button" variant="secondary" onClick={async () => { if (await confirmDiscard(document, confirm)) resetCategoryForm() }}>
                 Cancelar edición
               </Button>
             )}

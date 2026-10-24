@@ -21,6 +21,14 @@ service cloud.firestore {
         && hexColor(appearance.accentColor)
         && hexColor(appearance.surfaceColor);
     }
+    function validLocation(location) {
+      return location == null || (location is map
+        && ((location.get('latitude', null) == null && location.get('longitude', null) == null)
+          || (location.get('latitude', null) is number
+            && location.get('longitude', null) is number
+            && location.latitude >= -85 && location.latitude <= 85
+            && location.longitude >= -180 && location.longitude <= 180)));
+    }
     function publicBusiness(bid) {
       let business = get(/databases/$(database)/documents/businesses/$(bid)).data;
       return business.status == 'active' && business.settings.publicPageEnabled == true;
@@ -99,6 +107,8 @@ service cloud.firestore {
         && (superadmin() || !request.resource.data.diff(resource.data).affectedKeys().hasAny(['name', 'appearance']))
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['appearance'])
           || (superadmin() && validAppearance(request.resource.data.appearance)))
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['location'])
+          || validLocation(request.resource.data.location))
         && request.resource.data.diff(resource.data).affectedKeys()
         .hasOnly(['name', 'description', 'about', 'logo', 'cover', 'appearance', 'contact', 'location', 'weeklyHours', 'settings', 'updatedAt']);
       allow delete: if signedIn() && resource.data.ownerUserId == request.auth.uid && recent(resource.data) && provisioning();

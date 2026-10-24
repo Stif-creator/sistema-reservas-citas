@@ -1,0 +1,18 @@
+.feedback-toasts { position: fixed; z-index: 120; top: 1rem; right: 1rem; display: grid; gap: .625rem; width: min(25rem,calc(100vw - 2rem)); pointer-events: none; }
+.feedback-toast { display: flex; align-items: flex-start; gap: .75rem; padding: .9rem 1rem; border: 1px solid #dce4f1; border-left: 4px solid #3867ec; border-radius: .8rem; background: white; box-shadow: 0 12px 36px #192d501c; color: #253554; pointer-events: auto; animation: feedback-appear .18s ease-out; }
+.feedback-toast > svg { flex: none; margin-top: .1rem; color: #3867ec; }
+.feedback-toast-copy { flex: 1; min-width: 0; font-size: .875rem; }
+.feedback-toast-copy p { margin-top: .2rem; color: #60708d; line-height: 1.45; }
+.feedback-toast > button { padding: .15rem; border-radius: .35rem; color: #687792; }
+.feedback-toast > button:focus-visible,.feedback-dialog button:focus-visible { outline: 3px solid #8174ff; outline-offset: 2px; }
+.feedback-success { border-left-color: #11975c; }.feedback-success > svg { color: #11975c; }
+.feedback-error { border-left-color: #d12f35; }.feedback-error > svg { color: #d12f35; }
+.feedback-warning { border-left-color: #c87500; }.feedback-warning > svg { color: #c87500; }
+.feedback-dialog { width: min(calc(100% - 2rem), 28rem); max-width: 28rem; max-height: calc(100dvh - 2rem); margin: auto; padding: 1.5rem; overflow: auto; border: 1px solid #e3e9f4; border-radius: 1rem; background: white; color: #172541; box-shadow: 0 24px 70px #0c1b3833; }
+.feedback-dialog::backdrop { background: #12213b80; }
+.feedback-dialog-icon { display: grid; place-items: center; width: 3rem; height: 3rem; margin: 0 auto .9rem; border-radius: 1rem; background: #fff4dc; color: #c87500; }
+.feedback-dialog h2,.feedback-dialog > p { text-align: center; }.feedback-dialog h2 { font-size: 1.15rem; font-weight: 700; }.feedback-dialog > p { margin-top: .45rem; color: #60708d; line-height: 1.55; }
+.feedback-dialog-actions { display: flex; gap: .65rem; margin-top: 1.35rem; }.feedback-dialog-actions button { flex: 1; min-height: 2.75rem; padding: .55rem .8rem; border: 1px solid #dce4f1; border-radius: .65rem; font-weight: 600; }.feedback-cancel { background: white; color: #32435f; }.feedback-confirm { border-color: #5d4bff !important; background: #5d4bff; color: white; }
+@keyframes feedback-appear { from { opacity: 0; transform: translateY(-.35rem); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .feedback-toast { animation: none; } }
+@media (max-width: 480px) { .feedback-toasts { top: .5rem; right: .5rem; width: calc(100vw - 1rem); }.feedback-dialog { padding: 1.2rem; } }

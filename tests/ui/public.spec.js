@@ -136,8 +136,8 @@ test('owner registration, restricted branding, professional approval and logout 
   await page.getByRole('button', { name: 'Activar', exact: true }).click()
   await expect(professionalPage.getByRole('heading', { name: 'Hola, Luis' })).toBeVisible()
   await page.getByRole('button', { name: 'Más acciones' }).click()
-  page.once('dialog', dialog => dialog.accept())
   await page.getByRole('button', { name: 'Desactivar', exact: true }).click()
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Desactivar profesional' }).click()
   await expect(
     professionalPage.getByText(
       'Tu cuenta o membresía no está activa. Contacta al administrador del negocio.'

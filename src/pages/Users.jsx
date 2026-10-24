@@ -13,6 +13,7 @@ import Card from '../components/ui/Card'
 import Alert from '../components/ui/Alert'
 import Button from '../components/ui/Button'
 import { fieldControlClasses } from '../components/ui/fieldStyles'
+import { useFeedback } from '../context/feedback-context'
 
 const roles = { admin: 'Administrador', professional: 'Profesional', client: 'Cliente' }
 
@@ -43,6 +44,7 @@ function UserRow({ member, locked, save, busy }) {
 
 export default function Users() {
   const { membership, currentUser } = useAuth()
+  const { confirm } = useFeedback()
   const businessId = membership.businessId
   const [members, setMembers] = useState([])
   const [ownerId, setOwnerId] = useState(null)
@@ -85,7 +87,7 @@ export default function Users() {
     return () => { active = false; stop() }
   }, [businessId])
   async function save(userId, role, status) {
-    if (!window.confirm('Confirmar el cambio de rol y acceso de esta cuenta?')) return false
+    if (!await confirm({ title: '¿Actualizar el acceso?', description: 'Se aplicarán los cambios de rol y estado para esta cuenta.', confirmLabel: 'Actualizar acceso' })) return false
     setBusy(true)
     setError('')
     setSuccess('')

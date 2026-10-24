@@ -19,18 +19,15 @@ test('form guards retain failed edits, allow reverting, and clear explicit saved
   assert.equal(dirty(form), false)
 })
 
-test('discard cancellation keeps drafts and acceptance removes only the selected editor', () => {
+test('discard cancellation keeps drafts and acceptance removes only the selected editor', async () => {
   const make = () => ({ isConnected: true, querySelectorAll: () => [] })
   const one = make(), two = make()
   forms.set(one, { baseline: 'changed' }); forms.set(two, { baseline: 'changed' })
-  const previous = globalThis.window
   try {
-    globalThis.window = { confirm: () => false }
-    assert.equal(confirmDiscard({ contains: form => form === one }), false)
+    assert.equal(await confirmDiscard({ contains: form => form === one }, async options => { assert.match(options.description, /sin guardar/); return false }), false)
     assert.equal(dirty(one), true)
-    globalThis.window.confirm = () => true
-    assert.equal(confirmDiscard({ contains: form => form === one }), true)
+    assert.equal(await confirmDiscard({ contains: form => form === one }, async () => true), true)
     assert.equal(forms.has(one), false)
     assert.equal(dirty(two), true)
-  } finally { forms.clear(); globalThis.window = previous }
+  } finally { forms.clear() }
 })

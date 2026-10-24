@@ -29,6 +29,7 @@ import Badge from '../components/ui/Badge'
 import EditorDialog from '../components/ui/EditorDialog'
 import AdminSummary from '../components/ui/AdminSummary'
 import { MoreVertical, User, Users, Clock, Briefcase, ShieldCheck, Plus, Pencil } from 'lucide-react'
+import { useFeedback } from '../context/feedback-context'
 
 const PHONE_REGEX = /^\+?\d{8,}$/
 
@@ -139,6 +140,7 @@ function ProfessionalCard({ professional, services, onEdit, onToggleActive }) {
 
 function Professionals() {
   const { membership } = useAuth()
+  const { confirm } = useFeedback()
   const businessId = membership?.businessId
 
   // --- Lista de profesionales ---
@@ -265,14 +267,14 @@ function Professionals() {
     setHoursSuccess('')
   }
 
-  function closeEditor() {
-    if (!confirmDiscard()) return
+  async function closeEditor() {
+    if (!await confirmDiscard(document, confirm)) return
     if (imageUploading) return
     setEditingId(null)
   }
 
   async function toggleProfessionalActive(prof) {
-    if (prof.isActive && !window.confirm('Desactivar este registro? Dejará de estar disponible para nuevas reservas.')) return
+    if (prof.isActive && !await confirm({ title: '¿Desactivar profesional?', description: 'Dejará de estar disponible para nuevas reservas.', confirmLabel: 'Desactivar profesional' })) return
     setActionError('')
     try {
       const batch = writeBatch(db)

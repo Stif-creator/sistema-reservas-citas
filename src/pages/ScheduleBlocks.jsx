@@ -26,6 +26,7 @@ import Button from '../components/ui/Button'
 import Alert from '../components/ui/Alert'
 import Badge from '../components/ui/Badge'
 import { Trash2 } from 'lucide-react'
+import { useFeedback } from '../context/feedback-context'
 
 const REASON_OPTIONS = [
   { value: 'meeting', label: 'Reunión' },
@@ -61,6 +62,7 @@ function formatRange(startAt, endAt, timeZone) {
 }
 
 function ScheduleBlocks() {
+  const { confirm } = useFeedback()
   const [params, setParams] = useSearchParams()
   const { currentUser, membership, userDoc } = useAuth()
   const businessId = membership?.businessId
@@ -190,7 +192,7 @@ function ScheduleBlocks() {
 
   async function blockAction(block, action) {
     const labels = { blockDelete: 'Eliminar', blockApprove: 'Aprobar', blockReject: 'Rechazar' }
-    if (!window.confirm(`${labels[action]}: ${block.title}?`)) return
+    if (!await confirm({ title: `${labels[action]} bloqueo`, description: `${labels[action]}: ${block.title}?`, confirmLabel: labels[action] })) return
     setActionError('')
     setSaving(true)
     try {

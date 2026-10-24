@@ -1,4 +1,5 @@
 import { confirmDiscard } from '../lib/unsavedForms'
+import { useFeedback } from '../context/feedback-context'
 import BusinessAccess from './BusinessAccess'
 import SuperadminBusinesses from './SuperadminBusinesses'
 import NotificationLink from './NotificationLink'
@@ -22,6 +23,7 @@ import {
   Scissors,
   Search,
   Settings,
+  Shield,
   Users,
   X,
 } from 'lucide-react'
@@ -37,7 +39,6 @@ const GENERAL_LINKS = [
 // Cada enlace declara los roles autorizados; las rutas y Firestore también
 // aplican estas restricciones.
 const BUSINESS_LINKS = [
-  { to: '/seguridad', label: 'Mi seguridad', icon: Settings, roles: ['admin', 'professional'] },
   { to: '/clientes', label: 'Clientes', icon: Users, roles: ['admin'] },
   { to: '/promociones', label: 'Promociones', icon: Scissors, roles: ['admin'] },
   { to: '/avisos', label: 'Avisos', icon: Bell, roles: ['admin', 'professional'] },
@@ -60,6 +61,7 @@ const BUSINESS_LINKS = [
   },
   { to: '/negocio', label: 'Configuración', icon: Settings, roles: ['admin'] },
 ]
+const ACCOUNT_LINKS = [{ to: '/seguridad', label: 'Mi seguridad', icon: Shield, roles: ['admin', 'professional'] }]
 
 const navLinkClasses = ({ isActive }) =>
   `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
@@ -86,6 +88,7 @@ function AdminLayout() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const userMenuRef = useRef(null)
+  const { confirm } = useFeedback()
 
   const userName = userDoc ? `${userDoc.firstName} ${userDoc.lastName}` : ''
   const visibleBusinessLinks = BUSINESS_LINKS.filter((link) =>
@@ -121,7 +124,7 @@ function AdminLayout() {
   }, [])
 
   async function handleLogout() {
-    if (!confirmDiscard()) return
+    if (!await confirmDiscard(document, confirm)) return
     try {
       await logout()
       navigate('/login')
@@ -190,6 +193,10 @@ function AdminLayout() {
             </div>
           </div>
         )}
+        {ACCOUNT_LINKS.some(link => link.roles.includes(membership?.role)) && <div>
+          <p className="px-3 pb-2 text-xs font-semibold uppercase tracking-wide text-muted">Cuenta</p>
+          <div className="space-y-1">{ACCOUNT_LINKS.filter(link => link.roles.includes(membership?.role)).map(link => <NavLink key={link.to} to={link.to} className={navLinkClasses} onClick={() => setMobileNavOpen(false)}><link.icon size={18} />{link.label}</NavLink>)}</div>
+        </div>}
       </nav>
 
       <div className="border-t border-border p-4">

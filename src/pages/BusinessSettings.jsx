@@ -1,8 +1,9 @@
-import { markFormSaved } from '../lib/unsavedForms'
+import { markFormSaved, markFormSectionSaved } from '../lib/unsavedForms'
 import { updateBusinessWithAudit } from '../lib/audit'
 import SettingsPreview from '../components/SettingsPreview'
 import BusinessMap from '../components/BusinessMap'
-import { Building2, Image, Clock3, FileText, Phone, ExternalLink, Save, Info } from 'lucide-react'
+import LocationPickerMap from '../components/LocationPickerMap'
+import { Building2, Image, Clock3, FileText, Phone, ExternalLink, Save, Info, MapPin } from 'lucide-react'
 import './business-settings.css'
 import ImageUploadField from '../components/ImageUploadField'
 import { useEffect, useState } from 'react'
@@ -18,12 +19,14 @@ import { fieldControlClasses } from '../components/ui/fieldStyles'
 import Button from '../components/ui/Button'
 import Alert from '../components/ui/Alert'
 import { aboutFields, defaultAbout } from '../lib/businessAbout'
+import { useFeedback } from '../context/feedback-context'
 
 const PHONE_REGEX = /^\+?\d{8,}$/
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 function BusinessSettings() {
   const { membership, isSuperadmin } = useAuth()
+  const { notify } = useFeedback()
   const businessId = membership?.businessId
   const [publicPageEnabled, setPublicPageEnabled] = useState(false)
 
@@ -57,6 +60,7 @@ function BusinessSettings() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [saving, setSaving] = useState(false)
+  const [savingLocation, setSavingLocation] = useState(false)
 
   // --- Sección: horario de atención ---
   const [weeklyHours, setWeeklyHours] = useState({})
@@ -218,6 +222,29 @@ function BusinessSettings() {
     }
   }
 
+  async function handleLocationSave() {
+    if (savingLocation || !businessId) return
+    if ((latitude === '') !== (longitude === '') || (latitude !== '' && (!Number.isFinite(Number(latitude)) || !Number.isFinite(Number(longitude)) || Math.abs(Number(latitude)) > 85 || Math.abs(Number(longitude)) > 180))) {
+      setTab('contact')
+      setError('Selecciona una ubicación válida en el mapa antes de guardar.')
+      return
+    }
+    setSavingLocation(true)
+    setError('')
+    try {
+      const location = { latitude: latitude === '' ? null : Number(latitude), longitude: longitude === '' ? null : Number(longitude), addressLine: addressLine.trim(), city: city.trim(), stateRegion: stateRegion.trim(), countryCode: countryCode.trim() }
+      await updateBusinessWithAudit(businessId, { location })
+      const form = document.querySelector('#settings-panel-contact')?.closest('form')
+      if (form) markFormSectionSaved(form, ['latitude', 'longitude', 'addressLine', 'city', 'stateRegion', 'countryCode'])
+      setSuccess('Ubicación guardada.')
+      notify({ title: 'Ubicación guardada', message: 'La dirección y las coordenadas del negocio se actualizaron.', type: 'success' })
+    } catch (saveError) {
+      console.error('Error al guardar la ubicación del negocio', saveError)
+      setError('No se pudo guardar la ubicación. Los datos guardados anteriormente se conservan.')
+      notify({ title: 'No se pudo guardar la ubicación', message: 'Comprueba tu conexión y los permisos del negocio antes de volver a intentarlo.', type: 'error' })
+    } finally { setSavingLocation(false) }
+  }
+
   if (loadError)
     return (
       <div className="space-y-4">
@@ -366,7 +393,7 @@ function BusinessSettings() {
             </Field>
           </div>
         </Card><Card title="Ubicación">
-          <p className="text-sm text-muted mb-4">Para mostrar el mapa, copia las coordenadas del local desde tu aplicación de mapas. No necesitas contratar una API.</p>
+          <p className="text-sm text-muted mb-4">Haz clic en el mapa para colocar el marcador, o arrástralo para ajustar la ubicación. No se activa la geolocalización de tu dispositivo.</p>
           <div className="grid sm:grid-cols-2 gap-4 mb-4"><Field label="Latitud del mapa" htmlFor="latitude"><input id="latitude" type="number" step="any" value={latitude} onChange={e => setLatitude(e.target.value)} className={fieldControlClasses(false)} /></Field><Field label="Longitud del mapa" htmlFor="longitude"><input id="longitude" type="number" step="any" value={longitude} onChange={e => setLongitude(e.target.value)} className={fieldControlClasses(false)} /></Field></div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Dirección" htmlFor="addressLine">
@@ -396,7 +423,7 @@ function BusinessSettings() {
               />
             </Field>
 
-            <Field label="Código de país" htmlFor="countryCode">
+            <Field label="País (código ISO)" htmlFor="countryCode">
               <input
                 id="countryCode"
                 value={countryCode}
@@ -405,6 +432,8 @@ function BusinessSettings() {
               />
             </Field>
           </div>
+          <div className="mt-5"><LocationPickerMap latitude={latitude} longitude={longitude} onChange={(lat, lon) => { setLatitude(String(lat)); setLongitude(String(lon)) }} /></div>
+          <div className="mt-5 flex justify-end"><Button type="button" disabled={savingLocation || saving || imageUploading} onClick={handleLocationSave}><MapPin size={16} />{savingLocation ? 'Guardando ubicación…' : 'Guardar ubicación'}</Button></div>
         </Card></div><div className="settings-preview-column"><SettingsPreview {...{ tab, name, description, logoUrl, coverUrl, primaryColor, secondaryColor, accentColor, surfaceColor, about, contactPhone, contactWhatsapp, contactEmail, addressLine, city }} /><Card title="Ubicación en el mapa">{tab === 'contact' && <BusinessMap business={{ name, location: { latitude: latitude === '' ? null : Number(latitude), longitude: longitude === '' ? null : Number(longitude), addressLine, city } }} />}</Card></div></div></div>
     </form>
     <div id="settings-panel-hours" role="tabpanel" aria-labelledby="settings-tab-hours" hidden={tab !== 'hours'}>

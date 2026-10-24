@@ -16,9 +16,11 @@ import Button from '../components/ui/Button'
 import Alert from '../components/ui/Alert'
 import DataList from '../components/ui/DataList'
 import { fieldControlClasses } from '../components/ui/fieldStyles'
+import { useFeedback } from '../context/feedback-context'
 
 export default function PlatformBusinesses() {
   const { isSuperadmin, selectBusiness } = useAuth()
+  const { confirm } = useFeedback()
   const [items, setItems] = useState([]), [error, setError] = useState(''), [busy, setBusy] = useState(false)
   const [message, setMessage] = useState(''), [deleting, setDeleting] = useState(null), [confirmation, setConfirmation] = useState('')
   const [requestId, setRequestId] = useState(() => crypto.randomUUID())
@@ -62,7 +64,7 @@ export default function PlatformBusinesses() {
       <DataList label="Negocios" items={items.filter(b => showArchived || b.status !== 'deleted')} searchText={b => `${b.name} ${owners[b.ownerUserId]?.email || b.administratorEmail || ''} ${owners[b.ownerUserId]?.firstName || b.administratorName || ''} ${owners[b.ownerUserId]?.lastName || ''} ${b.status}`}>
         {rows => <div className="space-y-4">{rows.map(b => <article key={b.id} className="business-row"><div><h3 className="font-semibold">{b.name || b.id}</h3><span className={`inline-block mt-2 rounded-full px-3 py-1 text-xs ${b.status === 'active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>{b.status === 'active' ? 'Activo' : b.status === 'deleted' ? 'Eliminado (archivado)' : 'Desactivado'}</span></div><p className="text-sm text-muted">{owners[b.ownerUserId] ? `${owners[b.ownerUserId].firstName || ''} ${owners[b.ownerUserId].lastName || ''}`.trim() : b.administratorName || 'Administrador'} · {owners[b.ownerUserId]?.email || b.administratorEmail || 'Sin correo registrado'} · {b.status === 'active' ? 'Activo' : b.status === 'deleted' ? 'Eliminado (archivado)' : 'Desactivado'}</p>
           <div className="flex flex-wrap gap-2"><Button disabled={busy} variant="secondary" onClick={() => { selectBusiness(b.id); navigate('/negocio') }}><Settings size={16} />Configurar</Button>
-            <Button disabled={busy} variant="secondary" onClick={() => (b.status !== 'active' || window.confirm('Desactivar este negocio y su acceso?')) && mutate({ action: 'platformStatus', businessId: b.id, status: b.status === 'active' ? 'inactive' : 'active' })}>{b.status === 'active' ? 'Desactivar' : 'Activar / restaurar'}</Button>
+            <Button disabled={busy} variant="secondary" onClick={async () => { if (b.status !== 'active' || await confirm({ title: '¿Desactivar este negocio?', description: 'El negocio dejará de estar disponible y sus usuarios perderán el acceso.', confirmLabel: 'Desactivar negocio' })) await mutate({ action: 'platformStatus', businessId: b.id, status: b.status === 'active' ? 'inactive' : 'active' }) }}>{b.status === 'active' ? 'Desactivar' : 'Activar / restaurar'}</Button>
             {b.status === 'inactive' && <Button disabled={busy} variant="ghost" onClick={() => { setDeleting(b); setConfirmation('') }}>Eliminar</Button>}
           </div></article>)}</div>}
       </DataList>
