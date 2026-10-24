@@ -3,6 +3,15 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import './location-picker-map.css'
 
+// Use a self-contained SVG marker instead of Leaflet's CSS-relative PNGs,
+// whose paths can break after Vite bundles the app for Firebase Hosting.
+const locationMarkerIcon = L.divIcon({
+  className: 'location-picker-marker',
+  html: '<svg viewBox="0 0 32 42" aria-hidden="true" focusable="false"><path d="M16 1C7.7 1 1 7.7 1 16c0 11 15 25 15 25s15-14 15-25C31 7.7 24.3 1 16 1Z"/><circle cx="16" cy="16" r="5.5"/></svg>',
+  iconSize: [34, 44],
+  iconAnchor: [17, 42],
+})
+
 function coordinates(lat, lon) {
   const latitude = Number(lat), longitude = Number(lon)
   return lat !== '' && lon !== '' && Number.isFinite(latitude) && Number.isFinite(longitude)
@@ -31,7 +40,7 @@ export default function LocationPickerMap({ latitude, longitude, onChange }) {
     const saved = coordinates(latitude, longitude)
     if (saved) {
       instance.setView(saved, 15)
-      marker.current = L.marker(saved, { draggable: true }).addTo(instance)
+      marker.current = L.marker(saved, { draggable: true, icon: locationMarkerIcon }).addTo(instance)
       marker.current.on('dragend', () => {
         const point = marker.current.getLatLng()
         onChangeRef.current(Number(point.lat.toFixed(6)), Number(point.lng.toFixed(6)))
@@ -60,7 +69,7 @@ export default function LocationPickerMap({ latitude, longitude, onChange }) {
       return
     }
     if (!marker.current) {
-      marker.current = L.marker(point, { draggable: true }).addTo(instance)
+      marker.current = L.marker(point, { draggable: true, icon: locationMarkerIcon }).addTo(instance)
       marker.current.on('dragend', () => {
         const next = marker.current.getLatLng()
         onChangeRef.current(Number(next.lat.toFixed(6)), Number(next.lng.toFixed(6)))

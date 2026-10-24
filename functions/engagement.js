@@ -14,7 +14,17 @@ const rows = snap => {
 const ms = value => value?.toMillis?.() ?? value
 const serial = value => value instanceof Timestamp ? value.toMillis() : Array.isArray(value) ? value.map(serial) : value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).map(([k, v]) => [k, serial(v)])) : value
 const scoped = (db, collection, businessId) => db.collection(collection).where('businessId', '==', businessId).limit(2001)
-export const engagementActions = ['hub', 'waitlist', 'favorite', 'wait', 'unwait', 'review', 'clients', 'clientUpdate', 'promotionSave', 'reminderSave', 'notificationRead', 'notificationReadAll']
+const clientContact = client => ({
+  id: client.id,
+  firstName: text(client.firstName, 100),
+  lastName: text(client.lastName, 100),
+  phone: text(client.phone, 30),
+  email: text(client.email, 254),
+  ...(typeof client.status === 'string' ? { status: client.status } : {}),
+  ...(typeof client.isActive === 'boolean' ? { isActive: client.isActive } : {}),
+  ...(client.createdAt ? { createdAt: client.createdAt } : {}),
+})
+export const engagementActions = ['hub', 'waitlist', 'favorite', 'wait', 'unwait', 'review', 'clients', 'clientHistory', 'clientUpdate', 'promotionSave', 'reminderSave', 'notificationRead', 'notificationReadAll']
 
 export function discountedService(service, promotions, now = Date.now()) {
   const valid = promotions.filter(p => p.isActive && Number.isInteger(p.percent) && p.percent >= 1 && p.percent <= 90 && p.serviceId === service.id && ms(p.startAt) <= now && ms(p.endAt) > now)
@@ -196,11 +206,55 @@ export async function executeEngagement(db, uid, input, actor) {
     return { ok: true }
   }
   if (action === 'clients') {
-    admin()
-    const [clients, reservations] = await Promise.all([scoped(db, 'clients', businessId).get().then(rows), scoped(db, 'reservations', businessId).get().then(rows)])
-    return serial({ clients, reservations })
+    if (actor.isSuperadmin) {
+      const [clients, businesses] = await Promise.all([
+        db.collection('clients').count().get(),
+        db.collection('businesses').count().get(),
+      ])
+      return { summaryOnly: true, totalClients: clients.data().count, totalBusinesses: businesses.data().count }
+    }
+    if (actor.member.role === 'admin') {
+      const clients = await scoped(db, 'clients', businessId).get().then(rows)
+      return serial({ clients: clients.map(clientContact), summaryOnly: false })
+    }
+    if (actor.member.role !== 'professional') fail('permission-denied', 'Esta consulta requiere una cuenta del equipo del negocio.')
+    const appointments = await scoped(db, 'reservations', businessId).where('professionalUserId', '==', uid).get().then(rows)
+    const clientIds = [...new Set(appointments.map(appointment => appointment.clientId).filter(id))]
+    const clients = await Promise.all(clientIds.map(async clientId => {
+      const client = record(await db.doc(`clients/${clientId}`).get())
+      const appointment = appointments.find(item => item.clientId === clientId)
+      return client?.businessId === businessId
+        ? clientContact(client)
+        : clientContact({ id: clientId, firstName: appointment?.clientName, email: appointment?.clientEmail, phone: appointment?.clientPhone })
+    }))
+    return serial({ clients, summaryOnly: false })
+  }
+  if (action === 'clientHistory') {
+    if (!id(input.clientId)) fail('invalid-argument', 'Selecciona un cliente válido.')
+    if (actor.isSuperadmin) fail('permission-denied', 'El resumen global no incluye historiales personales.')
+    if (!['admin', 'professional'].includes(actor.member.role)) fail('permission-denied', 'Esta consulta requiere una cuenta del equipo del negocio.')
+    const client = record(await db.doc(`clients/${input.clientId}`).get())
+    if (!client || client.businessId !== businessId) fail('permission-denied', 'El cliente no pertenece a este negocio.')
+    let query = scoped(db, 'reservations', businessId).where('clientId', '==', input.clientId)
+    if (actor.member.role === 'professional') query = query.where('professionalUserId', '==', uid)
+    const appointments = await query.get().then(rows)
+    if (actor.member.role === 'professional' && appointments.length === 0) fail('permission-denied', 'Este cliente no tiene citas asignadas contigo.')
+    const history = appointments
+      .sort((a, b) => ms(b.startAt) - ms(a.startAt))
+      .map(appointment => ({
+        id: appointment.id,
+        clientId: appointment.clientId,
+        serviceName: text(appointment.serviceName, 200),
+        professionalName: text(appointment.professionalName, 200),
+        startAt: appointment.startAt,
+        endAt: appointment.endAt,
+        timeZone: text(appointment.timeZone, 100),
+        status: text(appointment.status, 40),
+      }))
+    return serial({ history })
   }
   if (action === 'clientUpdate') {
+    if (actor.isSuperadmin) fail('permission-denied', 'El resumen global no permite editar datos personales de clientes.')
     admin()
     if (!id(input.id) || !text(input.firstName, 100) || !/^\+?\d{8,15}$/.test(input.phone || '') || (input.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email))) fail('invalid-argument', 'Revisa el nombre, teléfono y correo del cliente.')
     await db.runTransaction(async tx => {

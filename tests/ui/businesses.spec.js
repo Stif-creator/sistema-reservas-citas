@@ -71,6 +71,7 @@ test('platform links a business, administrator selects it, suspension and archiv
     await expect(longitude).not.toHaveValue('')
     const marker = admin.locator('.leaflet-marker-icon')
     await expect(marker).toBeVisible()
+    await expect(marker.locator('svg')).toBeVisible()
     const previousLatitude = await latitude.inputValue()
     const markerBox = await marker.boundingBox()
     await admin.mouse.move(markerBox.x + markerBox.width / 2, markerBox.y + markerBox.height / 2)

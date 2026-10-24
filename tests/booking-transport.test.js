@@ -3,12 +3,14 @@ import assert from 'node:assert/strict'
 import { sendBookingRequest, bookingFailure } from '../src/lib/bookingTransport.js'
 
 test('read operations retry gateway HTML and recover without parsing HTML as JSON', async () => {
-  let calls = 0
-  const pauses = []
-  const result = await sendBookingRequest({ action:'clients' }, { base:'https://api.example', token:'test', pause:async ms => pauses.push(ms), request:async () => ++calls < 3 ? new Response('<html>Starting</html>', { status:502 }) : Response.json({ data:{ clients:[] } }) })
-  assert.equal(calls,3)
-  assert.equal(pauses.length,2)
-  assert.deepEqual(result,{ clients:[] })
+  for (const action of ['clients', 'clientHistory']) {
+    let calls = 0
+    const pauses = []
+    const result = await sendBookingRequest({ action }, { base:'https://api.example', token:'test', pause:async ms => pauses.push(ms), request:async () => ++calls < 3 ? new Response('<html>Starting</html>', { status:502 }) : Response.json({ data:{ clients:[], history:[] } }) })
+    assert.equal(calls,3)
+    assert.equal(pauses.length,2)
+    assert.deepEqual(result,{ clients:[], history:[] })
+  }
 })
 test('persistent gateway errors explain read failure without claiming an ambiguous booking', async () => {
   await assert.rejects(sendBookingRequest({ action:'hub' }, { base:'https://api.example', retryDelays:[], request:async () => new Response('<html>Unavailable</html>', { status:503 }) }), error => {

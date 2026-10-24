@@ -205,6 +205,51 @@ test('Sprint 3 client management is tenant scoped and does not edit auth identit
   assert.equal((await db.doc(`users/${f.users.client}`).get()).data().firstName, 'client')
 })
 
+test('client records and appointment history are restricted by role and global admins receive aggregates only', async () => {
+  const f = await fixture()
+  const adminAppointment = `appt-admin-${f.businessId}`
+  const professionalAppointment = `appt-pro-${f.businessId}`
+  const otherProfessionalAppointment = `appt-other-pro-${f.businessId}`
+  const startAt = Timestamp.fromMillis(Date.now() + 86400000)
+  for (const [id, clientId, professionalUserId] of [
+    [adminAppointment, f.users.client, f.users.pro],
+    [professionalAppointment, f.users.client, f.users.pro],
+    [otherProfessionalAppointment, f.users.other, f.users.pro2],
+  ]) await db.doc(`reservations/${id}`).set({
+    id, businessId: f.businessId, clientId, professionalUserId,
+    serviceName: 'Consulta', professionalName: 'Profesional', startAt,
+    endAt: Timestamp.fromMillis(startAt.toMillis() + 1800000), timeZone: 'America/La_Paz', status: 'confirmed',
+    notes: 'Dato privado que no debe salir en historial',
+  })
+
+  const adminClients = await f.call(f.users.admin, { action: 'clients' })
+  assert.equal(adminClients.reservations, undefined)
+  assert.deepEqual(new Set(adminClients.clients.map(client => client.id)), new Set([f.users.client, f.users.other]))
+
+  const professionalClients = await f.call(f.users.pro, { action: 'clients' })
+  assert.deepEqual(professionalClients.clients.map(client => client.id), [f.users.client])
+  assert.equal(professionalClients.clients[0].userId, undefined)
+  const professionalHistory = await f.call(f.users.pro, { action: 'clientHistory', clientId: f.users.client })
+  assert.deepEqual(professionalHistory.history.map(item => item.id).sort(), [professionalAppointment, adminAppointment].sort())
+  assert.equal(professionalHistory.history[0].notes, undefined)
+  assert.deepEqual((await f.call(f.users.admin, { action: 'clientHistory', clientId: f.users.client })).history.map(item => item.id).sort(), [adminAppointment, professionalAppointment].sort())
+  await rejects(f.call(f.users.pro, { action: 'clientHistory', clientId: f.users.other }), 'permission-denied')
+  await rejects(f.call(f.users.pro, { action: 'clientUpdate', id: f.users.client, firstName: 'Cambio', phone: '70000001' }), 'permission-denied')
+
+  const superadminId = `super-${f.businessId}`
+  await db.doc(`users/${superadminId}`).set({ globalRole: 'superadmin', status: 'active' })
+  const summary = await executeBooking(db, superadminId, { action: 'clients' })
+  assert.equal(summary.summaryOnly, true)
+  assert.equal(typeof summary.totalClients, 'number')
+  assert.equal(summary.clients, undefined)
+  assert.equal(summary.history, undefined)
+  const selectedBusinessSummary = await executeBooking(db, superadminId, { action: 'clients', businessId: f.businessId })
+  assert.equal(selectedBusinessSummary.summaryOnly, true)
+  assert.equal(selectedBusinessSummary.clients, undefined)
+  await rejects(executeBooking(db, superadminId, { action: 'clientHistory', businessId: f.businessId, clientId: f.users.client }), 'permission-denied')
+  await rejects(executeBooking(db, superadminId, { action: 'clientUpdate', businessId: f.businessId, id: f.users.client, firstName: 'Cambio', phone: '70000001' }), 'permission-denied')
+})
+
 test('simultaneous overlapping reservations serialize; retries are idempotent', async () => {
   const f = await fixture()
   const first = f.create(), second = f.create({ startAt: f.time('10:15') })

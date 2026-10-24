@@ -27,10 +27,10 @@ async function context(db, reader, uid, businessId) {
     reader.get(db.doc(`memberships/${businessId}_${uid}`)).then(record),
     reader.get(db.doc(`businesses/${businessId}`)).then(record),
   ])
-  if (user?.status === 'active' && user.globalRole === 'superadmin' && business?.status === 'active') return { user, member: { businessId, userId: uid, role: 'admin', status: 'active' }, business, uid }
+  if (user?.status === 'active' && user.globalRole === 'superadmin' && business?.status === 'active') return { user, member: { businessId, userId: uid, role: 'admin', status: 'active' }, business, uid, isSuperadmin: true }
   if (!user || user.status !== 'active' || !member || member.status !== 'active' || business?.status !== 'active' ||
     !['admin', 'professional', 'client'].includes(member.role)) fail('permission-denied', 'Tu cuenta no tiene acceso activo a este negocio.')
-  return { user, member, business, uid }
+  return { user, member, business, uid, isSuperadmin: false }
 }
 
 async function publicContext(db, reader, businessId) {
@@ -124,6 +124,12 @@ export async function executeBooking(db, uid, input) {
   if (['blockCreate', 'blockApprove', 'blockReject', 'blockDelete'].includes(action)) return executeBlocks(db, uid, input, context)
   const reader = { get: ref => ref.get() }
   if (engagementActions.includes(action)) {
+    if (action === 'clients' && !businessId) {
+      if (!uid) fail('unauthenticated', 'Inicia sesión para continuar.')
+      const user = record(await reader.get(db.doc(`users/${uid}`)))
+      if (user?.status !== 'active' || user.globalRole !== 'superadmin') fail('permission-denied', 'No tienes permiso para consultar el resumen global de clientes.')
+      return executeEngagement(db, uid, input, { uid, user, member: { role: 'admin', businessId: null }, business: null, isSuperadmin: true })
+    }
     if (['notificationRead', 'notificationReadAll'].includes(action)) {
       if (!uid) fail('unauthenticated', 'Inicia sesión para continuar.')
       const user = record(await reader.get(db.doc(`users/${uid}`)))

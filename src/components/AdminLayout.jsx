@@ -39,7 +39,7 @@ const GENERAL_LINKS = [
 // Cada enlace declara los roles autorizados; las rutas y Firestore también
 // aplican estas restricciones.
 const BUSINESS_LINKS = [
-  { to: '/clientes', label: 'Clientes', icon: Users, roles: ['admin'] },
+  { to: '/clientes', label: 'Clientes', icon: Users, roles: ['admin', 'professional'] },
   { to: '/promociones', label: 'Promociones', icon: Scissors, roles: ['admin'] },
   { to: '/avisos', label: 'Avisos', icon: Bell, roles: ['admin', 'professional'] },
   { to: '/lista-espera', label: 'Lista de espera', icon: CalendarDays, roles: ['admin', 'professional'] },
@@ -167,7 +167,7 @@ function AdminLayout() {
                 onClick={() => setMobileNavOpen(false)}
               >
                 <link.icon size={18} />
-                {membership.role === 'professional' ? ({'/dashboard':'Mi día','/reservas':'Mis reservas','/agenda':'Mi agenda','/disponibilidad':'Mi disponibilidad'}[link.to] || link.label) : link.label}
+                {membership.role === 'professional' ? ({'/dashboard':'Mi día','/reservas':'Mis reservas','/agenda':'Mi agenda','/disponibilidad':'Mi disponibilidad','/clientes':'Clientes de mis citas'}[link.to] || link.label) : link.label}
               </NavLink>
             ))}
           </div>
@@ -187,7 +187,7 @@ function AdminLayout() {
                   onClick={() => setMobileNavOpen(false)}
                 >
                   <link.icon size={18} />
-                  {membership.role === 'professional' ? ({'/dashboard':'Mi día','/reservas':'Mis reservas','/agenda':'Mi agenda','/disponibilidad':'Mi disponibilidad'}[link.to] || link.label) : link.label}
+                  {membership.role === 'professional' ? ({'/dashboard':'Mi día','/reservas':'Mis reservas','/agenda':'Mi agenda','/disponibilidad':'Mi disponibilidad','/clientes':'Clientes de mis citas'}[link.to] || link.label) : link.label}
                 </NavLink>
               ))}
             </div>
