@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { Mail, MapPin, Phone } from 'lucide-react'
 import BusinessBrand from './BusinessBrand'
 
-export default function SiteFooter({ business, homeTo = '/', contactTo = '/contacto', clientMode = false }) {
+export default function SiteFooter({ business, homeTo = '/', contactTo = '/contacto', clientMode = false, platformMode = false }) {
   if (clientMode) {
     const phone = typeof business?.contact?.phone === 'string' ? business.contact.phone.trim() : ''
     const phoneHref = /^[+\d][\d\s()-]{6,24}$/.test(phone) ? phone.replace(/[^\d+]/g, '') : ''
@@ -25,6 +25,15 @@ export default function SiteFooter({ business, homeTo = '/', contactTo = '/conta
       <div className="client-footer-bottom"><span>© {new Date().getFullYear()} {business?.name || 'Tu negocio'}</span><span>Tu tiempo, bien acompañado.</span><Link to="/cliente/contacto">¿Necesitas ayuda?</Link></div>
     </footer>
   }
+  if (platformMode) return <footer className="public-container site-footer platform-site-footer">
+    <div className="platform-footer-main">
+      <div className="platform-footer-brand"><BusinessBrand business={null} to="/" /><p>Una plataforma para descubrir servicios y organizar citas con más claridad.</p></div>
+      <nav aria-label="Explorar CitasPro"><strong>Explorar</strong><Link to="/">Inicio</Link><Link to="/negocios">Negocios</Link><Link to="/nosotros">Nosotros</Link><Link to="/contacto">Contacto</Link></nav>
+      <nav aria-label="Información"><strong>Información</strong><Link to="/#como-funciona">Cómo funciona</Link><Link to="/nosotros">Nuestra plataforma</Link></nav>
+      <div className="platform-footer-contact"><strong>Contacto</strong><p>Las consultas sobre reservas se atienden directamente con cada negocio.</p><Link to="/contacto">Opciones de contacto <span aria-hidden="true">→</span></Link></div>
+    </div>
+    <div className="platform-footer-bottom"><span>© {new Date().getFullYear()} CitasPro. Todos los derechos reservados.</span><span>Tu tiempo, nuestra prioridad.</span></div>
+  </footer>
   return <footer className="public-container public-footer site-footer">
     <BusinessBrand business={business} to={homeTo} />
     <span>Tu tiempo, bien acompañado.</span>

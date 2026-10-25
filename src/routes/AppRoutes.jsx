@@ -9,6 +9,10 @@ import PublicHomeLayout from '../components/public/PublicHomeLayout'
 
 const BusinessInfo = lazy(() => import('../pages/BusinessInfo'))
 const Home = lazy(() => import('../pages/Home'))
+const PlatformHome = lazy(() => import('../pages/PlatformHome'))
+const PublicBusinesses = lazy(() => import('../pages/PublicBusinesses'))
+const PlatformAbout = lazy(() => import('../pages/PlatformAbout'))
+const PlatformContact = lazy(() => import('../pages/PlatformContact'))
 const Login = lazy(() => import('../pages/Login'))
 const Register = lazy(() => import('../pages/Register'))
 const Dashboard = lazy(() => import('../pages/Dashboard'))
@@ -49,7 +53,7 @@ function AppRoutes() {
     >
       <Routes>
         <Route element={<PublicLayout />}>
-          <Route element={<PublicHomeLayout />}><Route path="/" element={<Home />} /><Route path="/nosotros" element={<BusinessInfo />} /><Route path="/contacto" element={<BusinessInfo contact />} /></Route>
+          <Route element={<PublicHomeLayout />}><Route path="/" element={<PlatformHome />} /><Route path="/negocios" element={<PublicBusinesses />} /><Route path="/nosotros" element={<PlatformAbout />} /><Route path="/contacto" element={<PlatformContact />} /></Route>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/registro" element={<Register />} />

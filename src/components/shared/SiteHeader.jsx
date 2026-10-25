@@ -3,7 +3,7 @@ import { Link, NavLink, useLocation } from 'react-router-dom'
 import { Menu, X } from 'lucide-react'
 import BusinessBrand from './BusinessBrand'
 
-export default function SiteHeader({ business, homeTo, links, children, clientMode = false }) {
+export default function SiteHeader({ business, homeTo, links, children, clientMode = false, platformMode = false }) {
   const { pathname, hash } = useLocation()
   const [openAt, setOpenAt] = useState(null)
   const open = openAt === pathname
@@ -11,7 +11,7 @@ export default function SiteHeader({ business, homeTo, links, children, clientMo
     if (hash) document.getElementById(hash.slice(1))?.scrollIntoView()
     else window.scrollTo(0, 0)
   }, [pathname, hash])
-  return <header className={`public-header site-header${clientMode ? ' client-site-header' : ''}`}>
+  return <header className={`public-header site-header${clientMode ? ' client-site-header' : ''}${platformMode ? ' platform-site-header' : ''}`}>
     <a className="site-skip" href="#contenido">Saltar al contenido</a>
     <div className="public-container header-inner">
       <BusinessBrand business={business} to={homeTo} />

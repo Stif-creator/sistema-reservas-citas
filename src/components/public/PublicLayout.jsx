@@ -93,7 +93,7 @@ export default function PublicLayout() {
   const base = businessId ? `/b/${encodeURIComponent(businessId)}` : ''
   return (
     <PublicContext.Provider value={{ business, businessId, base }}>
-      <div className="public-site" style={brandVariables(business?.appearance)}>
+      <div className={`public-site${businessId ? ' business-public-site' : ' platform-public-site'}`} style={business ? brandVariables(business.appearance) : undefined}>
         {businessId && state.id !== businessId ? (
           <div className="public-message" role="status">
             Cargando negocio…
