@@ -95,7 +95,7 @@ before(async () => {
         businessId: 'studio',
         displayName: uid,
         isActive: uid === 'pro',
-        serviceIds: [],
+        serviceIds: uid === 'pro' ? ['massage'] : [],
         createdAt: Timestamp.now(),
       })
     await setDoc(doc(db, 'categories', 'care'), {
@@ -118,7 +118,7 @@ before(async () => {
       bufferAfterMinutes: 0,
       isActive: true,
       isPublic: true,
-      professionalIds: [],
+      professionalIds: ['studio_pro'],
     })
     await setDoc(doc(db, 'services', 'hidden'), {
       id: 'hidden',
@@ -144,6 +144,16 @@ before(async () => {
 })
 after(async () => {
   await env?.cleanup()
+})
+
+test('professionals can read services in their business but cannot write services directly', async () => {
+  const db = dbFor('pro')
+  const assigned = await assertSucceeds(getDocs(query(collection(db, 'services'), where('businessId', '==', 'studio'), where('professionalIds', 'array-contains', 'studio_pro'))))
+  assert.deepEqual(assigned.docs.map(service => service.id), ['massage'])
+  await assertSucceeds(getDoc(doc(db, 'services', 'massage')))
+  await assertSucceeds(getDocs(query(collection(db, 'categories'), where('businessId', '==', 'studio'))))
+  await assertFails(getDocs(query(collection(db, 'services'), where('businessId', '==', 'other-business'))))
+  await assertFails(updateDoc(doc(db, 'services', 'massage'), { price: 1 }))
 })
 
 test('reservations are read by active scoped actors but all direct mutations and locks are denied', async () => {

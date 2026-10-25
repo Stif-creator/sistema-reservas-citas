@@ -187,15 +187,17 @@ service cloud.firestore {
     }
     match /categories/{cid} {
       allow read: if admin(resource.data.businessId)
+        || professional(resource.data.businessId)
         || (activeMember(resource.data.businessId) && member(resource.data.businessId).role == 'client');
       allow create: if admin(request.resource.data.businessId) && request.resource.data.id == cid;
       allow update: if admin(resource.data.businessId) && sameIdentity();
     }
     match /services/{sid} {
-      allow read: if (resource.data.isActive == true && resource.data.isPublic == true && publicBusiness(resource.data.businessId))
-        || (resource.data.isActive == true && resource.data.isPublic == true
+      allow read: if (resource.data.get('isActive', false) == true && resource.data.get('isPublic', false) == true && publicBusiness(resource.data.businessId))
+        || (resource.data.get('isActive', false) == true && resource.data.get('isPublic', false) == true
           && activeMember(resource.data.businessId) && member(resource.data.businessId).role == 'client')
-        || admin(resource.data.businessId) || professional(resource.data.businessId);
+        || admin(resource.data.businessId)
+        || professional(resource.data.businessId);
       allow create: if admin(request.resource.data.businessId) && request.resource.data.id == sid
         && validService(request.resource.data);
       allow update: if admin(resource.data.businessId) && sameIdentity() && validService(request.resource.data);

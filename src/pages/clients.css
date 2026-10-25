@@ -38,12 +38,12 @@
 .clients-pagination button { display: grid; width: 2rem; height: 2rem; place-items: center; border: 1px solid #dce4f0; border-radius: .5rem; background: white; color: #40516c; }
 .clients-pagination button:disabled { color: #b0bac9; cursor: not-allowed; }
 .clients-detail-panel { min-height: 25rem; padding: .9rem; }
-.clients-detail-header { display: flex; min-width: 0; align-items: flex-start; gap: .75rem; padding: .2rem .1rem .85rem; }
+.clients-detail-header { display: grid; min-width: 0; grid-template-columns: 2.6rem minmax(0, 1fr) auto; align-items: start; gap: .75rem; padding: .2rem .1rem .35rem; }
 .clients-detail-identity { display: grid; min-width: 0; flex: 1; gap: .35rem; }
 .clients-detail-identity h2 { color: #152641; font-size: 1rem; font-weight: 750; }
-.clients-detail-identity > p { display: flex; min-width: 0; align-items: center; gap: .4rem; color: #64738e; font-size: .74rem; }
-.clients-detail-identity > p svg { flex: none; color: #586b91; }
-.clients-detail-identity > p span { overflow-wrap: anywhere; }
+.clients-detail-contact { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; gap: .4rem 1rem; padding: .1rem .1rem .7rem; color: #64738e; }
+.clients-detail-contact > span { display: inline-flex; min-width: 0; max-width: 100%; align-items: center; gap: .4rem; font-size: .74rem; overflow-wrap: anywhere; }
+.clients-detail-contact > span svg { flex: none; color: #586b91; }
 .clients-tabs { display: flex; gap: .4rem; border-bottom: 1px solid #e4eaf3; }
 .clients-tabs button { display: flex; min-height: 2.65rem; flex: 1; align-items: center; justify-content: center; gap: .42rem; padding: .4rem .35rem; border-bottom: 2px solid transparent; color: #5c6d89; font-size: .76rem; font-weight: 650; }
 .clients-tabs button[aria-selected=true] { border-bottom-color: var(--primary, #5d4bff); color: var(--primary, #4c3cff); }
@@ -115,7 +115,7 @@
   .clients-pagination { align-items: flex-start; flex-direction: column; }
   .clients-pagination > div { align-self: flex-end; }
   .clients-detail-panel .clients-detail-header > .booking-button { position: absolute; right: 3.4rem; top: max(.7rem, env(safe-area-inset-top)); min-height: 2.4rem; padding: .4rem .6rem; font-size: .7rem; }
-  .clients-detail-header { align-items: flex-start; }
+  .clients-detail-header { grid-template-columns: 2.6rem minmax(0, 1fr) auto; align-items: flex-start; }
   .clients-detail-identity { padding-right: .2rem; }
   .clients-tabs button { flex-direction: column; gap: .2rem; font-size: .65rem; }
   .clients-detail-row { grid-template-columns: minmax(6rem, .75fr) minmax(0, 1fr); gap: .45rem; font-size: .7rem; }

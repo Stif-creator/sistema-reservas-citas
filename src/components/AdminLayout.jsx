@@ -45,6 +45,7 @@ const BUSINESS_LINKS = [
   { to: '/lista-espera', label: 'Lista de espera', icon: CalendarDays, roles: ['admin', 'professional'] },
   { to: '/usuarios', label: 'Usuarios', icon: Users, roles: ['admin'] },
   { to: '/disponibilidad', label: 'Disponibilidad', icon: Calendar, roles: ['admin', 'professional'] },
+  { to: '/mis-servicios', label: 'Mis servicios', icon: Scissors, roles: ['professional'] },
   { to: '/categorias', label: 'Categorías', icon: Scissors, roles: ['admin'] },
   { to: '/servicios', label: 'Servicios', icon: Scissors, roles: ['admin'] },
   {

@@ -120,6 +120,7 @@ function AppRoutes() {
               </ProtectedRoute>
             }
           />
+          <Route path="/mis-servicios" element={<ProtectedRoute allowedRoles={['professional']}><Services /></ProtectedRoute>} />
           <Route
             path="/profesionales"
             element={

@@ -150,14 +150,15 @@ export default function Clients() {
       </section>
 
       {selectedClient ? <aside className="clients-detail-panel" aria-label={`Detalles de ${fullName(selectedClient)}`}>
-        <header className="clients-detail-header"><PersonAvatar name={fullName(selectedClient)} /><div className="clients-detail-identity"><h2>{fullName(selectedClient)}</h2>{hasStatus && clientHasStatus(selectedClient) && <StatusBadge client={selectedClient} />}
-          {selectedClient.phone && <p><Phone size={15} aria-hidden="true" /><span>{selectedClient.phone}</span></p>}
-          {selectedClient.email && <p><Mail size={15} aria-hidden="true" /><span>{selectedClient.email}</span></p>}
-          {selectedClient.createdAt && <p><Clock3 size={15} aria-hidden="true" /><span>Cliente desde {formatAppointmentDate(selectedClient.createdAt)}</span></p>}
-        </div>
+        <header className="clients-detail-header"><PersonAvatar name={fullName(selectedClient)} /><div className="clients-detail-identity"><h2>{fullName(selectedClient)}</h2>{hasStatus && clientHasStatus(selectedClient) && <StatusBadge client={selectedClient} />}</div>
         {membership?.role === 'admin' && <Button onClick={() => { setFormError(''); setEditing(true) }}><Pencil size={16} aria-hidden="true" />Editar cliente</Button>}
       <button type="button" className="clients-mobile-close" aria-label="Cerrar detalles" onClick={() => setSelected(null)}><X size={20} /></button>
         </header>
+        <div className="clients-detail-contact" aria-label="Contacto del cliente">
+          {selectedClient.phone && <span><Phone size={15} aria-hidden="true" />{selectedClient.phone}</span>}
+          {selectedClient.email && <span><Mail size={15} aria-hidden="true" />{selectedClient.email}</span>}
+          {selectedClient.createdAt && <span><Clock3 size={15} aria-hidden="true" />Cliente desde {formatAppointmentDate(selectedClient.createdAt)}</span>}
+        </div>
         <div className="clients-tabs" role="tablist" aria-label="Secciones de datos del cliente">
           <button type="button" role="tab" id="client-tab-general" aria-selected={tab === 'general'} aria-controls="client-panel-general" onClick={() => setTab('general')}><UserRound size={16} />Datos generales</button>
           <button type="button" role="tab" id="client-tab-history" aria-selected={tab === 'history'} aria-controls="client-panel-history" onClick={showHistory}><CalendarClock size={16} />Historial de citas</button>
