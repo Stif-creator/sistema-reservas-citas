@@ -6,6 +6,7 @@ import { useAuth } from '../context/auth-context'
 import { useFeedback } from '../context/feedback-context'
 import { confirmDiscard, markFormSaved } from '../lib/unsavedForms'
 import { safeImageUrl } from '../lib/brand'
+import { getServiceProfessionals } from '../lib/serviceProfessionals'
 import PageHeader from '../components/ui/PageHeader'
 import Button from '../components/ui/Button'
 import Alert from '../components/ui/Alert'
@@ -34,6 +35,8 @@ function ServicesContent() {
   const [categories, setCategories] = useState([])
   const [services, setServices] = useState([])
   const [professionals, setProfessionals] = useState([])
+  const [professionalsLoadedBusinessId, setProfessionalsLoadedBusinessId] = useState('')
+  const [professionalsError, setProfessionalsError] = useState('')
   const [businessName, setBusinessName] = useState('')
   const [currencyCode, setCurrencyCode] = useState('')
   const [loadedBusinessId, setLoadedBusinessId] = useState('')
@@ -68,7 +71,14 @@ function ServicesContent() {
     const finishLoading = () => { if (active && categoriesReady && servicesReady) setLoadedBusinessId(businessId) }
     const stopCategories = onSnapshot(categoryQuery, snapshot => { setCategories(snapshot.docs.map(item => ({ ...item.data(), id: item.id }))); categoriesReady = true; finishLoading() }, reason => { setLoadError({ businessId, message:`No se pudieron cargar las categorías: ${reason.message}` }); categoriesReady = true; finishLoading() })
     const stopServices = onSnapshot(serviceQuery, snapshot => { setServices(snapshot.docs.map(item => ({ ...item.data(), id: item.id }))); servicesReady = true; finishLoading() }, reason => { setLoadError({ businessId, message:`No se pudieron cargar los servicios: ${reason.message}` }); servicesReady = true; finishLoading() })
-    const stopProfessionals = isProfessional ? undefined : onSnapshot(query(collection(db, 'professionals'), where('businessId', '==', businessId)), snapshot => setProfessionals(snapshot.docs.map(item => ({ ...item.data(), id: item.id }))))
+    const stopProfessionals = isProfessional ? undefined : onSnapshot(query(collection(db, 'professionals'), where('businessId', '==', businessId)), snapshot => {
+      setProfessionals(snapshot.docs.map(item => ({ ...item.data(), id: item.id })))
+      setProfessionalsLoadedBusinessId(businessId)
+      setProfessionalsError('')
+    }, reason => {
+      setProfessionalsLoadedBusinessId(businessId)
+      setProfessionalsError(`No se pudieron cargar los profesionales asociados: ${reason.message}`)
+    })
     getDoc(doc(db, 'businesses', businessId)).then(snapshot => {
       if (active && snapshot.exists()) { setCurrencyCode(snapshot.data()?.settings?.currencyCode || ''); setBusinessName(snapshot.data()?.name || '') }
     }).catch(() => { if (active) setCurrencyCode('') })
@@ -169,8 +179,8 @@ function ServicesContent() {
       </tr>)}</tbody></table></div>}
       <footer className="services-pagination"><span>{visible.length ? `${(currentPage - 1) * PAGE_SIZE + 1}–${Math.min(currentPage * PAGE_SIZE, visible.length)} de ${visible.length} servicios` : '0 servicios'}</span><div><button type="button" aria-label="Página anterior" disabled={currentPage <= 1} onClick={() => setPage(value => value - 1)}><ChevronLeft size={17} /></button><span>Página {currentPage} de {pageCount}</span><button type="button" aria-label="Página siguiente" disabled={currentPage >= pageCount} onClick={() => setPage(value => value + 1)}><ChevronRight size={17} /></button></div></footer>
     </div>
-    {dialog?.mode === 'details' && <ServiceDetailsDialog service={dialog.service} categories={categories} professionals={professionals} professionalId={professionalId} onClose={() => setDialog(null)} />}
-    {(dialog?.mode === 'create' || dialog?.mode === 'edit') && <ServiceEditorDialog key={`${dialog.mode}-${dialog.service.id || 'new'}`} dialog={dialog} categories={categories} professionals={professionals} businessId={businessId} currencyCode={currencyCode} error={dialogError} saving={saving} uploading={uploading} onUpload={setUploading} onSave={saveService} onClose={() => setDialog(null)} />}
+    {dialog?.mode === 'details' && <ServiceDetailsDialog service={dialog.service} categories={categories} professionals={professionals} professionalsReady={professionalsLoadedBusinessId === businessId} professionalsError={professionalsError} professionalId={professionalId} onClose={() => setDialog(null)} />}
+    {(dialog?.mode === 'create' || dialog?.mode === 'edit') && <ServiceEditorDialog key={`${dialog.mode}-${dialog.service.id || 'new'}`} dialog={dialog} categories={categories} professionals={professionals} professionalsReady={professionalsLoadedBusinessId === businessId} professionalsError={professionalsError} businessId={businessId} currencyCode={currencyCode} error={dialogError} saving={saving} uploading={uploading} onUpload={setUploading} onSave={saveService} onClose={() => setDialog(null)} />}
   </section>
 }
 
@@ -178,25 +188,25 @@ function ServiceImage({ service, large = false }) {
   return <span className={`service-image${large ? ' service-image-large' : ''}`}>{safeImageUrl(service.image?.url) ? <img src={service.image.url} alt={service.name ? `Imagen de ${service.name}` : ''} loading="lazy" /> : <Scissors size={large ? 24 : 18} aria-hidden="true" />}</span>
 }
 
-function ServiceDetailsDialog({ service, categories, professionals, professionalId, onClose }) {
+function ServiceDetailsDialog({ service, categories, professionals, professionalsReady, professionalsError, professionalId, onClose }) {
   const category = categories.find(item => item.id === service.categoryId)?.name || 'Categoría no disponible'
-  const assigned = professionals.filter(item => service.professionalIds?.includes(item.id))
+  const assigned = getServiceProfessionals(service, professionals)
   const ownAssignment = professionalId && service.professionalIds?.includes(professionalId)
   return <EditorDialog title={service.name || 'Detalle del servicio'} onClose={onClose}>
     <div className="service-detail-layout"><div className="service-detail-main"><ServiceImage service={service} large /><Badge tone={service.isActive ? 'success' : 'neutral'}>{service.isActive ? 'Activo' : 'Inactivo'}</Badge><h3>{service.name}</h3><p className="service-detail-description">{service.description || 'Este servicio no tiene descripción registrada.'}</p><div className="service-detail-facts"><span><Scissors size={17} />{category}</span><span><Clock3 size={17} />{service.durationMinutes} minutos</span><span>{service.price} {service.currencyCode || ''}</span></div><p><strong>Margen antes:</strong> {service.bufferBeforeMinutes ?? 0} minutos</p><p><strong>Margen después:</strong> {service.bufferAfterMinutes ?? 0} minutos</p>
-      {professionals.length > 0 && <section className="service-associated"><h4><Users size={17} />Profesionales asociados</h4>{assigned.length ? assigned.map(person => <p key={person.id}>{person.displayName || `${person.firstName || ''} ${person.lastName || ''}`.trim() || 'Profesional'}</p>) : <p>No hay profesionales asociados a este servicio.</p>}</section>}
+      {!professionalId && <section className="service-associated"><h4><Users size={17} />Profesionales asociados</h4>{professionalsError ? <p role="alert">{professionalsError}</p> : !professionalsReady ? <p role="status">Cargando profesionales asociados…</p> : assigned.length ? assigned.map(person => <p key={person.id}>{person.displayName || `${person.firstName || ''} ${person.lastName || ''}`.trim() || 'Profesional'}</p>) : <p>No hay profesionales asociados a este servicio.</p>}</section>}
       {professionalId && <p className="service-assignment"><Check size={16} />{ownAssignment ? 'Asignado a tu perfil' : 'La asignación a tu perfil no está disponible.'}</p>}
     </div></div>
   </EditorDialog>
 }
 
-function ServiceEditorDialog({ dialog, categories, professionals, businessId, currencyCode, error, saving, uploading, onUpload, onSave, onClose }) {
+function ServiceEditorDialog({ dialog, categories, professionals, professionalsReady, professionalsError, businessId, currencyCode, error, saving, uploading, onUpload, onSave, onClose }) {
   const service = dialog.service
   const isEdit = dialog.mode === 'edit'
   const { confirm } = useFeedback()
   const formRef = useRef(null)
   const [imageUrl, setImageUrl] = useState(service.image?.url || '')
-  const associated = professionals.filter(item => service.professionalIds?.includes(item.id))
+  const associated = getServiceProfessionals(service, professionals)
   const activeCategories = categories.filter(item => item.isActive || item.id === service.categoryId)
   return <EditorDialog title={isEdit ? 'Editar servicio' : 'Nuevo servicio'} busy={saving || uploading} onClose={onClose}>
     <form ref={formRef} className="service-editor-form" onSubmit={event => onSave(event, { imageUrl })}>
@@ -211,7 +221,7 @@ function ServiceEditorDialog({ dialog, categories, professionals, businessId, cu
           <label className="service-active-toggle"><input type="checkbox" name="isActive" defaultChecked={service.isActive !== false} /><span><strong>Servicio activo</strong><small>{service.isActive === false ? 'Al activarlo, volverá a ofrecerse para nuevas reservas.' : 'Al desactivarlo, dejará de ofrecerse para nuevas reservas.'}</small></span></label>
         </div>
         <aside className="service-preview"><h3>Vista previa</h3><ServiceImage service={{ ...service, image: { ...service.image, url: imageUrl } }} large /><h4>{service.name || 'Nombre del servicio'}</h4><Badge tone={service.isActive === false ? 'neutral' : 'success'}>{service.isActive === false ? 'Inactivo' : 'Activo'}</Badge><p>{categories.find(category => category.id === service.categoryId)?.name || 'Categoría'}</p><div className="service-detail-facts"><span><Clock3 size={16} />{service.durationMinutes || '—'} min</span><span>{service.price ?? '—'} {currencyCode}</span></div>
-          {isEdit && <section className="service-associated"><h4><Users size={17} />Profesionales asociados</h4>{associated.length ? associated.map(person => <p key={person.id}>{person.displayName || person.id}</p>) : <p>No hay asociaciones registradas.</p>}<p className="service-metadata">{service.createdAt ? `Creado el ${formatDate(service.createdAt)}` : 'No hay fecha de creación disponible.'}</p></section>}
+          {isEdit && <section className="service-associated"><h4><Users size={17} />Profesionales asociados</h4>{professionalsError ? <p role="alert">{professionalsError}</p> : !professionalsReady ? <p role="status">Cargando profesionales asociados…</p> : associated.length ? associated.map(person => <p key={person.id}>{person.displayName || person.id}</p>) : <p>No hay asociaciones registradas.</p>}<p className="service-metadata">{service.createdAt ? `Creado el ${formatDate(service.createdAt)}` : 'No hay fecha de creación disponible.'}</p></section>}
         </aside>
       </div>
       <div className="service-form-actions"><Button type="button" variant="secondary" disabled={saving || uploading} onClick={async () => { if (await confirmDiscard(formRef.current, confirm)) onClose() }}>Cancelar</Button><Button type="submit" disabled={saving || uploading}>{saving ? 'Guardando…' : isEdit ? 'Guardar cambios' : 'Crear servicio'}</Button></div>

@@ -3,6 +3,7 @@ import { ArrowLeft, CalendarDays, Clock3, MessageCircle, Sparkles, Star, Tag, Wa
 import { useClientBusiness } from '../../context/client-context'
 import { safeImageUrl } from '../../lib/brand'
 import { dateMillis, formatPrice } from '../../lib/clientPresentation'
+import { getServiceProfessionals } from '../../lib/serviceProfessionals'
 import { bookingEnabled } from '../../lib/bookingApi'
 import BookingContactCard from '../../components/client/BookingContactCard'
 import CatalogState from '../../components/client/CatalogState'
@@ -24,7 +25,7 @@ export default function ClientServiceDetail() {
   const service = services.find(item => item.id === serviceId)
   const image = safeImageUrl(service?.image?.url)
   const category = categories.find(item => item.id === service?.categoryId)
-  const serviceProfessionals = professionals.filter(professional => professional.serviceIds.includes(service?.id))
+  const serviceProfessionals = getServiceProfessionals(service, professionals)
   const ratingValues = serviceReviews.map(review => review.rating).filter(rating => Number.isInteger(rating) && rating >= 1 && rating <= 5)
   const averageRating = ratingValues.length
     ? (ratingValues.reduce((total, rating) => total + rating, 0) / ratingValues.length).toLocaleString('es-BO', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
