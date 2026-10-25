@@ -28,6 +28,7 @@ test.beforeAll(async () => {
       appearance: { primaryColor: '#7c3aed', secondaryColor: '#f0e7ff' },
       contact: { phone: '+59170000000' },
     })
+    await setDoc(doc(db, 'categories', 'massage-category'), { id: 'massage-category', businessId: 'violeta', name: 'Bienestar', isActive: true, displayOrder: 1 })
     await setDoc(doc(db, 'services', 'massage'), {
       id: 'massage',
       businessId: 'violeta',
@@ -36,6 +37,7 @@ test.beforeAll(async () => {
       price: 150,
       durationMinutes: 60,
       currencyCode: 'BOB',
+      categoryId: 'massage-category',
       isActive: true,
       isPublic: true,
     })
@@ -54,14 +56,26 @@ test('business identity persists across home, login and registration on desktop 
   ]) {
     await page.setViewportSize(viewport)
     await page.goto('/b/violeta')
-    await expect(page.getByRole('heading', { name: 'Nuestros servicios' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Servicios disponibles' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Masaje relajante' })).toBeVisible()
     await expect(page.locator('.public-site')).toHaveCSS('--brand', '#7c3aed')
+    await expect(page.getByLabel('Filtrar por categoría')).toHaveValue('')
+    await page.getByLabel('Filtrar por categoría').selectOption('massage-category')
+    await expect(page.locator('.business-service-card')).toHaveCount(1)
+    await expect(page.locator('#profesionales')).toBeAttached()
+    await expect(page.locator('#promociones')).toBeAttached()
+    await expect(page.locator('#opiniones')).toBeAttached()
+    if (viewport.width < 1050) await page.getByRole('button', { name: 'Abrir menú' }).click()
+    await expect(page.getByRole('link', { name: 'Volver a CitasPro' })).toHaveAttribute('href', '/negocios')
+    await expect(page.locator('.business-service-card').getByRole('link', { name: /Reservar/ })).toHaveAttribute('href', '/b/violeta/reservar?servicio=massage')
+    await page.getByRole('searchbox', { name: 'Buscar servicios' }).fill('no existe')
+    await expect(page.getByText('No hay servicios que coincidan con tu búsqueda.')).toBeVisible()
+    await page.getByRole('searchbox', { name: 'Buscar servicios' }).fill('masaje')
+    await expect(page.getByRole('heading', { name: 'Masaje relajante' })).toBeVisible()
     await page.screenshot({
       path: `test-results/home-${viewport.width}.png`,
       fullPage: true,
     })
-    if (viewport.width < 1050) await page.getByRole('button', { name: 'Abrir menú' }).click()
     await page.getByRole('link', { name: 'Iniciar sesión', exact: true }).click()
     await expect(page).toHaveURL(/\/b\/violeta\/login$/)
     await expect(page.getByRole('heading', { name: 'Inicia sesión' })).toBeVisible()

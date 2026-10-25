@@ -197,6 +197,20 @@ test('client catalog stays scoped and read-only even when the public website is 
   await assertFails(getDoc(doc(client, 'services', 'catalog-visible')))
 })
 
+test('public business pages can read only active categories from a published business', async () => {
+  await env.withSecurityRulesDisabled(async context => {
+    const db = context.firestore()
+    await setDoc(doc(db, 'businesses', 'catalog-public'), { status: 'active', settings: { publicPageEnabled: true }, ownerUserId: 'owner' })
+    await setDoc(doc(db, 'categories', 'catalog-public-active'), { businessId: 'catalog-public', name: 'Servicios', isActive: true })
+    await setDoc(doc(db, 'categories', 'catalog-public-disabled'), { businessId: 'catalog-public', name: 'Oculta', isActive: false })
+  })
+  const visitor = env.unauthenticatedContext().firestore()
+  const categories = await assertSucceeds(getDocs(query(collection(visitor, 'categories'), where('businessId', '==', 'catalog-public'), where('isActive', '==', true))))
+  assert.deepEqual(categories.docs.map(item => item.id), ['catalog-public-active'])
+  await env.withSecurityRulesDisabled(context => updateDoc(doc(context.firestore(), 'businesses', 'catalog-public'), { 'settings.publicPageEnabled': false }))
+  await assertFails(getDocs(query(collection(visitor, 'categories'), where('businessId', '==', 'catalog-public'), where('isActive', '==', true))))
+})
+
 function provisionProfessional(db, uid, businessId = 'studio') {
   const id = `${businessId}_${uid}`
   const batch = writeBatch(db)

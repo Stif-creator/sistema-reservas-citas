@@ -34,6 +34,21 @@ export default function SiteFooter({ business, homeTo = '/', contactTo = '/conta
     </div>
     <div className="platform-footer-bottom"><span>© {new Date().getFullYear()} CitasPro. Todos los derechos reservados.</span><span>Tu tiempo, nuestra prioridad.</span></div>
   </footer>
+  if (business) {
+    const phone = typeof business.contact?.phone === 'string' && /^[+\d][\d\s()-]{6,24}$/.test(business.contact.phone.trim()) ? business.contact.phone.trim() : ''
+    const phoneHref = phone.replace(/[^\d+]/g, '')
+    const email = typeof business.contact?.email === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(business.contact.email.trim()) ? business.contact.email.trim() : ''
+    const place = [business.location?.city, business.location?.countryCode].filter(value => typeof value === 'string' && value.trim()).join(', ')
+    return <footer className="public-container site-footer business-site-footer">
+      <div className="business-footer-main">
+        <div className="business-footer-brand"><BusinessBrand business={business} to={homeTo} />{business.description && <p>{business.description}</p>}</div>
+        <nav aria-label="Secciones del negocio"><strong>Explora</strong><Link to={`${homeTo}#servicios`}>Servicios</Link><Link to={`${homeTo}#profesionales`}>Profesionales</Link><Link to={`${homeTo}#promociones`}>Promociones</Link><Link to={`${homeTo}#opiniones`}>Opiniones</Link><Link to={`${homeTo}/nosotros`}>Nosotros</Link><Link to={contactTo}>Contacto</Link></nav>
+        <div className="business-footer-contact"><strong>Información de contacto</strong>{phone && <a href={`tel:${phoneHref}`}><Phone size={14} />{phone}</a>}{email && <a href={`mailto:${email}`}><Mail size={14} />{email}</a>}{place && <span><MapPin size={14} />{place}</span>}{!phone && !email && !place && <p>Consulta los datos disponibles en la página del negocio.</p>}</div>
+        <Link className="business-footer-platform" to="/negocios">Conoce CitasPro <span aria-hidden="true">→</span></Link>
+      </div>
+      <div className="business-footer-bottom"><span>© {new Date().getFullYear()} {business.name}</span><Link to={contactTo}>Contactar al negocio</Link></div>
+    </footer>
+  }
   return <footer className="public-container public-footer site-footer">
     <BusinessBrand business={business} to={homeTo} />
     <span>Tu tiempo, bien acompañado.</span>

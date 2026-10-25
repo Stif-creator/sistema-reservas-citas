@@ -19,12 +19,14 @@ export default function PublicHomeLayout() {
     { to: home, label: 'Inicio', end: true },
     { to: `${home}#servicios`, label: 'Servicios' },
     { to: `${home}#profesionales`, label: 'Profesionales' },
+    { to: `${home}#promociones`, label: 'Promociones' },
+    { to: `${home}#opiniones`, label: 'Opiniones' },
     { to: `${base}/reservar`, label: 'Reservar' },
     { to: `${base}/nosotros`, label: 'Nosotros' },
     { to: `${base}/contacto`, label: 'Contacto' },
   ]
-  return <>
-    <SiteHeader business={business} homeTo={home} links={links} platformMode={platformMode}>
+  return <div className={businessId ? 'business-public-shell' : 'platform-public-shell'}>
+    <SiteHeader business={business} homeTo={home} links={links} platformMode={platformMode} businessMode={!!businessId}>
       {platformMode && <Link className="public-button platform-header-explore" to="/negocios">Explorar negocios</Link>}
       {membership?.status === 'active' ? <Link className="public-button" to="/dashboard">Mi panel</Link> : <>
         <Link className="public-button secondary" to={`${base}/login`}>Iniciar sesión</Link>
@@ -33,5 +35,5 @@ export default function PublicHomeLayout() {
     </SiteHeader>
     <Outlet />
     <SiteFooter business={business} homeTo={home} contactTo={`${base}/contacto`} platformMode={platformMode} />
-  </>
+  </div>
 }

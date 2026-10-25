@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
-import { Menu, X } from 'lucide-react'
+import { ArrowLeft, Menu, X } from 'lucide-react'
 import BusinessBrand from './BusinessBrand'
 
-export default function SiteHeader({ business, homeTo, links, children, clientMode = false, platformMode = false }) {
+export default function SiteHeader({ business, homeTo, links, children, clientMode = false, platformMode = false, businessMode = false }) {
   const { pathname, hash } = useLocation()
   const [openAt, setOpenAt] = useState(null)
   const open = openAt === pathname
@@ -11,7 +11,7 @@ export default function SiteHeader({ business, homeTo, links, children, clientMo
     if (hash) document.getElementById(hash.slice(1))?.scrollIntoView()
     else window.scrollTo(0, 0)
   }, [pathname, hash])
-  return <header className={`public-header site-header${clientMode ? ' client-site-header' : ''}${platformMode ? ' platform-site-header' : ''}`}>
+  return <header className={`public-header site-header${clientMode ? ' client-site-header' : ''}${platformMode ? ' platform-site-header' : ''}${businessMode ? ' business-site-header' : ''}`}>
     <a className="site-skip" href="#contenido">Saltar al contenido</a>
     <div className="public-container header-inner">
       <BusinessBrand business={business} to={homeTo} />
@@ -20,6 +20,7 @@ export default function SiteHeader({ business, homeTo, links, children, clientMo
         {open ? <X size={22} /> : <Menu size={22} />}
       </button>
       <div id="site-navigation" className={`site-navigation ${open ? 'is-open' : ''}`}>
+        {businessMode && <Link className="business-back-platform" to="/negocios"><ArrowLeft size={16} />Volver a CitasPro</Link>}
         <nav aria-label="Navegación principal" onClick={() => setOpenAt(null)}>
           {links.map((link) => link.to.includes('#')
             ? <Link key={link.to} to={link.to}>{link.label}</Link>

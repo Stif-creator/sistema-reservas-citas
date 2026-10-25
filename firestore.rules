@@ -188,7 +188,8 @@ service cloud.firestore {
     match /categories/{cid} {
       allow read: if admin(resource.data.businessId)
         || professional(resource.data.businessId)
-        || (activeMember(resource.data.businessId) && member(resource.data.businessId).role == 'client');
+        || (activeMember(resource.data.businessId) && member(resource.data.businessId).role == 'client')
+        || (resource.data.get('isActive', false) == true && publicBusiness(resource.data.businessId));
       allow create: if admin(request.resource.data.businessId) && request.resource.data.id == cid;
       allow update: if admin(resource.data.businessId) && sameIdentity();
     }

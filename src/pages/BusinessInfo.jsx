@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import { ArrowRight, Award, CalendarDays, Clock3, Compass, Eye, Heart, HeartHandshake, Mail, MapPin, MessageCircle, Phone, Send, ShieldCheck, Sparkles, Target, UserRound } from 'lucide-react'
 import { usePublicBusiness } from '../context/PublicBusinessContext'
 import { useClientBusiness } from '../context/client-context'
-import { defaultAbout } from '../lib/businessAbout'
 import { safeImageUrl } from '../lib/brand'
 import './business-info.css'
 import './client-about.css'
@@ -20,11 +19,17 @@ export default function BusinessInfo({ contact = false }) {
 
 function About({ business, base, clientMode, professionals }) {
   if (clientMode) return <ClientAbout business={business} base={base} professionals={professionals} />
-  const about = Object.fromEntries(Object.entries(defaultAbout).map(([key, fallback]) => [key, business?.about?.[key]?.trim() || fallback]))
+  const about = business?.about || {}
+  const title = about.title?.trim() || 'Nosotros'
+  const story = about.story?.trim()
+  const mission = about.mission?.trim()
+  const vision = about.vision?.trim()
+  const values = String(about.values || '').split('\n').map(value => value.trim()).filter(Boolean)
+  const description = business?.description?.trim()
   return <section className="public-container info-page">
-    <div className="info-heading"><span className="eyebrow">NOSOTROS · {business?.name || 'CitasPro'}</span><h1>{about.title}</h1><p>Conoce lo que nos inspira y cómo queremos acompañarte.</p></div>
-    <div className="info-grid"><article className="info-card"><Heart className="info-icon" size={32} /><h2>Nuestra historia</h2><p className="info-copy">{about.story}</p></article>
-      <div className="info-stack"><article className="info-card info-highlight"><h2>Nuestra misión</h2><p className="info-copy">{about.mission}</p></article><article className="info-card"><h2>Nuestros valores</h2><ul className="info-values">{about.values.split('\n').filter(value => value.trim()).map((value, index) => <li key={index}>{value}</li>)}</ul></article></div></div>
+    <div className="info-heading"><span className="eyebrow">NOSOTROS · {business?.name || 'Negocio'}</span><h1>{title}</h1>{description && <p>{description}</p>}</div>
+    {(story || mission || vision || values.length > 0) ? <div className="info-grid">{story && <article className="info-card"><Heart className="info-icon" size={32} /><h2>Nuestra historia</h2><p className="info-copy">{story}</p></article>}
+      <div className="info-stack">{mission && <article className="info-card info-highlight"><h2>Nuestra misión</h2><p className="info-copy">{mission}</p></article>}{vision && <article className="info-card"><h2>Nuestra visión</h2><p className="info-copy">{vision}</p></article>}{values.length > 0 && <article className="info-card"><h2>Nuestros valores</h2><ul className="info-values">{values.map((value, index) => <li key={index}>{value}</li>)}</ul></article>}</div></div> : <p className="info-copy">Este negocio aún no ha publicado información adicional.</p>}
     <div className="info-invitation"><div><h2>Tu próxima experiencia empieza con una conversación</h2><p>Cuéntanos qué necesitas. Estamos para orientarte.</p></div><Link className="public-button" to={`${base}/contacto`}>Contáctanos <ArrowRight size={18} /></Link></div>
   </section>
 }
