@@ -5,12 +5,13 @@ import { Link } from 'react-router-dom'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useAuth } from '../context/auth-context'
+import useSprintData from '../hooks/useSprintData'
 import Card from '../components/ui/Card'
 import PageHeader from '../components/ui/PageHeader'
-import { Building2, Settings, ShieldCheck } from 'lucide-react'
+import { ArrowRight, Building2, Settings, ShieldCheck, Users } from 'lucide-react'
 
 function Dashboard() {
-  const { userDoc, membership } = useAuth()
+  const { userDoc, membership, isSuperadmin } = useAuth()
   const [business, setBusiness] = useState(null)
   const [error, setError] = useState('')
 
@@ -37,6 +38,8 @@ function Dashboard() {
   if (!userDoc) {
     return <p className="text-sm text-muted">Cargando datos del usuario...</p>
   }
+
+  if (isSuperadmin && !membership?.businessId) return <PlatformDashboard userDoc={userDoc} />
 
   return (
     <div>
@@ -103,6 +106,21 @@ function Dashboard() {
       )}
     </div>
   )
+}
+
+function PlatformDashboard({ userDoc }) {
+  const { data, error } = useSprintData('clients')
+  return <div>
+    <PageHeader title={`Hola, ${userDoc.firstName || 'superadministrador'}`} description="Resumen general de la plataforma CitasPro." />
+    {error && <p role="alert" className="mb-4 text-error">{error}</p>}
+    {!error && !data && <p role="status">Cargando resumen de la plataforma…</p>}
+    {data?.summaryOnly && <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <Card><div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-50 text-primary"><Building2 size={20} /></span><div><p className="text-xs font-medium uppercase tracking-wide text-muted">Negocios registrados</p><p className="text-2xl font-semibold text-ink">{Number.isFinite(data.totalBusinesses) ? data.totalBusinesses : 0}</p></div></div></Card>
+      <Card><div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-50 text-primary"><Users size={20} /></span><div><p className="text-xs font-medium uppercase tracking-wide text-muted">Clientes registrados</p><p className="text-2xl font-semibold text-ink">{Number.isFinite(data.totalClients) ? data.totalClients : 0}</p></div></div></Card>
+    </div>}
+    {data && !data.summaryOnly && <p role="status" className="text-sm text-muted">Selecciona un negocio en el menú para consultar su actividad.</p>}
+    <Link className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-primary hover:text-primary-hover" to="/plataforma/negocios">Gestionar negocios <ArrowRight size={16} /></Link>
+  </div>
 }
 
 export default Dashboard

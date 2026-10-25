@@ -6,13 +6,14 @@ import { db } from '../firebase/config'
 
 export default function useBusinessReservations(range = null) {
   const { membership, currentUser } = useAuth()
-  const businessId = membership.businessId
-  const role = membership.role
-  const uid = currentUser.uid
+  const businessId = membership?.businessId || ''
+  const role = membership?.role || ''
+  const uid = currentUser?.uid || ''
   const key = `${businessId}:${role}:${uid}`
   const rangeKey = range ? `${range.start}:${range.end}` : 'all'
   const [state, setState] = useState({})
   useEffect(() => {
+    if (!businessId || !uid) return undefined
     const clauses = [where('businessId', '==', businessId), ...(role === 'professional' ? [where('professionalUserId', '==', uid)] : [])]
     const itemsKey = `${key}:${rangeKey}`
     const reservations = collection(db, 'reservations')
@@ -49,5 +50,6 @@ export default function useBusinessReservations(range = null) {
   }, [businessId, role, uid, key, range, rangeKey, range?.start, range?.end])
   const current = state.key === key ? state : {}
   const items = useReservationStates(current.itemsKey === `${key}:${rangeKey}` ? current.items || [] : [])
-  return { business: current.business, items, loading: !('business' in current && current.itemsKey === `${key}:${rangeKey}`), rangeFallback: current.itemsKey === `${key}:${rangeKey}` && current.itemsFallback === true, error: current.businessError || (current.itemsKey === `${key}:${rangeKey}` ? current.itemsError : '') || '' }
+  const missingScope = !businessId || !uid
+  return { business: current.business, items, loading: !missingScope && !('business' in current && current.itemsKey === `${key}:${rangeKey}`), rangeFallback: current.itemsKey === `${key}:${rangeKey}` && current.itemsFallback === true, error: missingScope ? 'Selecciona un negocio para consultar las reservas.' : current.businessError || (current.itemsKey === `${key}:${rangeKey}` ? current.itemsError : '') || '' }
 }

@@ -14,9 +14,12 @@ export default function BusinessStats() {
   useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 60000); return () => clearInterval(timer) }, [])
   if (error || clients.error) return <p role="alert">{error || clients.error}</p>
   if (loading || !clients.data) return <p role="status">Cargando indicadores…</p>
+  const clientCount = Array.isArray(clients.data.clients)
+    ? clients.data.clients.length
+    : Number.isFinite(clients.data.totalClients) ? clients.data.totalClients : 0
   const zone = business.settings?.timezone || 'America/La_Paz'
   const upcoming = items.filter(r => ['pending','confirmed'].includes(r.status) && dateMillis(r.startAt) >= now).sort((a,b) => dateMillis(a.startAt)-dateMillis(b.startAt))
-  const stats = [['Citas de hoy', items.filter(r => dayKey(dateMillis(r.startAt),zone) === dayKey(now,zone) && r.status !== 'cancelled').length],['Próximas citas',upcoming.length],['Clientes',clients.data.clients.length],...Object.entries(reservationStatuses).map(([key,label]) => [label,items.filter(r => (r.displayStatus || r.status) === key).length])]
+  const stats = [['Citas de hoy', items.filter(r => dayKey(dateMillis(r.startAt),zone) === dayKey(now,zone) && r.status !== 'cancelled').length],['Próximas citas',upcoming.length],['Clientes',clientCount],...Object.entries(reservationStatuses).map(([key,label]) => [label,items.filter(r => (r.displayStatus || r.status) === key).length])]
   const today = dayKey(now, zone)
   const week = Array.from({ length: 7 }, (_, index) => {
     const day = addDays(today, index - 6)

@@ -3,6 +3,36 @@ import { initializeTestEnvironment } from '@firebase/rules-unit-testing'
 import { doc, setDoc, updateDoc, getDoc } from 'firebase/firestore'
 import { readFile } from 'node:fs/promises'
 
+test('superadmin without a selected business sees the global dashboard safely', async ({ page }) => {
+  const id = `platform-empty-${Date.now()}`, email = `${id}@example.test`, password = 'Demo-secret-123!'
+  const response = await fetch('http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=demo-key', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password, returnSecureToken: true }),
+  })
+  expect(response.ok).toBe(true)
+  const { localId: uid } = await response.json()
+  const env = await initializeTestEnvironment({ projectId: 'demo-citaspro', firestore: { host: '127.0.0.1', port: 8080, rules: await readFile('firestore.rules', 'utf8') } })
+  const errors = []
+  page.on('pageerror', error => errors.push(error.message))
+  try {
+    await env.withSecurityRulesDisabled(context => setDoc(doc(context.firestore(), 'users', uid), {
+      id: uid, auth_uid: uid, firstName: 'Plataforma', lastName: 'Global', email, status: 'active',
+      globalRole: 'superadmin', businessIds: [], onboardingComplete: true,
+    }))
+    await page.goto('/login')
+    await page.getByLabel('Correo electrónico').fill(email)
+    await page.getByLabel('Contraseña', { exact: true }).fill(password)
+    await page.getByRole('button', { name: 'Iniciar sesión', exact: true }).click()
+    await expect(page).toHaveURL(/dashboard$/)
+    await expect(page.getByRole('heading', { name: 'Hola, Plataforma' })).toBeVisible()
+    await expect(page.getByText('Negocios registrados')).toBeVisible()
+    await expect(page.getByText('Clientes registrados')).toBeVisible()
+    await expect(page.getByRole('main').getByRole('link', { name: /Gestionar negocios/ })).toHaveAttribute('href', '/plataforma/negocios')
+    expect(errors).toEqual([])
+  } finally {
+    await env.cleanup()
+  }
+})
+
 test('superadmin selects another business; colors are locked again after privilege revocation', async ({ page }) => {
   test.setTimeout(120000)
   const id = `platform-${Date.now()}`, email = `${id}@example.test`, password = 'Demo-secret-123!'
