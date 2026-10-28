@@ -16,6 +16,13 @@ const PlatformContact = lazy(() => import('../pages/PlatformContact'))
 const Login = lazy(() => import('../pages/Login'))
 const Register = lazy(() => import('../pages/Register'))
 const Dashboard = lazy(() => import('../pages/Dashboard'))
+const PlatformDashboard = lazy(() => import('../pages/PlatformDashboard'))
+const PlatformBusinessDetail = lazy(() => import('../pages/PlatformBusinessDetail'))
+const PlatformAdministrators = lazy(() => import('../pages/PlatformAdministrators'))
+const PlatformAnalytics = lazy(() => import('../pages/PlatformAnalytics'))
+const PlatformActivity = lazy(() => import('../pages/PlatformActivity'))
+const PlatformSecurity = lazy(() => import('../pages/PlatformSecurity'))
+const PlatformSupport = lazy(() => import('../pages/PlatformSupport'))
 const BusinessSettings = lazy(() => import('../pages/BusinessSettings'))
 const Categories = lazy(() => import('../pages/Categories'))
 const Services = lazy(() => import('../pages/Services'))
@@ -100,7 +107,15 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         >
-          <Route path="/plataforma/negocios" element={<PlatformBusinesses />} /><Route path="/seguridad" element={<AccountSecurity />} /><Route path="/dashboard" element={<Dashboard />} /><Route path="/avisos" element={<Notifications />} /><Route path="/lista-espera" element={<ProtectedRoute allowedRoles={['admin', 'professional']}><Waitlist /></ProtectedRoute>} /><Route path="/clientes" element={<ProtectedRoute allowedRoles={['admin', 'professional']}><Clients /></ProtectedRoute>} /><Route path="/promociones" element={<ProtectedRoute allowedRoles={['admin']}><Promotions /></ProtectedRoute>} />
+          <Route path="/plataforma/dashboard" element={<ProtectedRoute superadminOnly><PlatformDashboard /></ProtectedRoute>} />
+          <Route path="/plataforma/negocios" element={<ProtectedRoute superadminOnly><PlatformBusinesses /></ProtectedRoute>} />
+          <Route path="/plataforma/negocios/:businessId" element={<ProtectedRoute superadminOnly><PlatformBusinessDetail /></ProtectedRoute>} />
+          <Route path="/plataforma/administradores" element={<ProtectedRoute superadminOnly><PlatformAdministrators /></ProtectedRoute>} />
+          <Route path="/plataforma/estadisticas" element={<ProtectedRoute superadminOnly><PlatformAnalytics /></ProtectedRoute>} />
+          <Route path="/plataforma/actividad" element={<ProtectedRoute superadminOnly><PlatformActivity /></ProtectedRoute>} />
+          <Route path="/plataforma/seguridad" element={<ProtectedRoute superadminOnly><PlatformSecurity /></ProtectedRoute>} />
+          <Route path="/plataforma/soporte" element={<ProtectedRoute superadminOnly><PlatformSupport /></ProtectedRoute>} />
+          <Route path="/seguridad" element={<AccountSecurity />} /><Route path="/dashboard" element={<Dashboard />} /><Route path="/avisos" element={<Notifications />} /><Route path="/lista-espera" element={<ProtectedRoute allowedRoles={['admin', 'professional']}><Waitlist /></ProtectedRoute>} /><Route path="/clientes" element={<ProtectedRoute allowedRoles={['admin', 'professional']}><Clients /></ProtectedRoute>} /><Route path="/promociones" element={<ProtectedRoute allowedRoles={['admin']}><Promotions /></ProtectedRoute>} />
           <Route path="/reservas" element={<ProtectedRoute allowedRoles={['admin', 'professional']}><Reservations /></ProtectedRoute>} />
           <Route path="/reservas/nueva" element={<ProtectedRoute allowedRoles={['admin']}><Reservations manual /></ProtectedRoute>} />
           <Route path="/reservas/:reservationId" element={<ProtectedRoute allowedRoles={['admin', 'professional']}><Reservations detail /></ProtectedRoute>} />

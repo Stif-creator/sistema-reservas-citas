@@ -64,15 +64,10 @@ test('about uses saved content, optional vision, responsive layout and contrasti
     const superadmin = await adminContext.newPage()
     await login(superadmin, 'superadmin')
     await superadmin.goto('/negocio')
-    await superadmin.getByRole('tab', { name: 'Página nosotros', exact: true }).click()
-    await superadmin.getByLabel('Valores de tu negocio (uno por línea)').fill('Servicios profesionales\nOrganización y confianza')
-    await superadmin.getByRole('button', { name: 'Guardar cambios', exact: true }).click()
-    await expect(superadmin.getByText('Cambios guardados.', { exact: true })).toBeVisible()
-    await expect(page.locator('.client-about-value-card')).toContainText(['Servicios profesionales', 'Organización y confianza'])
-    await env.withSecurityRulesDisabled(async context => {
-      expect((await getDoc(doc(context.firestore(), 'businesses', businessId))).data().about.values)
-        .toBe('Servicios profesionales\nOrganización y confianza')
-    })
+    await expect(superadmin).toHaveURL(/dashboard$/)
+    await expect(superadmin.getByRole('heading', { name: 'Resumen de la plataforma' })).toBeVisible()
+    await superadmin.goto('/negocio')
+    await expect(superadmin).toHaveURL(/dashboard$/)
 
     for (const [name, appearance] of Object.entries({
       dark: { primaryColor: '#151329', secondaryColor: '#101010', accentColor: '#24122e', surfaceColor: '#172526' },
@@ -80,13 +75,15 @@ test('about uses saved content, optional vision, responsive layout and contrasti
     })) {
       await env.withSecurityRulesDisabled(context => updateDoc(doc(context.firestore(), 'businesses', businessId), { appearance }))
       await expect(page.locator('.client-site')).toHaveCSS('--brand', appearance.primaryColor)
+      await page.waitForTimeout(350) // Let the CSS color transition settle before measuring contrast.
       for (const width of [1440, 768, 390, 320]) {
         await page.setViewportSize({ width, height: 960 })
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
         // Read actual computed colors, including inherited styles from client/public layouts.
         const contrast = await page.locator('.client-about-page').evaluate(root => {
           const luminance = css => {
-            const channels = css.match(/[\d.]+/g).slice(0, 3).map(Number).map(v => v / 255).map(v => v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4)
+            const raw = css.match(/[\d.]+/g).slice(0, 3).map(Number)
+            const channels = (css.startsWith('color(srgb') ? raw : raw.map(v => v / 255)).map(v => v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4)
             return channels.reduce((sum, v, i) => sum + v * [.2126, .7152, .0722][i], 0)
           }
           return ['.client-about-mission h2', '.client-about-mission p', '.client-about-vision h2', '.client-about-vision p', '.client-about-cta h2', '.client-about-cta p', '.client-about-cta a', '.client-about-actions a', '.client-about-kicker'].map(selector => {
@@ -94,7 +91,7 @@ test('about uses saved content, optional vision, responsive layout and contrasti
             let background = element
             while (getComputedStyle(background).backgroundColor === 'rgba(0, 0, 0, 0)') background = background.parentElement
             const fg = luminance(getComputedStyle(element).color), bg = luminance(getComputedStyle(background).backgroundColor)
-            return { selector, ratio: (Math.max(fg, bg) + .05) / (Math.min(fg, bg) + .05) }
+            return { selector, ratio: (Math.max(fg, bg) + .05) / (Math.min(fg, bg) + .05), foreground: getComputedStyle(element).color, background: getComputedStyle(background).backgroundColor, elementBackground: getComputedStyle(element).backgroundColor }
           })
         })
         for (const item of contrast) expect(item.ratio, `${name} ${width}: ${item.selector}`).toBeGreaterThanOrEqual(4.5)

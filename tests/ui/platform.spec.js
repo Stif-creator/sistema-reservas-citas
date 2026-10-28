@@ -1,108 +1,70 @@
 import { test, expect } from '@playwright/test'
 import { initializeTestEnvironment } from '@firebase/rules-unit-testing'
-import { doc, setDoc, updateDoc, getDoc } from 'firebase/firestore'
+import { doc, setDoc } from 'firebase/firestore'
 import { readFile } from 'node:fs/promises'
 
-test('superadmin without a selected business sees the global dashboard safely', async ({ page }) => {
-  const id = `platform-empty-${Date.now()}`, email = `${id}@example.test`, password = 'Demo-secret-123!'
+async function createAccount(email, password) {
   const response = await fetch('http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=demo-key', {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password, returnSecureToken: true }),
   })
   expect(response.ok).toBe(true)
-  const { localId: uid } = await response.json()
+  return (await response.json()).localId
+}
+
+async function openSession(page, email, password) {
+  await page.goto('/login')
+  await page.getByLabel('Correo electrónico').fill(email)
+  await page.getByLabel('Contraseña', { exact: true }).fill(password)
+  await page.getByRole('button', { name: 'Iniciar sesión', exact: true }).click()
+  await expect(page).toHaveURL(/dashboard$/)
+}
+
+test('superadmin without a selected business sees the global dashboard safely', async ({ page }) => {
+  const id = `platform-empty-${Date.now()}`, email = `${id}@example.test`, password = 'Demo-secret-123!'
+  const uid = await createAccount(email, password)
   const env = await initializeTestEnvironment({ projectId: 'demo-citaspro', firestore: { host: '127.0.0.1', port: 8080, rules: await readFile('firestore.rules', 'utf8') } })
   const errors = []
   page.on('pageerror', error => errors.push(error.message))
   try {
-    await env.withSecurityRulesDisabled(context => setDoc(doc(context.firestore(), 'users', uid), {
-      id: uid, auth_uid: uid, firstName: 'Plataforma', lastName: 'Global', email, status: 'active',
-      globalRole: 'superadmin', businessIds: [], onboardingComplete: true,
-    }))
-    await page.goto('/login')
-    await page.getByLabel('Correo electrónico').fill(email)
-    await page.getByLabel('Contraseña', { exact: true }).fill(password)
-    await page.getByRole('button', { name: 'Iniciar sesión', exact: true }).click()
-    await expect(page).toHaveURL(/dashboard$/)
-    await expect(page.getByRole('heading', { name: 'Hola, Plataforma' })).toBeVisible()
-    await expect(page.getByText('Negocios registrados')).toBeVisible()
-    await expect(page.getByText('Clientes registrados')).toBeVisible()
-    await expect(page.getByRole('main').getByRole('link', { name: /Gestionar negocios/ })).toHaveAttribute('href', '/plataforma/negocios')
+    await env.withSecurityRulesDisabled(context => setDoc(doc(context.firestore(), 'users', uid), { id: uid, auth_uid: uid, firstName: 'Plataforma', lastName: 'Global', email, status: 'active', globalRole: 'superadmin', businessIds: [], onboardingComplete: true }))
+    await openSession(page, email, password)
+    await expect(page.getByRole('heading', { name: 'Resumen de la plataforma' })).toBeVisible()
+    await expect(page.getByText('Negocios registrados').first()).toBeVisible()
+    await expect(page.getByText('Reservas del período')).toBeVisible()
     expect(errors).toEqual([])
-  } finally {
-    await env.cleanup()
-  }
+  } finally { await env.cleanup() }
 })
 
-test('superadmin selects another business; colors are locked again after privilege revocation', async ({ page }) => {
-  test.setTimeout(120000)
+test('superadmin uses supervision routes and cannot open business operations', async ({ page }) => {
   const id = `platform-${Date.now()}`, email = `${id}@example.test`, password = 'Demo-secret-123!'
-  const response = await fetch('http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=demo-key', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password, returnSecureToken: true }),
-  })
-  expect(response.ok).toBe(true)
-  const { localId: uid } = await response.json()
+  const uid = await createAccount(email, password)
   const env = await initializeTestEnvironment({ projectId: 'demo-citaspro', firestore: { host: '127.0.0.1', port: 8080, rules: await readFile('firestore.rules', 'utf8') } })
   const errors = []
-  page.on('pageerror', e => errors.push(e.message))
+  page.on('pageerror', error => errors.push(error.message))
   try {
     await env.withSecurityRulesDisabled(async context => {
       const db = context.firestore()
-      await setDoc(doc(db, 'users', uid), { firstName: 'Platform', lastName: 'Test', email, status: 'active', globalRole: 'superadmin', businessIds: [id], onboardingComplete: true })
-      for (const bid of [id, `${id}-other`]) await setDoc(doc(db, 'businesses', bid), { id: bid, ownerUserId: bid === id ? uid : 'someone-else', name: bid, status: 'active', settings: { timezone: 'America/La_Paz', currencyCode: 'BOB', publicPageEnabled: true }, appearance: { primaryColor: '#123456', secondaryColor: '#abcdef', accentColor: '#d97706', surfaceColor: '#f4f6f8' } })
-      await setDoc(doc(db, 'services', `${id}-service`), { businessId: `${id}-other`, name: 'Consulta', isActive: true, durationMinutes: 30, price: 100 })
-      await setDoc(doc(db, 'professionals', `${id}-pro`), { businessId: `${id}-other`, userId: 'pro', displayName: 'Profesional', isActive: true, serviceIds: [`${id}-service`] })
+      await setDoc(doc(db, 'users', uid), { id: uid, auth_uid: uid, firstName: 'Platform', lastName: 'Test', email, status: 'active', globalRole: 'superadmin', businessIds: [id], onboardingComplete: true })
+      await setDoc(doc(db, 'businesses', id), { id, ownerUserId: 'someone-else', name: 'Negocio de supervisión', status: 'active', administratorName: 'Responsable de prueba', administratorEmail: 'admin@example.test', settings: { publicPageEnabled: true } })
     })
-    await page.goto('/login')
-    await page.getByLabel('Correo electrónico').fill(email)
-    await page.getByLabel('Contraseña', { exact: true }).fill(password)
-    await page.getByRole('button', { name: 'Iniciar sesión', exact: true }).click()
-    await expect(page).toHaveURL(/dashboard/)
-    await page.getByLabel('Superadministrador · Negocio').selectOption(`${id}-other`)
-    await page.getByRole('link', { name: 'Disponibilidad', exact: true }).click()
-    await page.getByLabel('Profesional', { exact: true }).selectOption(`${id}-pro`)
-    await page.getByLabel('Servicio', { exact: true }).selectOption(`${id}-service`)
-    const first = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10)
-    const last = new Date(Date.now() + 15 * 86400000).toISOString().slice(0, 10)
-    await page.getByLabel('Fecha de inicio').fill(first)
-    await page.getByLabel('Fecha de fin').fill(last)
-    await expect(page.getByRole('heading', { name: /Horarios disponibles/ })).toHaveCount(2)
-    await page.getByLabel('Fecha de fin').fill('2020-01-01')
-    await expect(page.getByRole('alert')).toContainText('rango ordenado')
-    await page.getByRole('link', { name: 'Configuración', exact: true }).click()
-    await expect(page.getByLabel('Nombre', { exact: true })).toHaveValue(`${id}-other`)
-    await expect(page.getByLabel('Color primario')).toBeEnabled()
-    await page.getByLabel('Color primario').fill('#654321')
-    await page.getByLabel('Color de acento').fill('#be123c')
-    await page.getByLabel('Color de superficie').fill('#fef3c7')
-    await expect(page.locator('#settings-panel-general .settings-preview')).toHaveCSS('--brand-accent', '#be123c')
-    await expect(page.locator('#settings-panel-general .settings-preview-body')).toHaveCSS('background-color', 'rgb(254, 243, 199)')
-    await page.getByRole('button', { name: 'Guardar cambios', exact: true }).click()
-    await env.withSecurityRulesDisabled(async context => {
-      const db = context.firestore()
-      await expect.poll(async () => (await getDoc(doc(db, 'businesses', `${id}-other`))).data().appearance.primaryColor).toBe('#654321')
-      await expect.poll(async () => (await getDoc(doc(db, 'businesses', `${id}-other`))).data().appearance.accentColor).toBe('#be123c')
-      await expect.poll(async () => (await getDoc(doc(db, 'businesses', `${id}-other`))).data().appearance.surfaceColor).toBe('#fef3c7')
-      await setDoc(doc(db, 'memberships', `${id}_${uid}`), { businessId: id, userId: uid, role: 'admin', status: 'active' })
-      await updateDoc(doc(context.firestore(), 'users', uid), { globalRole: 'user' })
-    })
+    await openSession(page, email, password)
+    for (const label of ['Dashboard global', 'Negocios', 'Administradores', 'Estadísticas y reportes', 'Actividad de negocios', 'Seguridad y auditoría', 'Avisos de plataforma', 'Soporte técnico', 'Mi seguridad'])
+      await expect(page.getByRole('link', { name: label, exact: true })).toBeVisible()
+    for (const label of ['Reservas', 'Agenda', 'Clientes', 'Servicios', 'Profesionales', 'Disponibilidad'])
+      await expect(page.getByRole('link', { name: label, exact: true })).toHaveCount(0)
     await expect(page.getByLabel('Superadministrador · Negocio')).toHaveCount(0)
-    await expect(page.getByLabel('Nombre', { exact: true })).toHaveValue(id)
-    await expect(page.getByLabel('Color primario')).toBeDisabled()
-    await expect(page.getByLabel('Color de acento')).toBeDisabled()
-    await expect(page.getByLabel('Color de superficie')).toBeDisabled()
-    await page.getByRole('link', { name: 'Profesionales', exact: true }).click()
-    await page.getByRole('button',{name:'Registrar profesional',exact:true}).click()
-    const initial = await page.getByLabel('Contraseña inicial', { exact: true }).inputValue()
-    expect(initial.length).toBeGreaterThanOrEqual(20)
-    await expect(page.getByLabel('Confirmar contraseña inicial')).toHaveValue(initial)
-    await page.getByRole('button',{name:'Cerrar',exact:true}).click()
+    await page.goto('/negocio')
+    await expect(page).toHaveURL(/dashboard$/)
+    await page.getByRole('link', { name: 'Negocios', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'Negocios registrados' })).toBeVisible()
+    await page.locator('article').filter({ hasText: 'Negocio de supervisión' }).getByRole('link', { name: 'Ver supervisión' }).click()
+    await expect(page.getByRole('heading', { name: 'Negocio de supervisión' })).toBeVisible()
+    await expect(page.getByText(/Vista de supervisión/)).toBeVisible()
+    await page.setViewportSize({ width: 390, height: 844 })
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await page.getByRole('button', { name: 'Abrir menú' }).click()
     await page.getByRole('link', { name: 'Mi seguridad', exact: true }).click()
-    await page.getByLabel('Contraseña actual', { exact: true }).fill(password)
-    await page.getByLabel('Nueva contraseña', { exact: true }).fill('New-demo-password-789!')
-    await page.getByLabel('Confirmar nueva contraseña').fill('New-demo-password-789!')
-    await page.getByRole('button', { name: 'Cambiar contraseña', exact: true }).click()
-    await expect(page.getByRole('status')).toContainText('Contraseña actualizada')
+    await expect(page.getByRole('heading', { name: 'Seguridad de mi cuenta' })).toBeVisible()
     expect(errors).toEqual([])
-    await page.screenshot({ path: 'test-results/platform-security.png', fullPage: true })
   } finally { await env.cleanup() }
 })

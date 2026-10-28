@@ -71,8 +71,8 @@
   margin-bottom: 18px;
   padding: 8px 12px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--brand-accent) 90%, white);
-  color: var(--on-brand-accent);
+  background: color-mix(in srgb, var(--brand-accent) 14%, white);
+  color: var(--about-ink);
   font-size: 11px;
   font-weight: 750;
   letter-spacing: .09em;
@@ -255,7 +255,8 @@
   border: 1px solid var(--about-line);
 }
 .client-about-mission {
-  background: linear-gradient(135deg, var(--brand), color-mix(in srgb, var(--brand) 86%, #4951d0));
+  background-color: var(--brand);
+  background-image: linear-gradient(135deg, var(--brand), color-mix(in srgb, var(--brand) 86%, #4951d0));
   color: var(--on-brand);
   box-shadow: 0 18px 30px color-mix(in srgb, var(--brand) 14%, transparent);
 }
@@ -406,7 +407,8 @@
   margin-top: 8px;
   padding: 28px;
   border-radius: 20px;
-  background: linear-gradient(135deg, var(--brand), color-mix(in srgb, var(--brand) 88%, var(--brand-accent)));
+  background-color: var(--brand);
+  background-image: linear-gradient(135deg, var(--brand), color-mix(in srgb, var(--brand) 88%, var(--brand-accent)));
   color: var(--on-brand);
   box-shadow: 0 18px 30px color-mix(in srgb, var(--brand) 16%, transparent);
 }
@@ -422,7 +424,7 @@
 .client-about-cta > div { flex: 1; min-width: 0; }
 .client-about-page .client-about-cta h2 { color: var(--on-brand); font-size: clamp(20px, 2vw, 28px); }
 .client-about-page .client-about-cta p { margin-top: 8px; color: var(--on-brand); }
-.client-about-page .client-about-cta .public-button { flex: none; background: var(--on-brand); color: var(--brand); }
+.client-about-page .client-about-cta > a.public-button { flex: none; background-color: var(--on-brand); background-image: none; color: var(--brand); }
 
 @media (max-width: 900px) {
   .client-about-hero-inner { gap: 24px; }

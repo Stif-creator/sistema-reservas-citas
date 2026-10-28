@@ -1,8 +1,8 @@
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../context/auth-context'
 
-function ProtectedRoute({ children, allowedRoles }) {
-  const { currentUser, userDoc, membership, loading, authError, reloadProfile, logout } = useAuth()
+function ProtectedRoute({ children, allowedRoles, superadminOnly = false, excludeSuperadmin = false }) {
+  const { currentUser, userDoc, membership, loading, authError, reloadProfile, logout, isSuperadmin } = useAuth()
 
   if (loading) {
     return <p>Cargando...</p>
@@ -43,6 +43,9 @@ function ProtectedRoute({ children, allowedRoles }) {
   if (allowedRoles && !allowedRoles.includes(membership?.role)) {
     return <Navigate to="/dashboard" replace />
   }
+
+  if (superadminOnly && !isSuperadmin) return <Navigate to="/dashboard" replace />
+  if (excludeSuperadmin && isSuperadmin) return <Navigate to="/dashboard" replace />
 
   return children
 }

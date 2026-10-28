@@ -40,7 +40,8 @@ service cloud.firestore {
       return userActive() && member(bid).status == 'active'
         && get(/databases/$(database)/documents/businesses/$(bid)).data.status == 'active';
     }
-    function admin(bid) { return superadmin() || (activeMember(bid) && member(bid).role == 'admin'); }
+    // Superadmin supervises the platform but is not an implicit business admin.
+    function admin(bid) { return activeMember(bid) && member(bid).role == 'admin'; }
     function professional(bid) {
       return activeMember(bid) && member(bid).role == 'professional';
     }
@@ -104,9 +105,7 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.businessIds == [bid]
         && request.resource.data.createdAt == request.time;
       allow update: if admin(bid)
-        && (superadmin() || !request.resource.data.diff(resource.data).affectedKeys().hasAny(['name', 'appearance']))
-        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['appearance'])
-          || (superadmin() && validAppearance(request.resource.data.appearance)))
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['name', 'appearance'])
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['location'])
           || validLocation(request.resource.data.location))
         && request.resource.data.diff(resource.data).affectedKeys()
@@ -114,7 +113,7 @@ service cloud.firestore {
       allow delete: if signedIn() && resource.data.ownerUserId == request.auth.uid && recent(resource.data) && provisioning();
     }
     match /memberships/{mid} {
-      allow read: if self(resource.data.userId) || admin(resource.data.businessId);
+      allow read: if superadmin() || self(resource.data.userId) || admin(resource.data.businessId);
       allow create: if admin(request.resource.data.businessId)
         && mid == request.resource.data.businessId + '_' + request.resource.data.userId
         && request.resource.data.role == 'professional' && request.resource.data.status == 'active'
@@ -263,7 +262,7 @@ service cloud.firestore {
       allow write: if false;
     }
     match /auditLogs/{id} {
-      allow read: if isAdmin(resource.data.businessId);
+      allow read: if superadmin() || isAdmin(resource.data.businessId);
       // Client events are accepted only alongside the actual atomic mutation.
       allow create: if admin(request.resource.data.businessId)
         && request.resource.data.actorUserId == request.auth.uid
