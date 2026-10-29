@@ -45,13 +45,21 @@ export default function PlatformSupport() {
       try {
         const base = collection(db, 'businesses')
         const term = search.trim()
-        const constraints = [orderBy('name'), ...(term ? [startAt(term), endAt(`${term}\uf8ff`)] : []), ...(businessCursor.current ? [startAfter(businessCursor.current)] : []), limit(30)]
-        const businessQuery = query(base, ...constraints)
-        const snapshot = await getDocs(businessQuery)
+        const titleCase = term.split(/\s+/).map(word => word ? `${word[0].toLocaleUpperCase('es')}${word.slice(1)}` : '').join(' ')
+        const candidates = term ? [...new Set([term, titleCase, term.toLocaleLowerCase('es'), term.toLocaleUpperCase('es')])] : ['']
+        const cursorState = businessCursor.current
+        const prefixes = businessPage && cursorState ? [cursorState.prefix] : candidates
+        let snapshot, prefix = prefixes[0]
+        for (const candidate of prefixes) {
+          const constraints = [orderBy('name'), ...(candidate ? [startAt(candidate), endAt(`${candidate}\uf8ff`)] : []), ...(businessPage && cursorState?.snapshot ? [startAfter(cursorState.snapshot)] : []), limit(30)]
+          snapshot = await getDocs(query(base, ...constraints))
+          prefix = candidate
+          if (snapshot.docs.length || businessPage) break
+        }
         if (!live) return
         const items = snapshot.docs.map(item => ({ id: item.id, name: item.data().name || 'Negocio sin nombre', status: item.data().status || 'unknown' }))
         setBusinesses(previous => businessPage ? [...previous, ...items] : items)
-        businessCursor.current = snapshot.docs.at(-1) || businessCursor.current
+        businessCursor.current = { prefix, snapshot: snapshot.docs.at(-1) || cursorState?.snapshot || null }
         setBusinessHasMore(snapshot.docs.length === 30)
         setBusinessesState({ loading: false, error: '' })
         if (!selectedId.current && items.length) { selectedId.current = items[0].id; setBusinessId(items[0].id); setSelectedBusinessOption(items[0]); setState({ loading: true, error: '', data: null }) }

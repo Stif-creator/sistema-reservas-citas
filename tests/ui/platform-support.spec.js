@@ -42,7 +42,7 @@ test('superadmin support searches paginated businesses and shows read-only verif
     await expect(page.getByRole('button', { name: 'Cargar más negocios' })).toBeVisible()
     await page.getByRole('button', { name: 'Cargar más negocios' }).click()
     await expect.poll(async () => page.getByLabel('Seleccionar negocio para diagnóstico').locator('option').count()).toBeGreaterThan(30)
-    await page.getByLabel('Buscar negocio por nombre').fill('Soporte Demo 30')
+    await page.getByLabel('Buscar negocio por nombre').fill('soporte demo 30')
     await expect.poll(() => page.getByLabel('Seleccionar negocio para diagnóstico').locator('option').allTextContents()).toContain('Soporte Demo 30')
     await page.getByLabel('Seleccionar negocio para diagnóstico').selectOption(businessId)
     await expect(page.getByRole('heading', { name: 'Soporte Demo 30' })).toBeVisible()
