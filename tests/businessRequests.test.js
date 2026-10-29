@@ -29,6 +29,29 @@ test('business requests reject missing consent, malformed contact data, invalid 
   ]) assert.throws(() => validateBusinessRequest(input), { code: 'invalid-argument' })
 })
 
+test('public submission creates a trackable request and a platform notification; failed attempts release rate limits', async () => {
+  const db = fakeDb()
+  const collection = db.collection.bind(db)
+  db.collection = name => name === 'users'
+    ? { where: () => ({ limit: () => ({ get: async () => { throw new Error('temporary lookup failure') } }) }) }
+    : collection(name)
+  await assert.rejects(publicBusinessRequestAction(db, { ...valid, action: 'businessRequestSubmit' }, '203.0.113.10'))
+  assert.equal(Object.entries(db.values).find(([path]) => path.includes('businessRequestLimits/v2_'))?.[1].count, 0)
+  db.collection = collection
+  const result = await publicBusinessRequestAction(db, { ...valid, action: 'businessRequestSubmit' }, '203.0.113.10')
+  assert.match(result.requestId, /^[a-f\d-]{36}$/i)
+  assert.equal(result.trackingToken.length, 43)
+  const request = db.values[`businessRequests/${result.requestId}`]
+  assert.equal(request.status, 'pending')
+  assert.equal(request.trackingTokenHash, createHash('sha256').update(result.trackingToken).digest('hex'))
+  const notices = Object.entries(db.values).filter(([path]) => path.startsWith('notifications/'))
+  assert.equal(notices.length, 1)
+  assert.equal(notices[0][1].recipientUserId, 'super')
+  assert.equal(notices[0][1].type, 'platform')
+  assert.equal(notices[0][1].event, 'businessRequestSubmitted')
+  assert.equal(notices[0][1].read, false)
+})
+
 function fakeDb() {
   const values = {
     'users/super': { status: 'active', globalRole: 'superadmin' },
@@ -39,7 +62,7 @@ function fakeDb() {
   }
   let sequence = 0
   const ref = path => ({ path, id: path.split('/').at(-1), get: async () => ({ exists: Boolean(values[path]), data: () => values[path] }), create: async value => { if (values[path]) throw Object.assign(new Error('exists'), { code: 'already-exists' }); values[path] = value } })
-  const queryRef = (name, field, expected) => ({ query: true, name, field, expected, limit() { return this }, orderBy() { return this }, startAfter() { return this }, get: async () => ({ size: Object.entries(values).filter(([path, value]) => path.startsWith(`${name}/`) && value?.[field] === expected).length }) })
+  const queryRef = (name, field, expected) => ({ query: true, name, field, expected, limit() { return this }, orderBy() { return this }, startAfter() { return this }, get: async () => { const matches = Object.entries(values).filter(([path, value]) => path.startsWith(`${name}/`) && value?.[field] === expected); return { size: matches.length, docs: matches.map(([path, value]) => ({ id: path.split('/').at(-1), ref: { path }, data: () => value })) } } })
   const collection = name => ({ doc: id => ref(`${name}/${id || `generated-${++sequence}`}`), where: (field, _op, expected) => queryRef(name, field, expected), orderBy() { return this }, limit() { return this } })
   const db = {
     values,

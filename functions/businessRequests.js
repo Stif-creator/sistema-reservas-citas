@@ -1,4 +1,4 @@
-import { randomUUID, createHash, timingSafeEqual } from 'node:crypto'
+import { randomUUID, randomBytes, createHash, timingSafeEqual } from 'node:crypto'
 import { getAuth } from 'firebase-admin/auth'
 import { FieldValue } from 'firebase-admin/firestore'
 import { BookingError } from './bookingError.js'
@@ -30,7 +30,7 @@ export function validateBusinessRequest(input) {
 
 async function consumeLimit(db, key, limit) {
   const day = new Date().toISOString().slice(0, 10)
-  const ref = db.doc(`businessRequestLimits/${key}`)
+  const ref = db.doc(`businessRequestLimits/v2_${key}`)
   await db.runTransaction(async tx => {
     const snap = await tx.get(ref), data = snap.data()
     const count = data?.day === day ? data.count : 0
@@ -39,11 +39,27 @@ async function consumeLimit(db, key, limit) {
   })
 }
 
+async function releaseLimit(db, key) {
+  const day = new Date().toISOString().slice(0, 10)
+  const ref = db.doc(`businessRequestLimits/v2_${key}`)
+  await db.runTransaction(async tx => {
+    const snap = await tx.get(ref), data = snap.data()
+    if (!data || data.day !== day || data.count <= 0) return
+    tx.set(ref, { ...data, count: data.count - 1, updatedAt: FieldValue.serverTimestamp() })
+  })
+}
+
 export async function submitBusinessRequest(db, input, remoteAddress) {
   const data = validateBusinessRequest(input)
   const ipKey = hash(String(remoteAddress || 'unknown')).slice(0, 40)
-  await consumeLimit(db, `ip_${ipKey}`, 5)
-  await consumeLimit(db, `email_${hash(data.applicant.email)}`, 1)
+  const ipLimitKey = `ip_${ipKey}`
+  const emailLimitKey = `email_${hash(data.applicant.email)}`
+  let ipReserved = false, emailReserved = false
+  await consumeLimit(db, ipLimitKey, 5)
+  ipReserved = true
+  try {
+    await consumeLimit(db, emailLimitKey, 1)
+    emailReserved = true
   const images = input.images || {}
   const [logo, cover] = await Promise.all([
     images.logo ? uploadRequestImage(images.logo, 'logo') : Promise.resolve(null),
@@ -62,7 +78,14 @@ export async function submitBusinessRequest(db, input, remoteAddress) {
       tx.create(db.doc(`notifications/${noticeId}`), { businessId: null, businessName: data.business.name, recipientUserId: supervisor.id, type: 'platform', event: 'businessRequestSubmitted', title: 'Nueva solicitud de negocio', message: `Se recibió una solicitud para ${data.business.name}.`, read: false, visibleAt: FieldValue.serverTimestamp(), createdAt: FieldValue.serverTimestamp() })
     }
   })
-  return { ok: true, requestId: id, trackingToken }
+    return { ok: true, requestId: id, trackingToken }
+  } catch (error) {
+    await Promise.all([
+      ...(emailReserved ? [releaseLimit(db, emailLimitKey)] : []),
+      ...(ipReserved ? [releaseLimit(db, ipLimitKey)] : []),
+    ].map(promise => promise.catch(() => {})))
+    throw error
+  }
 }
 
 export async function publicBusinessRequestAction(db, input, remoteAddress) {
