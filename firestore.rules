@@ -97,6 +97,15 @@ service cloud.firestore {
     }
     // This collection contains the public business profile. Never store secrets here.
     match /businesses/{bid} {
+      function auditedConfiguration() {
+        let auditId = request.resource.data.lastConfigAuditId;
+        let path = /databases/$(database)/documents/auditLogs/$(auditId);
+        let event = getAfter(path).data;
+        return auditId is string && !exists(path)
+          && event.businessId == bid && event.actorUserId == request.auth.uid
+          && event.action == 'businessUpdate' && event.createdAt == request.time
+          && request.resource.data.updatedAt == request.time;
+      }
       allow read: if superadmin() || (resource.data.status == 'active' && resource.data.settings.publicPageEnabled == true)
         || (signedIn() && (resource.data.ownerUserId == request.auth.uid || activeMember(bid)));
       allow create: if userActive() && request.resource.data.ownerUserId == request.auth.uid
@@ -106,10 +115,24 @@ service cloud.firestore {
         && request.resource.data.createdAt == request.time;
       allow update: if admin(bid)
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['name', 'appearance'])
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['lastConfigAuditId']) || auditedConfiguration())
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['location'])
           || validLocation(request.resource.data.location))
         && request.resource.data.diff(resource.data).affectedKeys()
-        .hasOnly(['name', 'description', 'about', 'logo', 'cover', 'appearance', 'contact', 'location', 'weeklyHours', 'settings', 'updatedAt']);
+        .hasOnly(['name', 'description', 'about', 'logo', 'cover', 'appearance', 'contact', 'location', 'weeklyHours', 'settings', 'updatedAt', 'lastConfigAuditId']);
+      // Platform configuration is separate from operational membership and status changes.
+      allow update: if superadmin() && auditedConfiguration()
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['name', 'description', 'about', 'logo', 'cover', 'appearance', 'contact', 'location', 'weeklyHours', 'settings', 'updatedAt', 'lastConfigAuditId'])
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['name'])
+          || (request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 120))
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['appearance'])
+          || validAppearance(request.resource.data.appearance))
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['location'])
+          || validLocation(request.resource.data.location))
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['settings'])
+          || (request.resource.data.settings.diff(resource.data.settings).affectedKeys().hasOnly(['publicPageEnabled'])
+            && request.resource.data.settings.publicPageEnabled is bool));
       allow delete: if signedIn() && resource.data.ownerUserId == request.auth.uid && recent(resource.data) && provisioning();
     }
     match /memberships/{mid} {
@@ -264,10 +287,10 @@ service cloud.firestore {
     match /auditLogs/{id} {
       allow read: if superadmin() || isAdmin(resource.data.businessId);
       // Client events are accepted only alongside the actual atomic mutation.
-      allow create: if admin(request.resource.data.businessId)
-        && request.resource.data.actorUserId == request.auth.uid
+      allow create: if request.resource.data.actorUserId == request.auth.uid
         && request.resource.data.createdAt == request.time
-        && (validBusinessAudit(request.resource.data) || validMembershipAudit(request.resource.data));
+        && (((superadmin() || admin(request.resource.data.businessId)) && validBusinessAudit(request.resource.data))
+          || (admin(request.resource.data.businessId) && validMembershipAudit(request.resource.data)));
       allow update, delete: if false;
       function validBusinessAudit(data) {
         let before = get(/databases/$(database)/documents/businesses/$(data.businessId)).data;

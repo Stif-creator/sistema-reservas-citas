@@ -1,0 +1,26 @@
+.platform-business-filters { display: flex; flex-wrap: wrap; gap: 18px; align-items: end; margin-bottom: 12px; }
+.platform-business-filters label { display: grid; gap: 7px; font-size: 12px; color: #53627b; }
+.platform-business-filters label:first-child { flex: 1; min-width: 200px; }
+.platform-business-filters label span { display: flex; gap: 7px; align-items: center; }
+.platform-business-filters input[type="search"], .platform-business-filters select { border: 1px solid #dce5f2; border-radius: 8px; padding: 10px 12px; background: white; width: 100%; }
+.platform-business-filters .platform-archived-filter { display: flex; align-items: center; padding-bottom: 11px; }
+.platform-business-table-head, .platform-business-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 100px minmax(200px, 1.1fr); gap: 18px; align-items: center; }
+.platform-business-table-head { background: #f5f8ff; padding: 12px; font-size: 11px; text-transform: uppercase; color: #53627b; }
+.platform-business-row { border-bottom: 1px solid #e5ecf5; padding: 18px 12px; font-size: 13px; }
+.platform-business-name { display: flex; gap: 12px; align-items: center; min-width: 0; }
+.platform-business-name h3, .platform-business-admin strong { font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.platform-business-row small { display: block; color: #6b7c93; font-size: 11px; overflow-wrap: anywhere; margin-top: 5px; }
+.platform-business-thumb { width: 46px; height: 46px; flex-shrink: 0; border-radius: 9px; overflow: hidden; background: #edf4ff; color: #1672ed; display: grid; place-items: center; }
+.platform-business-thumb img { width: 100%; height: 100%; object-fit: contain; }
+.platform-business-actions { display: flex; gap: 7px; flex-wrap: wrap; }
+.platform-business-actions button, .platform-business-actions a { padding: 7px 9px; font-size: 11px; }
+@media (max-width: 1100px) {
+  .platform-business-table-head { display: none; }
+  .platform-business-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .platform-business-admin { grid-row: 2; }
+  .platform-business-actions { grid-column: 1 / -1; }
+}
+@media (max-width: 639px) {
+  .platform-business-row { gap: 12px; padding: 16px 0; }
+  .platform-business-filters label:first-child { min-width: 100%; }
+}

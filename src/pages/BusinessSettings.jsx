@@ -3,8 +3,10 @@ import { updateBusinessWithAudit } from '../lib/audit'
 import SettingsPreview from '../components/SettingsPreview'
 import BusinessMap from '../components/BusinessMap'
 import LocationPickerMap from '../components/LocationPickerMap'
-import { Building2, Image, Clock3, FileText, Phone, ExternalLink, Save, Info, MapPin } from 'lucide-react'
+import { Building2, Image, Clock3, FileText, Phone, ExternalLink, Save, Info, MapPin, Palette, ShieldCheck, ArrowLeft } from 'lucide-react'
 import './business-settings.css'
+import { Link, useParams } from 'react-router-dom'
+import PlatformBusinessAdministration from '../components/PlatformBusinessAdministration'
 import ImageUploadField from '../components/ImageUploadField'
 import { useEffect, useState } from 'react'
 import { doc, getDoc, serverTimestamp } from 'firebase/firestore'
@@ -24,10 +26,17 @@ import { useFeedback } from '../context/feedback-context'
 const PHONE_REGEX = /^\+?\d{8,}$/
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-function BusinessSettings() {
-  const { membership, isSuperadmin } = useAuth()
+function BusinessSettings({ platform = false }) {
+  const { businessId: routeBusinessId } = useParams()
+  const { membership } = useAuth()
+  const businessId = platform ? routeBusinessId : membership?.businessId
+  return <BusinessSettingsForm key={businessId} businessId={businessId} platform={platform} />
+}
+
+function BusinessSettingsForm({ businessId, platform }) {
+  const { isSuperadmin } = useAuth()
   const { notify } = useFeedback()
-  const businessId = membership?.businessId
+  const [business, setBusiness] = useState(null)
   const [publicPageEnabled, setPublicPageEnabled] = useState(false)
 
   const [loadingBusiness, setLoadingBusiness] = useState(true)
@@ -80,6 +89,7 @@ function BusinessSettings() {
         if (!snap.exists()) throw new Error('Negocio no encontrado')
         if (snap.exists()) {
           const data = snap.data()
+          setBusiness({ ...data, id: snap.id })
           setTimeZone(data.settings?.timezone || 'America/La_Paz')
           setPublicPageEnabled(data.settings?.publicPageEnabled === true)
           setName(data.name ?? '')
@@ -121,8 +131,8 @@ function BusinessSettings() {
   function validate() {
     const errors = {}
 
-    if (!name.trim()) {
-      errors.name = 'El nombre del negocio es obligatorio.'
+    if (!name.trim() || name.trim().length > 120) {
+      errors.name = 'Ingresa un nombre de entre 1 y 120 caracteres.'
     }
 
     if (contactEmail.trim() && !EMAIL_REGEX.test(contactEmail.trim())) {
@@ -144,7 +154,7 @@ function BusinessSettings() {
 
   async function handleSubmit(e) {
     e.preventDefault()
-    if (imageUploading) return
+    if (imageUploading || saving || savingLocation || hoursSaving) return
     setError('')
     setSuccess('')
 
@@ -197,6 +207,7 @@ function BusinessSettings() {
 
   async function handleHoursSubmit(e) {
     e.preventDefault()
+    if (saving || savingLocation || hoursSaving || imageUploading) return
     setHoursError('')
     setHoursSuccess('')
 
@@ -223,7 +234,7 @@ function BusinessSettings() {
   }
 
   async function handleLocationSave() {
-    if (savingLocation || !businessId) return
+    if (savingLocation || saving || hoursSaving || !businessId) return
     if ((latitude === '') !== (longitude === '') || (latitude !== '' && (!Number.isFinite(Number(latitude)) || !Number.isFinite(Number(longitude)) || Math.abs(Number(latitude)) > 85 || Math.abs(Number(longitude)) > 180))) {
       setTab('contact')
       setError('Selecciona una ubicación válida en el mapa antes de guardar.')
@@ -257,9 +268,11 @@ function BusinessSettings() {
     return <p className="text-sm text-muted">Cargando configuración del negocio...</p>
   }
 
-  const tabs = [['general', 'Datos generales', Building2], ['images', 'Imágenes', Image], ['hours', 'Horarios', Clock3], ['about', 'Página nosotros', FileText], ['contact', 'Contacto', Phone]]
+  const tabs = [['general', 'Datos generales', Building2], ['appearance', 'Apariencia', Palette], ['images', 'Imágenes', Image], ['about', 'Página nosotros', FileText], ['contact', 'Contacto', Phone], ['hours', 'Horarios', Clock3], ...(platform ? [['administration', 'Administración', ShieldCheck]] : [])]
+  const backTo = platform ? `/plataforma/negocios/${encodeURIComponent(businessId)}` : '/dashboard'
   return <div className="settings-page">
-    <PageHeader title="Configuración" description="Personaliza la información de tu negocio y tu página pública."
+    {platform && <Link className="platform-back-link mb-4" to={backTo}><ArrowLeft size={15} />Volver al negocio</Link>}
+    <PageHeader title={platform ? `Editar negocio: ${business?.name || name}` : 'Configuración'} description="Personaliza la información del negocio y su página pública."
       actions={<a className="settings-public-link" href={`/b/${businessId}`} target="_blank" rel="noreferrer"><ExternalLink size={15} />Ver página pública</a>} />
     <div className="settings-tabs" role="tablist" aria-label="Secciones de configuración">
       {tabs.map(([key, label, Icon]) => <button key={key} type="button" id={`settings-tab-${key}`} role="tab" aria-selected={tab === key} aria-controls={`settings-panel-${key}`} tabIndex={tab === key ? 0 : -1}
@@ -270,11 +283,12 @@ function BusinessSettings() {
         }}><Icon size={19} />{label}</button>)}
     </div>
     <form id="settings-business" onSubmit={handleSubmit} noValidate>
+    <fieldset disabled={saving || savingLocation || hoursSaving || imageUploading}>
 <div id="settings-panel-general" role="tabpanel" aria-labelledby="settings-tab-general" hidden={tab !== 'general'}><div className="settings-columns"><div className="settings-fields"><Card title="Datos generales"><label className="block mb-4 text-sm"><input type="checkbox" checked={publicPageEnabled} onChange={e => setPublicPageEnabled(e.target.checked)} /> Publicar página del negocio</label>{!isSuperadmin && <p className="mb-4 text-sm text-muted">El nombre y los colores los configura el superadministrador.</p>}
           <div className="space-y-4">
             <Field label="Nombre" htmlFor="name" error={fieldErrors.name}>
               <input
-                id="name" disabled={!isSuperadmin}
+                id="name" maxLength={120} disabled={!isSuperadmin}
                 value={name}
                 onChange={(e) => {
                   setName(e.target.value)
@@ -294,7 +308,8 @@ function BusinessSettings() {
               />
             </Field>
           </div>
-        </Card><Card title="Colores">{!isSuperadmin && <p className="text-sm text-muted mb-3">Los colores los gestiona el superadministrador de la plataforma.</p>}
+        </Card></div><div className="settings-preview-column"><SettingsPreview {...{ tab, name, description, logoUrl, coverUrl, primaryColor, secondaryColor, accentColor, surfaceColor, about, contactPhone, contactWhatsapp, contactEmail, addressLine, city }} /></div></div></div>
+<div id="settings-panel-appearance" role="tabpanel" aria-labelledby="settings-tab-appearance" hidden={tab !== 'appearance'}><div className="settings-columns"><div className="settings-fields"><Card title="Colores">{!isSuperadmin && <p className="text-sm text-muted mb-3">Los colores los gestiona el superadministrador de la plataforma.</p>}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Color primario" htmlFor="primaryColor">
               <input
@@ -334,6 +349,7 @@ function BusinessSettings() {
               />
             </Field>
           </div>
+          {isSuperadmin && <Button type="button" variant="secondary" className="mt-4" onClick={() => { setPrimaryColor('#1672ed'); setSecondaryColor('#eaf3ff'); setAccentColor('#d97706'); setSurfaceColor('#f4f6f8') }}>Restablecer colores predeterminados</Button>}
           <p className="mt-3 text-xs text-muted">El acento destaca detalles y la superficie colorea la vista previa. El texto se ajusta automáticamente para mantener el contraste.</p>
         </Card></div><div className="settings-preview-column"><SettingsPreview {...{ tab, name, description, logoUrl, coverUrl, primaryColor, secondaryColor, accentColor, surfaceColor, about, contactPhone, contactWhatsapp, contactEmail, addressLine, city }} /></div></div></div>
 <div id="settings-panel-images" role="tabpanel" aria-labelledby="settings-tab-images" hidden={tab !== 'images'}><div className="settings-columns"><div className="settings-fields"><Card title="Imágenes">
@@ -435,14 +451,14 @@ function BusinessSettings() {
           <div className="mt-5"><LocationPickerMap latitude={latitude} longitude={longitude} onChange={(lat, lon) => { setLatitude(String(lat)); setLongitude(String(lon)) }} /></div>
           <div className="mt-5 flex justify-end"><Button type="button" disabled={savingLocation || saving || imageUploading} onClick={handleLocationSave}><MapPin size={16} />{savingLocation ? 'Guardando ubicación…' : 'Guardar ubicación'}</Button></div>
         </Card></div><div className="settings-preview-column"><SettingsPreview {...{ tab, name, description, logoUrl, coverUrl, primaryColor, secondaryColor, accentColor, surfaceColor, about, contactPhone, contactWhatsapp, contactEmail, addressLine, city }} /><Card title="Ubicación en el mapa">{tab === 'contact' && <BusinessMap business={{ name, location: { latitude: latitude === '' ? null : Number(latitude), longitude: longitude === '' ? null : Number(longitude), addressLine, city } }} />}</Card></div></div></div>
-    </form>
+    </fieldset></form>
     <div id="settings-panel-hours" role="tabpanel" aria-labelledby="settings-tab-hours" hidden={tab !== 'hours'}>
       <div className="settings-columns settings-hours-columns"><div>      <form id="settings-hours" onSubmit={handleHoursSubmit}>
         <Card
           title="Horario de atención"
           description="Define las franjas en las que tu negocio atiende cada día."
         >
-          <WeeklyHoursEditor value={weeklyHours} onChange={setWeeklyHours} />
+          <fieldset disabled={hoursSaving || saving || savingLocation || imageUploading}><WeeklyHoursEditor value={weeklyHours} onChange={setWeeklyHours} /></fieldset>
 
           <div className="mt-4 space-y-3">
             {hoursError && <Alert tone="error">{hoursError}</Alert>}
@@ -456,9 +472,11 @@ function BusinessSettings() {
         <div className="settings-advice"><h3><Info size={18} /> Recomendaciones</h3><p>Evita superponer franjas de atención.</p><p>Deja tiempo entre citas para preparar tu espacio.</p><p>Mantén tus horarios actualizados para que tus clientes encuentren disponibilidad.</p></div>
       </Card></div>
     </div>
+    {platform && <div id="settings-panel-administration" role="tabpanel" aria-labelledby="settings-tab-administration" hidden={tab !== 'administration'}>{tab === 'administration' && <PlatformBusinessAdministration business={business} onStatusChange={status => setBusiness(previous => ({ ...previous, status }))} />}</div>}
     <div className="settings-savebar"><div><p>Configuración del negocio</p><small>{tab === 'hours' ? 'Guarda el horario de atención.' : 'Guarda para aplicar los cambios en tu página pública.'}</small>
       {error && <Alert tone="error">{error}</Alert>}{success && <Alert tone="success">{success}</Alert>}</div>
-      <Button type="submit" form={tab === 'hours' ? 'settings-hours' : 'settings-business'} disabled={saving || hoursSaving || imageUploading}><Save size={17} />{saving || hoursSaving ? 'Guardando...' : tab === 'hours' ? 'Guardar horario' : 'Guardar cambios'}</Button>
+      <Link className="settings-public-link" to={backTo}>Cancelar</Link>
+      {tab !== 'administration' && <Button type="submit" form={tab === 'hours' ? 'settings-hours' : 'settings-business'} disabled={saving || savingLocation || hoursSaving || imageUploading}><Save size={17} />{saving || hoursSaving ? 'Guardando...' : tab === 'hours' ? 'Guardar horario' : 'Guardar cambios'}</Button>}
     </div>
   </div>
 }

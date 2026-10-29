@@ -17,7 +17,7 @@ export default function UnsavedForms({ children }) {
   }, [blocker, confirm])
   useEffect(() => {
     function track(event) {
-      const form = event.target.closest?.('.admin-shell form, .editor-dialog form, .admin-shell [data-draft]')
+      const form = event.target.closest?.('.admin-shell form, .superadmin-shell form, .editor-dialog form, .admin-shell [data-draft]')
       if (form && !forms.has(form)) forms.set(form, { baseline: values(form) })
     }
     function submit(event) { track(event); const entry = forms.get(event.target); if (entry) entry.submitted = values(event.target) }

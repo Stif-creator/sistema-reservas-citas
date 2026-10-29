@@ -58,3 +58,20 @@ test('images: trim whitespace copied with credentials', async () => {
     },
   })
 })
+
+test('images: platform can configure inactive business branding but cannot upload operational images', async () => {
+  const db = database()
+  db.records['users/u'].globalRole = 'superadmin'
+  delete db.records['memberships/b_u']
+  const options = { env, request: async (url, { body }) => ({ ok: true, json: async () => ({ public_id: body.get('public_id'), secure_url: 'https://res.cloudinary.com/test-cloud/image/upload/branding.png' }) }) }
+  for (const status of ['active', 'inactive', 'deleted']) {
+    db.records['businesses/b'].status = status
+    for (const kind of ['logo', 'cover']) assert.match((await uploadImage(db, 'u', { businessId: 'b', kind, image }, options)).url, /branding.png$/)
+    for (const kind of ['service', 'professional', 'profile']) await assert.rejects(uploadImage(db, 'u', { businessId: 'b', kind, image }, options), { code: 'permission-denied' })
+  }
+  db.records['users/u'].status = 'inactive'
+  await assert.rejects(uploadImage(db, 'u', { businessId: 'b', kind: 'logo', image }, options), { code: 'permission-denied' })
+  const admin = database()
+  admin.records['businesses/b'].status = 'inactive'
+  await assert.rejects(uploadImage(admin, 'u', { businessId: 'b', kind: 'cover', image }, options), { code: 'permission-denied' })
+})

@@ -110,6 +110,7 @@ function AppRoutes() {
           <Route path="/plataforma/dashboard" element={<ProtectedRoute superadminOnly><PlatformDashboard /></ProtectedRoute>} />
           <Route path="/plataforma/negocios" element={<ProtectedRoute superadminOnly><PlatformBusinesses /></ProtectedRoute>} />
           <Route path="/plataforma/negocios/:businessId" element={<ProtectedRoute superadminOnly><PlatformBusinessDetail /></ProtectedRoute>} />
+          <Route path="/plataforma/negocios/:businessId/editar" element={<ProtectedRoute superadminOnly><BusinessSettings platform /></ProtectedRoute>} />
           <Route path="/plataforma/administradores" element={<ProtectedRoute superadminOnly><PlatformAdministrators /></ProtectedRoute>} />
           <Route path="/plataforma/estadisticas" element={<ProtectedRoute superadminOnly><PlatformAnalytics /></ProtectedRoute>} />
           <Route path="/plataforma/actividad" element={<ProtectedRoute superadminOnly><PlatformActivity /></ProtectedRoute>} />

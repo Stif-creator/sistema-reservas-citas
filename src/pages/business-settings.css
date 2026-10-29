@@ -1,4 +1,6 @@
 .settings-page { padding-bottom: 14px; }
+.settings-page fieldset { min-width: 0; }
+.settings-page .settings-savebar > div:first-child { flex: 1; }
 .settings-tabs { display: flex; gap: 8px; overflow-x: auto; border-bottom: 1px solid #dfe6f2; margin: 4px 0 25px; }
 .settings-tabs button { display: inline-flex; align-items: center; gap: 10px; padding: 18px 20px; white-space: nowrap; border-bottom: 2px solid transparent; color: #677592; font-size: 13px; }
 .settings-tabs button[aria-selected="true"] { border-color: #6655ff; color: #5745f4; font-weight: 600; }

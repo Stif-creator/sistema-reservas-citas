@@ -22,7 +22,8 @@ export async function uploadImage(db, uid, input, { env = process.env, request =
   if (typeof businessId !== 'string' || !/^[^/\s]{1,200}$/.test(businessId) || !['logo', 'cover', 'service', 'professional', 'profile'].includes(kind)) fail('invalid-argument', 'Destino de imagen inválido.')
   const [user, member, business] = await Promise.all([db.doc(`users/${uid}`).get(), db.doc(`memberships/${businessId}_${uid}`).get(), db.doc(`businesses/${businessId}`).get()])
   const superadmin = user.data()?.status === 'active' && user.data()?.globalRole === 'superadmin'
-  if (business.data()?.status !== 'active') fail('permission-denied', 'El negocio no está activo.')
+  if (superadmin && !['logo', 'cover'].includes(kind)) fail('permission-denied', 'La plataforma solo puede subir el logo y la portada del negocio.')
+  if (!business.data() || (!superadmin && business.data()?.status !== 'active')) fail('permission-denied', 'El negocio no está disponible.')
   if (!superadmin && (user.data()?.status !== 'active' || member.data()?.status !== 'active' || business.data()?.status !== 'active' ||
     (kind !== 'profile' && member.data()?.role !== 'admin'))) fail('permission-denied', 'No tienes permiso para subir esta imagen.')
   const { bytes, mime } = decodeImage(input.image)

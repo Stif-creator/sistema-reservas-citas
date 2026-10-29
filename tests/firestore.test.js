@@ -507,7 +507,7 @@ test('registration provisions owner, client and pending professional in dependen
 })
 
 
-test('superadmin reads global supervision data without business write permissions; clients cannot promote themselves', async () => {
+test('superadmin supervision does not grant operational writes or unaudited configuration; clients cannot promote themselves', async () => {
   await env.withSecurityRulesDisabled(context => setDoc(doc(context.firestore(), 'users', 'platform'), { status: 'active', globalRole: 'superadmin', businessIds: ['studio'] }))
   const owner = dbFor('owner'), platform = dbFor('platform')
   await assertFails(updateDoc(doc(owner, 'businesses', 'studio'), { 'appearance.primaryColor': '#123456' }))
@@ -549,4 +549,32 @@ test('audit events require an actual atomic change, cannot be forged, modified o
   await assertFails(deleteDoc(doc(db,'auditLogs','verified')))
   await assertFails(getDoc(doc(dbFor('pro'),'auditLogs','verified')))
   await assertFails(getDoc(doc(dbFor('client'),'auditLogs','verified')))
+})
+
+test('platform configuration requires a new atomic audit and cannot change ownership, status or booking policy', async () => {
+  await env.withSecurityRulesDisabled(async context => {
+    await setDoc(doc(context.firestore(), 'users', 'config-platform'), { status: 'active', globalRole: 'superadmin', businessIds: [] })
+    await setDoc(doc(context.firestore(), 'businesses', 'config-business'), { name: 'Original', status: 'inactive', ownerUserId: 'owner', settings: { publicPageEnabled: false, bookingIntervalMinutes: 15 } })
+  })
+  const db = dbFor('config-platform'), ref = doc(db, 'businesses', 'config-business')
+  let sequence = 0
+  async function change(patch, { actor = 'config-platform', omitLog = false, auditBusiness = 'config-business' } = {}) {
+    const before = (await getDoc(ref)).data(), id = `config-audit-${++sequence}`
+    const batch = writeBatch(db)
+    batch.update(ref, { ...patch, lastConfigAuditId: id, updatedAt: serverTimestamp() })
+    if (!omitLog) batch.set(doc(db, 'auditLogs', id), { businessId: auditBusiness, actorUserId: actor, action: 'businessUpdate', beforeName: before.name || '', afterName: patch.name ?? before.name ?? '', beforeAppearance: before.appearance || {}, afterAppearance: patch.appearance ?? before.appearance ?? {}, createdAt: serverTimestamp() })
+    return batch.commit()
+  }
+  await assertSucceeds(change({ name: 'Configurado', description: 'Descripción', 'settings.publicPageEnabled': true, appearance: { primaryColor: '#123456', secondaryColor: '#abcdef', accentColor: '#334455', surfaceColor: '#f8fafc' }, about: { title: 'Nosotros' }, contact: { phone: '+59176543210' }, logo: { url: 'https://example.test/logo.png' }, cover: { url: '' }, location: { latitude: -16.5, longitude: -68.15 }, weeklyHours: { '1': [{ start: '09:00', end: '12:00' }] } }))
+  assert.equal((await getDoc(ref)).data().name, 'Configurado')
+  await assertFails(change({ name: 'Sin evento' }, { omitLog: true }))
+  await assertFails(change({ name: 'Identidad falsa' }, { actor: 'owner' }))
+  await assertFails(change({ name: 'Otro negocio' }, { auditBusiness: 'studio' }))
+  for (const patch of [{ ownerUserId: 'config-platform' }, { status: 'active' }, { administratorEmail: 'hijacked@example.test' }, { 'settings.bookingIntervalMinutes': 1 }, { 'settings.publicPageEnabled': 'yes' }, { name: '' }, { appearance: { primaryColor: 'red' } }, { location: { latitude: 100, longitude: 0 } }]) await assertFails(change(patch))
+  const saved = (await getDoc(ref)).data()
+  await assertFails(updateDoc(ref, { description: 'Reuse audit', lastConfigAuditId: saved.lastConfigAuditId, updatedAt: serverTimestamp() }))
+  for (const uid of ['owner', 'pro', 'client']) await assertFails(updateDoc(doc(dbFor(uid), 'businesses', 'config-business'), { name: 'Cross tenant', updatedAt: serverTimestamp() }))
+  await assertFails(updateDoc(doc(env.unauthenticatedContext().firestore(), 'businesses', 'config-business'), { name: 'Anonymous' }))
+  await env.withSecurityRulesDisabled(context => updateDoc(doc(context.firestore(), 'users', 'config-platform'), { status: 'inactive' }))
+  await assertFails(updateDoc(ref, { name: 'Revoked', updatedAt: serverTimestamp() }))
 })
