@@ -6,6 +6,7 @@ const validId = value => typeof value === 'string' && /^[^/\s]{1,200}$/.test(val
 const actions = new Set(['platformCreate', 'platformStatus', 'businessUpdate', 'membershipUpdate', 'superadmin_granted', 'superadmin_revoked'])
 const roleNames = { admin: 'administrador', professional: 'profesional', client: 'cliente' }
 const statusNames = { active: 'activo', inactive: 'inactivo', pending: 'pendiente', deleted: 'archivado' }
+const normalizeName = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es')
 
 async function count(query) {
   const snapshot = await query.count().get()
@@ -52,9 +53,34 @@ export async function executePlatformActivity(db, uid, input) {
   if (businessId) {
     const snapshot = await db.doc(`businesses/${businessId}`).get()
     if (snapshot.exists && snapshot.data().status !== 'deleted') businessDocs = [snapshot]
+  } else if (search) {
+    const matches = []
+    let scanCursor = cursor, scanned = 0, scanHasMore = false
+    while (matches.length < 11 && scanned < 500) {
+      let businessesQuery = businessesCollection.orderBy('name').orderBy(FieldPath.documentId())
+      if (scanCursor) businessesQuery = businessesQuery.startAfter(scanCursor.name, scanCursor.id)
+      const snapshot = await businessesQuery.limit(100).get()
+      if (!snapshot.docs.length) break
+      for (const item of snapshot.docs) {
+        scanned++
+        const data = item.data()
+        scanCursor = { name: data.name || '', id: item.id }
+        if (data.status !== 'deleted' && normalizeName(data.name || item.id).includes(normalizeName(search))) matches.push(item)
+        if (matches.length === 11 || scanned >= 500) break
+      }
+      if (matches.length === 11) { scanHasMore = true; break }
+      if (snapshot.docs.length < 100 || scanned >= 500) {
+        scanHasMore = snapshot.docs.length === 100 || scanned >= 500
+        break
+      }
+    }
+    hasMoreBusinesses = scanHasMore || matches.length > 10
+    businessDocs = matches.slice(0, 10)
+    nextCursor = hasMoreBusinesses ? (matches.length > 10
+      ? { name: matches[9].data().name || '', id: matches[9].id }
+      : scanCursor) : null
   } else {
     let businessesQuery = businessesCollection.orderBy('name').orderBy(FieldPath.documentId())
-    if (search) businessesQuery = businessesQuery.startAt(search).endAt(`${search}\uf8ff`)
     if (cursor) businessesQuery = businessesQuery.startAfter(cursor.name, cursor.id)
     const snapshot = await businessesQuery.limit(11).get()
     const raw = snapshot.docs

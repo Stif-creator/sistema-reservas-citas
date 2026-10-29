@@ -43,6 +43,28 @@ test('platform activity returns redacted audit events and scoped aggregates', as
   assert.deepEqual(queries.find(query => query.name === 'auditLogs').projection, ['businessId', 'action', 'createdAt', 'status', 'beforeRole', 'afterRole', 'beforeStatus', 'afterStatus', 'beforeName', 'afterName'])
 })
 
+test('business search matches any letter regardless of case', async () => {
+  const businessDoc = { id: 'sonrisa', data: () => ({ name: 'Sonrisa Andina', status: 'active' }) }
+  class Query {
+    constructor(name) { this.name = name }
+    where() { return this }
+    orderBy() { return this }
+    startAfter() { return this }
+    limit() { return this }
+    select() { return this }
+    count() { return { get: async () => ({ data: () => ({ count: 1 }) }) } }
+    async get() { return this.name === 'businesses' ? { docs: [businessDoc] } : { docs: [], empty: true } }
+  }
+  const db = {
+    doc: path => ({ async get() { return path === 'users/admin' ? { data: () => ({ status: 'active', globalRole: 'superadmin' }) } : { exists: path === 'businesses/sonrisa', data: () => ({ name: 'Sonrisa Andina', status: 'active' }) } } }),
+    collection: name => new Query(name),
+    async getAll() { return [] },
+  }
+  const result = await executePlatformActivity(db, 'admin', { search: 'sonrisa' })
+  assert.equal(result.businesses.length, 1)
+  assert.equal(result.businesses[0].name, 'Sonrisa Andina')
+})
+
 test('platformActivity is dispatched through the booking endpoint', async () => {
   const db = { doc: path => ({ get: async () => ({ data: () => path === 'users/admin' ? { status: 'active', globalRole: 'superadmin' } : {}, exists: false }) }),
     collection: () => ({ where() { return this }, count() { return { get: async () => ({ data: () => ({ count: 0 }) }) } }, orderBy() { return this }, limit() { return this }, select() { return this }, get: async () => ({ docs: [], empty: true }) }) }
