@@ -14,9 +14,10 @@ function fixture({ actor = { status: 'active', globalRole: 'superadmin' }, exist
   return { db, queries }
 }
 class FakeQuery {
-  constructor(name, filters, queries) { this.name = name; this.filters = filters; this.queries = queries }
-  where(field, op, value) { return new FakeQuery(this.name, [...this.filters, [field, op, value]], this.queries) }
-  count() { return { get: async () => { this.queries.push({ name: this.name, filters: this.filters }); return { data: () => ({ count: countFor(this.name, this.filters) }) } } } }
+  constructor(name, filters, queries, orders = []) { this.name = name; this.filters = filters; this.queries = queries; this.orders = orders }
+  where(field, op, value) { return new FakeQuery(this.name, [...this.filters, [field, op, value]], this.queries, this.orders) }
+  orderBy(field, direction) { return new FakeQuery(this.name, this.filters, this.queries, [...this.orders, [field, direction || 'asc']]) }
+  count() { return { get: async () => { this.queries.push({ name: this.name, filters: this.filters, orders: this.orders }); return { data: () => ({ count: countFor(this.name, this.filters) }) } } } }
 }
 function countFor(name, filters) {
   const value = field => filters.find(item => item[0] === field)?.[2]
@@ -42,6 +43,7 @@ test('platform analytics returns only scoped aggregate counts and monthly/status
   assert.equal(result.recentActivity, 100)
   assert.deepEqual(Object.keys(result).sort(), ['activeAdmins','activeProfessionals','activePromotions','activeServices','admins','business','clients','months','professionals','range','recentActivity','reservations','services','statuses'].sort())
   assert(queries.length > 10 && queries.every(query => query.filters.some(([field, , value]) => field === 'businessId' && value === 'tenant-1')))
+  assert.deepEqual(queries.find(query => query.name === 'promotions').orders, [['startAt', 'asc'], ['endAt', 'asc']])
 })
 
 test('platform analytics refuses unauthenticated, non-superadmin and missing business requests', async () => {

@@ -41,7 +41,7 @@ export async function executePlatformAnalytics(db, uid, input) {
     count(scoped('services').where('isActive', '==', true)),
     count(members.where('role', '==', 'admin')),
     count(members.where('role', '==', 'admin').where('status', '==', 'active')),
-    count(scoped('promotions').where('isActive', '==', true).where('startAt', '<=', Timestamp.fromDate(now)).where('endAt', '>', Timestamp.fromDate(now))),
+    count(scoped('promotions').where('isActive', '==', true).where('startAt', '<=', Timestamp.fromDate(now)).where('endAt', '>', Timestamp.fromDate(now)).orderBy('startAt').orderBy('endAt')),
     count(reservations),
     Promise.all(statuses.map(status => count(reservations.where('status', '==', status)))),
     Promise.all(buckets.map(bucket => count(scoped('reservations').where('createdAt', '>=', Timestamp.fromDate(bucket.from)).where('createdAt', '<', Timestamp.fromDate(bucket.to))))),
