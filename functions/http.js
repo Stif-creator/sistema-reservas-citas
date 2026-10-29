@@ -51,7 +51,7 @@ export function createBookingServer({ allowedOrigins, verifyToken, execute, uplo
       send(200, { data: await (isImage ? upload : execute)(identity?.uid, data) })
     } catch (error) {
       const known = error instanceof BookingError
-      if (!known) console.error('Booking HTTP failed:', error.code || 'unknown')
+      if (!known) console.error('Booking HTTP failed:', error.code || 'unknown', error.message || error.name || '')
       send(known ? statusCodes[error.code] || 500 : 500, { error: {
         code: known ? error.code : 'internal',
         message: known ? error.message : 'No se pudo completar la operación. Vuelve a intentarlo.',
