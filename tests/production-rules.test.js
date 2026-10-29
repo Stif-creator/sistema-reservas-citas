@@ -69,3 +69,13 @@ test('business location writes are scoped to admins and reject invalid or partia
   await assertFails(updateDoc(doc(env.authenticatedContext('owner').firestore(), 'businesses', 'studio'), { location: { ...location, latitude: 86 } }))
   await assertFails(updateDoc(doc(env.authenticatedContext('owner').firestore(), 'businesses', 'studio'), { location: { ...location, longitude: null } }))
 })
+
+test('business requests cannot be read or written directly from any client', async () => {
+  const ref = doc(env.authenticatedContext('owner').firestore(), 'businessRequests', 'private-request')
+  const payload = { status: 'pending', applicant: { email: 'secret@example.test' }, business: { name: 'Private' } }
+  await assertFails(setDoc(ref, payload))
+  await assertFails(getDoc(ref))
+  const anonymous = doc(env.unauthenticatedContext().firestore(), 'businessRequests', 'private-request')
+  await assertFails(setDoc(anonymous, payload))
+  await assertFails(getDoc(anonymous))
+})

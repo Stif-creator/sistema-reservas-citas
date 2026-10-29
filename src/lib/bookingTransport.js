@@ -2,7 +2,7 @@ export const readActions = new Set(['options', 'availability', 'publicOptions', 
 const transientStatuses = new Set([502, 503, 504])
 const failure = (message, code) => Object.assign(new Error(message), { code: `functions/${code}` })
 
-export async function sendBookingRequest(data, { base, token, request = fetch, pause, timeoutMs = 120000, retryDelays = [3000, 7000, 15000, 30000] }) {
+export async function sendBookingRequest(data, { base, token, path = '/booking', request = fetch, pause, timeoutMs = 120000, retryDelays = [3000, 7000, 15000, 30000] }) {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), timeoutMs)
   const sleep = pause || (ms => new Promise((resolve, reject) => {
@@ -14,7 +14,7 @@ export async function sendBookingRequest(data, { base, token, request = fetch, p
   }))
   try {
     for (let attempt = 0; ; attempt++) {
-      const response = await request(`${base}/booking`, { method: 'POST', signal: controller.signal,
+      const response = await request(`${base}${path}`, { method: 'POST', signal: controller.signal,
         headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
       if (readActions.has(data.action) && transientStatuses.has(response.status) && attempt < retryDelays.length) {
         await response.body?.cancel()

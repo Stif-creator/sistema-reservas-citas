@@ -27,3 +27,13 @@ export async function bookingRequest(data) {
   }
   catch (error) { throw bookingFailure(error, data.action) }
 }
+
+export async function submitBusinessRequest(data) {
+  if (provider !== 'http' || !apiUrl) throw new Error('El servidor de solicitudes aún no está configurado.')
+  return sendBookingRequest(data, { base: apiUrl, path: '/business-requests', timeoutMs: 90000, retryDelays: [] })
+}
+
+export async function followBusinessRequest(data) {
+  if (provider !== 'http' || !apiUrl) throw new Error('El servidor de solicitudes aún no está configurado.')
+  return sendBookingRequest(data, { base: apiUrl, path: '/business-requests/status', timeoutMs: 30000, retryDelays: [] })
+}

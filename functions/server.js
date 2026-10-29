@@ -4,6 +4,7 @@ import { getFirestore } from 'firebase-admin/firestore'
 import { executeBooking } from './booking.js'
 import { createBookingServer } from './http.js'
 import { uploadImage } from './images.js'
+import { executeBusinessRequests, publicBusinessRequestAction } from './businessRequests.js'
 
 const projectId = process.env.GCLOUD_PROJECT
 const emulator = process.env.BOOKING_USE_EMULATORS === 'true'
@@ -19,8 +20,11 @@ if (!allowedOrigins.length || allowedOrigins.some(origin => new URL(origin).orig
 initializeApp(emulator ? { projectId } : { projectId, credential: applicationDefault() })
 const server = createBookingServer({ allowedOrigins,
   verifyToken: token => getAuth().verifyIdToken(token, true),
-  execute: (uid, data) => executeBooking(getFirestore(), uid, data),
+  execute: (uid, data) => data.action?.startsWith('businessRequest') || data.action === 'businessRequestsList'
+    ? executeBusinessRequests(getFirestore(), uid, data)
+    : executeBooking(getFirestore(), uid, data),
   upload: (uid, data) => uploadImage(getFirestore(), uid, data),
+  submitRequest: (data, remoteAddress) => publicBusinessRequestAction(getFirestore(), data, remoteAddress),
 })
 server.listen(Number(process.env.PORT || 3001), '0.0.0.0', () => console.log('Booking API lista'))
 for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => {

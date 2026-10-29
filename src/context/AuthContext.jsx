@@ -12,7 +12,6 @@ import {
 } from 'firebase/auth'
 import {
   doc,
-  collection,
   setDoc,
   deleteDoc,
   getDoc,
@@ -121,11 +120,10 @@ export function AuthProvider({ children }) {
     phone,
     role,
     businessId,
-    businessName,
   }) {
-    if (!['admin', 'professional', 'client'].includes(role)) throw new Error('Rol inválido.')
+    if (role === 'admin') throw new Error('La creación de negocios ahora requiere aprobación del superadministrador.')
+    if (!['professional', 'client'].includes(role)) throw new Error('Rol inválido.')
     if (role !== 'admin' && !businessId) throw new Error('Selecciona un negocio.')
-    if (role === 'admin' && !businessName?.trim()) throw new Error('Ingresa el nombre del negocio.')
     provisioning.current = true
     setLoading(true)
     let credential
@@ -150,11 +148,6 @@ export function AuthProvider({ children }) {
       // para poder incluirlo en users.businessIds antes de crear el
       // documento del negocio propiamente dicho.
       let finalBusinessId = businessId
-      let businessRef = null
-      if (role === 'admin') {
-        businessRef = doc(collection(db, 'businesses'))
-        finalBusinessId = businessRef.id
-      }
 
       // 2. users/{uid}
       step = 'guardar tu perfil de usuario'
@@ -179,30 +172,6 @@ export function AuthProvider({ children }) {
       createdRefs.push(userRef)
 
       // 3. businesses/{nuevoId} (solo si el rol es admin)
-      if (role === 'admin') {
-        step = 'crear el negocio'
-        await setDoc(businessRef, {
-          name: businessName,
-          ownerUserId: uid,
-          appearance: { primaryColor: '#1672ed', secondaryColor: '#eaf3ff' },
-          status: 'active',
-          settings: {
-            publicPageEnabled: true,
-            currencyCode: 'BOB',
-            timezone: 'America/La_Paz',
-            bookingIntervalMinutes: 15,
-            minAdvanceMinutes: 60,
-            maxAdvanceDays: 90,
-            cancellationLimitHours: 24,
-            autoConfirmBookings: false,
-          },
-          createdAt: now,
-          updatedAt: now,
-          id: businessRef.id,
-        })
-        createdRefs.push(businessRef)
-      }
-
       // 4. memberships/{businessId_uid}
       step = 'crear tu membresía en el negocio'
       const membershipRef = doc(db, 'memberships', `${finalBusinessId}_${uid}`)

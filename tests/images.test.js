@@ -1,7 +1,7 @@
 ﻿import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
-import { decodeImage, uploadImage, MAX_IMAGE_BYTES } from '../functions/images.js'
+import { decodeImage, uploadImage, uploadRequestImage, MAX_IMAGE_BYTES } from '../functions/images.js'
 const image = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aCuoAAAAASUVORK5CYII='
 const env = { CLOUDINARY_CLOUD_NAME: 'test-cloud', CLOUDINARY_API_KEY: 'key', CLOUDINARY_API_SECRET: 'private' }
 function database(role = 'admin') {
@@ -45,6 +45,14 @@ test('images: actionable provider errors never expose upstream secrets', async (
       env, request: async () => ({ ok: false, status, json: async () => ({ error: { message: 'private API key and signature' } }) }),
     }), error => error.code === code && !error.message.includes('private'))
   }
+})
+
+test('request images use validated raster bytes and a server-signed Cloudinary upload', async () => {
+  const uploaded = await uploadRequestImage(image, 'logo', { env, request: async (_url, { body }) => ({ ok: true, json: async () => ({ public_id: body.get('public_id'), secure_url: 'https://res.cloudinary.com/test-cloud/image/upload/logo.png' }) }) })
+  assert.equal(uploaded.kind, 'logo')
+  assert.match(uploaded.url, /^https:\/\/res\.cloudinary\.com\/test-cloud\//)
+  await assert.rejects(uploadRequestImage('data:image/svg+xml;base64,PHN2Zz4=', 'cover', { env }), { code: 'invalid-argument' })
+  await assert.rejects(uploadRequestImage(image, 'avatar', { env }), { code: 'invalid-argument' })
 })
 test('images: trim whitespace copied with credentials', async () => {
   await uploadImage(database(), 'u', { businessId: 'b', kind: 'logo', image }, {

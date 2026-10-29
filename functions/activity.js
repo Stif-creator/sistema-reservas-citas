@@ -3,7 +3,7 @@ import { BookingError } from './bookingError.js'
 
 const fail = (code, message) => { throw new BookingError(code, message) }
 const validId = value => typeof value === 'string' && /^[^/\s]{1,200}$/.test(value)
-const actions = new Set(['platformCreate', 'platformStatus', 'businessUpdate', 'membershipUpdate', 'superadmin_granted', 'superadmin_revoked'])
+const actions = new Set(['platformCreate', 'platformStatus', 'businessUpdate', 'membershipUpdate', 'superadmin_granted', 'superadmin_revoked', 'businessRequestSubmitted', 'businessRequestin_review', 'businessRequestneeds_info', 'businessRequestrejected', 'businessRequestApproved', 'businessRequestInfoProvided'])
 const roleNames = { admin: 'administrador', professional: 'profesional', client: 'cliente' }
 const statusNames = { active: 'activo', inactive: 'inactivo', pending: 'pendiente', deleted: 'archivado' }
 const normalizeName = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es')
@@ -14,6 +14,12 @@ async function count(query) {
 }
 
 function eventDescription(event) {
+  if (event.action === 'businessRequestSubmitted') return 'Nueva solicitud de registro recibida.'
+  if (event.action === 'businessRequestin_review') return 'La solicitud se marcó en revisión.'
+  if (event.action === 'businessRequestneeds_info') return 'Se solicitó información adicional al solicitante.'
+  if (event.action === 'businessRequestrejected') return 'La solicitud fue rechazada.'
+  if (event.action === 'businessRequestApproved') return 'Solicitud aprobada y negocio creado.'
+  if (event.action === 'businessRequestInfoProvided') return 'El solicitante proporcionó información adicional.'
   if (event.action === 'platformCreate') return 'Negocio registrado en la plataforma.'
   if (event.action === 'platformStatus') return `Estado del negocio actualizado: ${statusNames[event.status] || 'actualizado'}.`
   if (event.action === 'businessUpdate') return event.beforeName && event.afterName && event.beforeName !== event.afterName

@@ -13,6 +13,7 @@ const labels = {
   platformCreate: 'Negocio registrado', platformStatus: 'Estado del negocio', businessUpdate: 'Configuración',
   membershipUpdate: 'Membresía', superadmin_granted: 'Acceso superadministrador otorgado',
   superadmin_revoked: 'Acceso superadministrador retirado', repair_owner_profile: 'Reparación de perfil responsable',
+  businessRequestSubmitted: 'Solicitud de negocio recibida', businessRequestin_review: 'Solicitud en revisión', businessRequestneeds_info: 'Información solicitada', businessRequestrejected: 'Solicitud rechazada', businessRequestApproved: 'Solicitud aprobada', businessRequestInfoProvided: 'Información adicional recibida',
 }
 const dateTime = value => value?.toDate ? new Intl.DateTimeFormat('es-BO', { dateStyle: 'medium', timeStyle: 'short' }).format(value.toDate()) : 'Fecha no disponible'
 const getQuery = (days, businessId, action, now) => {

@@ -1,11 +1,12 @@
 import { createServer } from 'node:http'
+import { isIP } from 'node:net'
 import { BookingError } from './bookingError.js'
 
 const statusCodes = { 'invalid-argument': 400, unauthenticated: 401, 'permission-denied': 403,
   'not-found': 404, 'already-exists': 409, 'failed-precondition': 409, aborted: 409,
   'resource-exhausted': 429, unavailable: 503, 'deadline-exceeded': 504 }
 
-export function createBookingServer({ allowedOrigins, verifyToken, execute, upload }) {
+export function createBookingServer({ allowedOrigins, verifyToken, execute, upload, submitRequest }) {
   const origins = new Set(allowedOrigins)
   return createServer({ requestTimeout: 30000, headersTimeout: 15000 }, async (req, res) => {
     const send = (status, body) => {
@@ -17,7 +18,8 @@ export function createBookingServer({ allowedOrigins, verifyToken, execute, uplo
     res.setHeader('Vary', 'Origin')
     if (req.url === '/health' && req.method === 'GET') return send(200, { ok: true })
     const isImage = req.url === '/images' && typeof upload === 'function'
-    if (req.url !== '/booking' && !isImage) return send(404, { error: { code: 'not-found', message: 'Ruta no encontrada.' } })
+    const isBusinessRequest = ['/business-requests', '/business-requests/status'].includes(req.url) && typeof submitRequest === 'function'
+    if (req.url !== '/booking' && !isImage && !isBusinessRequest) return send(404, { error: { code: 'not-found', message: 'Ruta no encontrada.' } })
     if (req.headers.origin && !origins.has(req.headers.origin)) return send(403, { error: { code: 'permission-denied', message: 'Origen no permitido.' } })
     if (req.headers.origin) res.setHeader('Access-Control-Allow-Origin', req.headers.origin)
     if (req.method === 'OPTIONS') {
@@ -40,15 +42,18 @@ export function createBookingServer({ allowedOrigins, verifyToken, execute, uplo
       const chunks = []; let size = 0
       for await (const chunk of req) {
         size += chunk.length
-        if (size > (isImage ? 2900000 : 16384)) throw new BookingError('invalid-argument', 'La solicitud es demasiado grande.')
+        if (size > (isImage ? 2900000 : isBusinessRequest && req.url === '/business-requests' ? 7000000 : 16384)) throw new BookingError('invalid-argument', 'La solicitud es demasiado grande.')
         chunks.push(chunk)
       }
       let data
       try { data = JSON.parse(Buffer.concat(chunks).toString('utf8')) }
       catch { throw new BookingError('invalid-argument', 'Solicitud JSON inválida.') }
       if (!data || typeof data !== 'object' || Array.isArray(data)) throw new BookingError('invalid-argument', 'Solicitud inválida.')
-      if (!identity && !['publicOptions', 'publicAvailability'].includes(data.action)) throw new BookingError('unauthenticated', 'Inicia sesión para continuar.')
-      send(200, { data: await (isImage ? upload : execute)(identity?.uid, data) })
+      if (!identity && !isBusinessRequest && !['publicOptions', 'publicAvailability'].includes(data.action)) throw new BookingError('unauthenticated', 'Inicia sesión para continuar.')
+      const forwarded = String(req.headers['x-forwarded-for'] || '').split(',').map(value => value.trim()).filter(Boolean).at(-1)
+      const remoteAddress = forwarded && isIP(forwarded) ? forwarded : req.socket.remoteAddress
+      const result = isImage ? await upload(identity?.uid, data) : isBusinessRequest ? await submitRequest(data, remoteAddress) : await execute(identity?.uid, data)
+      send(200, { data: result })
     } catch (error) {
       const known = error instanceof BookingError
       if (!known) console.error('Booking HTTP failed:', error.code || 'unknown', error.message || error.name || '')

@@ -451,11 +451,11 @@ test('professional query sees only global and own blocks; cannot delete administ
     })
   )
 })
-test('registration provisions owner, client and pending professional in dependency order', async () => {
-  for (const role of ['admin', 'client', 'professional']) {
+test('public registration provisions clients and pending professionals but cannot create a business administrator', async () => {
+  for (const role of ['client', 'professional']) {
     const uid = `new-${role}`
     const db = dbFor(uid)
-    const bid = role === 'admin' ? 'new-studio' : 'studio'
+    const bid = 'studio'
     await assertSucceeds(
       setDoc(doc(db, 'users', uid), {
         id: uid,
@@ -467,19 +467,6 @@ test('registration provisions owner, client and pending professional in dependen
         createdAt: serverTimestamp(),
       })
     )
-    if (role === 'admin') {
-      await assertFails(setDoc(doc(db, 'businesses', bid), { id: bid, ownerUserId: uid, name: 'Forged colors', status: 'active', appearance: { primaryColor: '#000000' }, createdAt: serverTimestamp() }))
-      await assertSucceeds(
-        setDoc(doc(db, 'businesses', bid), {
-          id: bid,
-          ownerUserId: uid,
-          name: 'New studio',
-          status: 'active',
-          settings: { publicPageEnabled: true },
-          createdAt: serverTimestamp(),
-        })
-      )
-    }
     await assertSucceeds(
       setDoc(doc(db, 'memberships', `${bid}_${uid}`), {
         userId: uid,
@@ -490,8 +477,7 @@ test('registration provisions owner, client and pending professional in dependen
         createdAt: serverTimestamp(),
       })
     )
-    if (role !== 'admin')
-      await assertSucceeds(
+    await assertSucceeds(
         setDoc(doc(db, role === 'client' ? 'clients' : 'professionals', `${bid}_${uid}`), {
           id: `${bid}_${uid}`,
           userId: uid,
@@ -504,6 +490,10 @@ test('registration provisions owner, client and pending professional in dependen
     await assertSucceeds(updateDoc(doc(db, 'users', uid), { onboardingComplete: true }))
     await assertFails(deleteDoc(doc(db, 'users', uid)))
   }
+  const publicDb = dbFor('unauthorized-admin')
+  await assertSucceeds(setDoc(doc(publicDb, 'users', 'unauthorized-admin'), { id: 'unauthorized-admin', auth_uid: 'unauthorized-admin', globalRole: 'user', status: 'active', businessIds: ['new-business'], onboardingComplete: false, createdAt: serverTimestamp() }))
+  await assertFails(setDoc(doc(publicDb, 'businesses', 'new-business'), { id: 'new-business', ownerUserId: 'unauthorized-admin', name: 'Forged', status: 'active', settings: { publicPageEnabled: true }, createdAt: serverTimestamp() }))
+  await assertFails(setDoc(doc(publicDb, 'memberships', 'new-business_unauthorized-admin'), { businessId: 'new-business', userId: 'unauthorized-admin', role: 'admin', status: 'active', permissions: {}, createdAt: serverTimestamp() }))
 })
 
 
@@ -566,6 +556,7 @@ test('platform configuration requires a new atomic audit and cannot change owner
     return batch.commit()
   }
   await assertSucceeds(change({ name: 'Configurado', description: 'Descripción', 'settings.publicPageEnabled': true, appearance: { primaryColor: '#123456', secondaryColor: '#abcdef', accentColor: '#334455', surfaceColor: '#f8fafc' }, about: { title: 'Nosotros' }, contact: { phone: '+59176543210' }, logo: { url: 'https://example.test/logo.png' }, cover: { url: '' }, location: { latitude: -16.5, longitude: -68.15 }, weeklyHours: { '1': [{ start: '09:00', end: '12:00' }] } }))
+  await assertFails(updateDoc(doc(dbFor('owner'), 'businesses', 'config-business'), { 'settings.publicPageEnabled': false, updatedAt: serverTimestamp() }))
   assert.equal((await getDoc(ref)).data().name, 'Configurado')
   await assertFails(change({ name: 'Sin evento' }, { omitLog: true }))
   await assertFails(change({ name: 'Identidad falsa' }, { actor: 'owner' }))

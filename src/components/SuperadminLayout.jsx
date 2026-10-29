@@ -5,13 +5,14 @@ import { useFeedback } from '../context/feedback-context'
 import { confirmDiscard } from '../lib/unsavedForms'
 import NotificationLink from './NotificationLink'
 import { ListSearchContext } from '../context/list-search-context'
-import { Activity, Bell, Building2, ChartNoAxesCombined, Headset, LayoutDashboard, LogOut, Menu, Search, ShieldCheck, Users, X, CalendarCheck } from 'lucide-react'
+import { Activity, Bell, Building2, ChartNoAxesCombined, Headset, LayoutDashboard, LogOut, Menu, Search, ShieldCheck, Users, X, CalendarCheck, ClipboardList } from 'lucide-react'
 import './superadmin.css'
 
 const groups = [
   { label: 'General', links: [
     ['/dashboard', 'Dashboard global', LayoutDashboard],
     ['/plataforma/negocios', 'Negocios', Building2],
+    ['/plataforma/solicitudes', 'Solicitudes de negocios', ClipboardList],
     ['/plataforma/administradores', 'Administradores', Users],
     ['/plataforma/estadisticas', 'Estadísticas y reportes', ChartNoAxesCombined],
   ] },

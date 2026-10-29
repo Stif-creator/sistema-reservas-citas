@@ -18,6 +18,24 @@ test('public HTTP permits only explicit read actions without a token', async t =
   assert.equal(calls[0].uid,undefined)
 })
 
+test('HTTP business requests permit anonymous submissions only on the dedicated endpoint', async t => {
+  const calls = []
+  const server = createBookingServer({ allowedOrigins: ['https://app.example'], verifyToken: async () => ({ uid: 'user' }), execute: async (_uid, data) => ({ action: data.action }), submitRequest: async (data, ip) => { calls.push({ data, ip }); return { ok: true, requestId: 'request' } } })
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
+  t.after(() => new Promise(resolve => server.close(resolve)))
+  const base = `http://127.0.0.1:${server.address().port}`
+  const submit = await fetch(`${base}/business-requests`, { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: 'https://app.example' }, body: JSON.stringify({ action: 'businessRequestSubmit' }) })
+  assert.deepEqual(await submit.json(), { data: { ok: true, requestId: 'request' } })
+  assert.equal(calls.length, 1)
+  assert.equal(calls[0].ip, '127.0.0.1')
+  await fetch(`${base}/business-requests`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': '198.51.100.8, 127.0.0.2' }, body: '{}' })
+  assert.equal(calls[1].ip, '127.0.0.2')
+  const protectedWrite = await fetch(`${base}/booking`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'platformCreate' }) })
+  assert.equal(protectedWrite.status, 401)
+  const badOrigin = await fetch(`${base}/business-requests`, { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: 'https://evil.example' }, body: '{}' })
+  assert.equal(badOrigin.status, 403)
+})
+
 test('HTTP: autenticación, CORS, identidad verificada y errores sin secretos', async t => {
   let calls = 0
   const server = createBookingServer({ allowedOrigins: ['https://app.example'],

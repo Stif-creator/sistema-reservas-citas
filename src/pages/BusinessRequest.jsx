@@ -1,0 +1,53 @@
+import { useEffect, useState } from 'react'
+import { Building2, CalendarCheck, CheckCircle2, ClipboardList, ImagePlus, Info, Link2, MapPin, Send, UserRound } from 'lucide-react'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { followBusinessRequest, submitBusinessRequest } from '../lib/bookingApi'
+import '../components/public/public.css'
+import './business-request.css'
+
+const initial = { firstName: '', lastName: '', email: '', phone: '', name: '', category: '', city: '', description: '', website: '', primaryColor: '#2563eb', secondaryColor: '#7c3aed', accentColor: '#ec4899', surfaceColor: '#1f2937' }
+const labels = { primaryColor: 'Primario', secondaryColor: 'Secundario', accentColor: 'Acento', surfaceColor: 'Superficie' }
+const readImage = file => new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject; reader.readAsDataURL(file) })
+
+export default function BusinessRequest() {
+  const [form, setForm] = useState(initial), [images, setImages] = useState({ logo: null, cover: null })
+  const [accepted, setAccepted] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState(''), [sent, setSent] = useState(false)
+  const [tracking, setTracking] = useState(null), [additionalInfo, setAdditionalInfo] = useState(''), [trackingResult, setTrackingResult] = useState(null)
+  const { requestId } = useParams(), [searchParams] = useSearchParams(), trackingToken = searchParams.get('token') || ''
+  useEffect(() => {
+    if (!requestId || !trackingToken) return
+    let active = true
+    followBusinessRequest({ action: 'businessRequestStatus', requestId, trackingToken }).then(value => { if (active) setTrackingResult(value) }).catch(failure => { if (active) setError(failure.message) })
+    return () => { active = false }
+  }, [requestId, trackingToken])
+  const update = (key, value) => setForm(previous => ({ ...previous, [key]: value }))
+  async function pickImage(kind, file) {
+    if (!file) return
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 2 * 1024 * 1024) { setError('Usa una imagen JPG, PNG o WebP de hasta 2 MB.'); return }
+    try { const image = await readImage(file); setImages(previous => ({ ...previous, [kind]: image })); setError('') } catch { setError('No se pudo leer la imagen.') }
+  }
+  async function submit(event) {
+    event.preventDefault(); setError('')
+    if (!accepted) { setError('Acepta los términos para enviar la solicitud.'); return }
+    setBusy(true)
+    try {
+      const result = await submitBusinessRequest({ action: 'businessRequestSubmit', applicant: { firstName: form.firstName, lastName: form.lastName, email: form.email, phone: form.phone }, business: { name: form.name, category: form.category, city: form.city, description: form.description, website: form.website }, appearance: Object.fromEntries(Object.keys(labels).map(key => [key, form[key].toLowerCase()])), images, termsAccepted: true, websiteTrap: '' })
+      setTracking({ requestId: result.requestId, token: result.trackingToken }); setSent(true)
+    } catch (failure) { setError(failure.message || 'No se pudo enviar la solicitud. Inténtalo más tarde.') }
+    finally { setBusy(false) }
+  }
+  if (requestId) return <main className="request-page"><section className="request-success"><ClipboardList size={42} /><h1>Estado de tu solicitud</h1>{trackingResult ? <><h2>{trackingResult.businessName}</h2><p>Estado: <b>{({ pending: 'Pendiente de revisión', in_review: 'En revisión', needs_info: 'Necesitamos información adicional', approved: 'Aprobada', rejected: 'Rechazada' })[trackingResult.status] || trackingResult.status}</b></p>{trackingResult.reviewNote && <p className="request-review-note">{trackingResult.reviewNote}</p>}{trackingResult.status === 'needs_info' && <form onSubmit={async event => { event.preventDefault(); setBusy(true); setError(''); try { await followBusinessRequest({ action: 'businessRequestProvideInfo', requestId, trackingToken, additionalInfo }); const updated = await followBusinessRequest({ action: 'businessRequestStatus', requestId, trackingToken }); setTrackingResult(updated); setAdditionalInfo('') } catch (failure) { setError(failure.message) } finally { setBusy(false) } }}><label className="request-note">Información solicitada<textarea required minLength={5} maxLength={1000} value={additionalInfo} onChange={event => setAdditionalInfo(event.target.value)} /></label><button className="request-submit" disabled={busy}>Enviar información adicional</button></form>}</> : error ? <p role="alert" className="request-error">{error}</p> : <p>Consultando solicitud…</p>}<Link to="/">Volver al inicio</Link></section></main>
+  if (sent) return <main className="request-page"><section className="request-success"><CheckCircle2 size={48} /><h1>Solicitud enviada</h1><p>Recibimos la información de {form.name}. El equipo de CitasPro revisará los datos antes de crear o publicar el negocio.</p>{tracking && <p><Link to={`/solicitud/${tracking.requestId}?token=${tracking.token}`}>Guardar enlace para consultar el estado</Link></p>}<p>Conserva este enlace privado: cualquier persona que lo tenga podrá consultar el estado y responder solicitudes de información.</p><Link to="/">Volver al inicio</Link></section></main>
+  return <main className="request-page"><header className="request-header"><Link to="/" className="request-brand"><span><CalendarCheck /></span><strong>CitasPro<small>Tu tiempo, nuestra prioridad</small></strong></Link><nav><Link to="/">Inicio</Link><Link to="/negocios">Negocios</Link><Link to="/login">Iniciar sesión</Link></nav></header>
+    <div className="request-intro"><span>REGISTRO DE NEGOCIO</span><h1>Solicita registrar tu negocio</h1><p>Completa el formulario. Nuestro equipo revisará tu solicitud antes de aprobar y publicar tu negocio en la plataforma.</p></div>
+    <form className="request-form" onSubmit={submit} noValidate>
+      <section className="request-section"><h2><UserRound />Datos del solicitante</h2><div className="request-grid"><label>Nombre *<input required maxLength={80} value={form.firstName} onChange={e => update('firstName', e.target.value)} autoComplete="given-name" /></label><label>Apellido *<input required maxLength={80} value={form.lastName} onChange={e => update('lastName', e.target.value)} autoComplete="family-name" /></label><label className="wide">Correo electrónico *<input required type="email" maxLength={254} value={form.email} onChange={e => update('email', e.target.value)} autoComplete="email" /></label><label className="wide">Teléfono *<input required type="tel" maxLength={30} placeholder="+59170000000" value={form.phone} onChange={e => update('phone', e.target.value)} autoComplete="tel" /></label></div></section>
+      <section className="request-section"><h2><Building2 />Detalles del negocio</h2><div className="request-grid"><label className="wide">Nombre del negocio *<input required maxLength={120} value={form.name} onChange={e => update('name', e.target.value)} /></label><label>Categoría / rubro *<select required value={form.category} onChange={e => update('category', e.target.value)}><option value="">Selecciona una categoría</option>{['Belleza y bienestar', 'Salud', 'Consultorio dental', 'Abogados', 'Barbería', 'Educación', 'Servicios profesionales', 'Otro'].map(item => <option key={item}>{item}</option>)}</select></label><label><MapPin size={14} /> Ciudad *<input required maxLength={100} value={form.city} onChange={e => update('city', e.target.value)} /></label><label className="wide">Descripción *<textarea required minLength={10} maxLength={500} rows={4} value={form.description} onChange={e => update('description', e.target.value)} placeholder="Describe los servicios que ofreces y qué hace especial a tu negocio." /><small>{form.description.length}/500</small></label><label className="wide"><Link2 size={14} /> Sitio web o redes sociales<input type="text" maxLength={240} value={form.website} onChange={e => update('website', e.target.value)} placeholder="https://tusitio.com o @turedsocial" /></label></div></section>
+      <section className="request-section"><h2><ImagePlus />Identidad visual propuesta</h2><p>El superadministrador podrá revisar estos colores antes de aplicar la identidad visual.</p><div className="request-colors">{Object.entries(labels).map(([key, label]) => <label key={key}>{label}<span><input type="color" value={form[key]} onChange={e => update(key, e.target.value)} />{form[key].toUpperCase()}</span></label>)}</div><div className="request-preview"><span style={{ background: form.primaryColor }} /><span style={{ background: form.secondaryColor }} /><span style={{ background: form.accentColor }} /><span style={{ background: form.surfaceColor }} />Vista previa de colores</div></section>
+      <section className="request-section"><h2><ImagePlus />Imágenes</h2><div className="request-grid">{[['logo', 'Logo'], ['cover', 'Portada']].map(([kind, label]) => <label className="request-upload" key={kind}>{label}{images[kind] && <img style={{ width: 110, height: 62, objectFit: 'contain', borderRadius: 6 }} src={images[kind]} alt={`Vista previa de ${label.toLowerCase()}`} />}<input type="file" accept="image/png,image/jpeg,image/webp" onChange={e => pickImage(kind, e.target.files?.[0])} /><small>{images[kind] ? 'Imagen lista para enviar' : 'JPG, PNG o WebP · máximo 2 MB'}</small></label>)}</div></section>
+      <label className="request-terms"><input type="checkbox" checked={accepted} onChange={e => setAccepted(e.target.checked)} /> Confirmo que la información proporcionada es correcta y acepto que CitasPro la utilice para revisar esta solicitud.</label>
+      <p className="request-notice"><Info size={17} />Enviar esta solicitud no crea ni publica automáticamente un negocio. Nuestro equipo revisará la información antes de aprobarla.</p>
+      {error && <p role="alert" className="request-error">{error}</p>}<button className="request-submit" disabled={busy}>{busy ? 'Enviando…' : 'Enviar solicitud'} <Send size={18} /></button>
+    </form>
+  </main>
+}

@@ -108,16 +108,15 @@ service cloud.firestore {
       }
       allow read: if superadmin() || (resource.data.status == 'active' && resource.data.settings.publicPageEnabled == true)
         || (signedIn() && (resource.data.ownerUserId == request.auth.uid || activeMember(bid)));
-      allow create: if userActive() && request.resource.data.ownerUserId == request.auth.uid
-        && request.resource.data.id == bid && request.resource.data.status == 'active'
-        && (superadmin() || !('appearance' in request.resource.data) || request.resource.data.appearance == { 'primaryColor': '#1672ed', 'secondaryColor': '#eaf3ff' })
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.businessIds == [bid]
-        && request.resource.data.createdAt == request.time;
+      // Los negocios operativos solo los crea el backend autorizado.
+      allow create: if false;
       allow update: if admin(bid)
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['name', 'appearance'])
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['lastConfigAuditId']) || auditedConfiguration())
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['location'])
           || validLocation(request.resource.data.location))
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['settings'])
+          || !request.resource.data.settings.diff(resource.data.settings).affectedKeys().hasAny(['publicPageEnabled']))
         && request.resource.data.diff(resource.data).affectedKeys()
         .hasOnly(['name', 'description', 'about', 'logo', 'cover', 'appearance', 'contact', 'location', 'weeklyHours', 'settings', 'updatedAt', 'lastConfigAuditId']);
       // Platform configuration is separate from operational membership and status changes.
@@ -133,7 +132,7 @@ service cloud.firestore {
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['settings'])
           || (request.resource.data.settings.diff(resource.data.settings).affectedKeys().hasOnly(['publicPageEnabled'])
             && request.resource.data.settings.publicPageEnabled is bool));
-      allow delete: if signedIn() && resource.data.ownerUserId == request.auth.uid && recent(resource.data) && provisioning();
+      allow delete: if false;
     }
     match /memberships/{mid} {
       allow read: if superadmin() || self(resource.data.userId) || admin(resource.data.businessId);
@@ -148,9 +147,7 @@ service cloud.firestore {
         && request.resource.data.permissions == {}
         && request.resource.data.createdAt == request.time
         && (
-          (request.resource.data.role == 'admin' && request.resource.data.status == 'active'
-            && get(/databases/$(database)/documents/businesses/$(request.resource.data.businessId)).data.ownerUserId == request.auth.uid)
-          || (publicBusiness(request.resource.data.businessId)
+          (publicBusiness(request.resource.data.businessId)
             && ((request.resource.data.role == 'client' && request.resource.data.status == 'active')
               || (request.resource.data.role == 'professional' && request.resource.data.status == 'pending')))
         );
@@ -257,6 +254,9 @@ service cloud.firestore {
       allow read, write: if false;
     }
     match /bookingRequests/{id} {
+      allow read, write: if false;
+    }
+    match /businessRequests/{id} {
       allow read, write: if false;
     }
     // Sprint 3 writes are validated by the authenticated server.

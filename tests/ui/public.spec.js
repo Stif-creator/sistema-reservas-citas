@@ -103,69 +103,28 @@ test('business identity persists across home, login and registration on desktop 
   expect(errors).toEqual([])
 })
 
-test('owner registration, restricted branding, professional approval and logout work end to end', async ({
-  page,
-  browser,
-}) => {
-  test.setTimeout(60000)
-  const ownerEmail = `owner-${Date.now()}@example.test`
-  await page.goto('/crear-negocio')
-  await page.getByLabel('Nombre', { exact: true }).fill('Ana')
-  await page.getByLabel('Apellido', { exact: true }).fill('Perez')
-  await page.getByLabel('Correo electrónico').fill(ownerEmail)
-  await page.getByLabel('Teléfono').fill('+59170000000')
-  await page.getByLabel('Contraseña', { exact: true }).fill('test-password')
-  await page.getByLabel('Confirmar contraseña').fill('test-password')
-  await page.getByLabel('Nombre del negocio').fill('Mi Estudio')
-  await page.getByRole('button', { name: 'Crear mi negocio' }).click()
-  await expect(page.getByRole('heading', { name: 'Hola, Ana' })).toBeVisible({
-    timeout: 20000,
+test('public business registration submits a review request and never asks for an admin password', async ({ page }) => {
+  let submitted
+  await page.route('**/business-requests', async route => {
+    submitted = route.request().postDataJSON()
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: { ok: true, requestId: 'request-test-id', trackingToken: 'a'.repeat(43) } }) })
   })
-  await page.getByRole('link', { name: 'Configuración', exact: true }).click()
-  await expect(page.getByLabel('Color primario')).toBeDisabled()
-  const brand = await page.getByLabel('Color primario').inputValue()
-  const url = await page.locator('a[target="_blank"]').getAttribute('href')
-  await page.goto(url)
-  await expect(page.locator('.public-site')).toHaveCSS('--brand', brand)
-  const professionalContext = await browser.newContext()
-  const professionalPage = await professionalContext.newPage()
-  await professionalPage.goto(`http://127.0.0.1:4173${url}/registro`)
-  await professionalPage.getByLabel('Nombre', { exact: true }).fill('Luis')
-  await professionalPage.getByLabel('Apellido', { exact: true }).fill('Perez')
-  await professionalPage
-    .getByLabel('Correo electrónico')
-    .fill(`approval-${Date.now()}@example.test`)
-  await professionalPage.getByLabel('Teléfono').fill('+59170000001')
-  await professionalPage.getByLabel('Contraseña', { exact: true }).fill('test-password')
-  await professionalPage.getByLabel('Confirmar contraseña').fill('test-password')
-  await professionalPage.getByLabel('Quiero registrarme como').selectOption('professional')
-  await professionalPage.getByRole('button', { name: 'Crear cuenta' }).click()
-  await expect(
-    professionalPage.getByText(
-      'Tu solicitud está pendiente de aprobación por el administrador del negocio.'
-    )
-  ).toBeVisible({ timeout: 20000 })
-  await page.goto('/profesionales')
-  await page.getByRole('button', { name: 'Más acciones' }).click()
-  await page.getByRole('button', { name: 'Activar', exact: true }).click()
-  await expect(professionalPage.getByRole('heading', { name: 'Hola, Luis' })).toBeVisible()
-  await page.getByRole('button', { name: 'Más acciones' }).click()
-  await page.getByRole('button', { name: 'Desactivar', exact: true }).click()
-  await page.getByRole('alertdialog').getByRole('button', { name: 'Desactivar profesional' }).click()
-  await expect(
-    professionalPage.getByText(
-      'Tu cuenta o membresía no está activa. Contacta al administrador del negocio.'
-    )
-  ).toBeVisible()
-  await professionalContext.close()
-  await page.goto('/dashboard')
-  await page.getByTitle('Cerrar sesión').click()
-  await expect(page.getByRole('heading', { name: 'Inicia sesión' })).toBeVisible()
-  await page.getByLabel('Correo electrónico').fill(ownerEmail)
-  await page.getByLabel('Contraseña', { exact: true }).fill('test-password')
-  await page.getByLabel('Recordarme').uncheck()
-  await page.getByRole('button', { name: 'Iniciar sesión', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Hola, Ana' })).toBeVisible()
+  await page.goto('/crear-negocio')
+  await expect(page.getByRole('heading', { name: 'Solicita registrar tu negocio' })).toBeVisible()
+  await page.getByLabel('Nombre *').fill('Ana')
+  await page.getByLabel('Apellido *').fill('Perez')
+  await page.getByLabel('Correo electrónico *').fill(`owner-${Date.now()}@example.test`)
+  await page.getByLabel('Teléfono *').fill('+59170000000')
+  await page.getByLabel('Nombre del negocio *').fill('Mi Estudio')
+  await page.getByLabel('Categoría / rubro *').selectOption('Belleza y bienestar')
+  await page.getByLabel('Ciudad *').fill('La Paz')
+  await page.getByLabel('Descripción *').fill('Servicios profesionales de belleza para todos.')
+  await page.locator('.request-terms input').check()
+  await page.getByRole('button', { name: 'Enviar solicitud' }).click()
+  await expect(page.getByRole('heading', { name: 'Solicitud enviada' })).toBeVisible()
+  expect(submitted.business.name).toBe('Mi Estudio')
+  expect(submitted.termsAccepted).toBe(true)
+  expect(submitted).not.toHaveProperty('password')
 })
 
 test('professional registration waits for approval and password mismatch is rejected', async ({
@@ -186,4 +145,16 @@ test('professional registration waits for approval and password mismatch is reje
   await expect(
     page.getByText('Tu solicitud está pendiente de aprobación por el administrador del negocio.')
   ).toBeVisible({ timeout: 20000 })
+})
+
+test('public client registration remains available after business registration changes', async ({ page }) => {
+  await page.goto('/b/violeta/registro')
+  await page.getByLabel('Nombre', { exact: true }).fill('Clara')
+  await page.getByLabel('Apellido', { exact: true }).fill('Lopez')
+  await page.getByLabel('Correo electrónico').fill(`client-${Date.now()}@example.test`)
+  await page.getByLabel('Teléfono').fill('+59170000002')
+  await page.getByLabel('Contraseña', { exact: true }).fill('client-password')
+  await page.getByLabel('Confirmar contraseña').fill('client-password')
+  await page.getByRole('button', { name: 'Crear cuenta' }).click()
+  await expect(page.getByRole('heading', { name: /verte, Clara/ })).toBeVisible({ timeout: 20000 })
 })

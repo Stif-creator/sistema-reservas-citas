@@ -144,10 +144,10 @@ function NotificationsCenter({ role, zone = 'America/La_Paz' }) {
             const related = Boolean(item.reservationId || item.waitlistId || item.type === 'platform')
             const appointmentDate = item.appointmentStartAt || item.expiresAt || item.createdAt || item.visibleAt
             const status = item.status && reservationStatuses[item.status]
-            const destination = item.type === 'platform' ? '/plataforma/negocios'
+            const destination = item.event === 'businessRequestSubmitted' ? '/plataforma/solicitudes' : item.type === 'platform' ? '/plataforma/negocios'
               : item.waitlistId ? `/lista-espera?solicitud=${encodeURIComponent(item.waitlistId)}`
                 : item.reservationId ? `${role === 'client' ? '/cliente' : ''}/reservas/${encodeURIComponent(item.reservationId)}` : ''
-            const actionLabel = item.type === 'platform' ? 'Ver negocio' : item.waitlistId ? 'Ver solicitud' : 'Ver cita'
+            const actionLabel = item.event === 'businessRequestSubmitted' ? 'Ver solicitudes' : item.type === 'platform' ? 'Ver negocio' : item.waitlistId ? 'Ver solicitud' : 'Ver cita'
             return <article key={item.id} className={`notice-row ${item.read ? 'is-read' : 'is-unread'} notice-row-${category}`}>
               <span className="notice-row-icon"><Icon size={21} aria-hidden="true" /></span>
               <div className="notice-copy"><h3>{item.title || 'Actualización de tu cita'} {!item.read && <span className="notice-new">Nuevo</span>}</h3><p className="notice-meta">{service}{professional ? ` · ${professional}` : ''}</p><p className="notice-message">{item.message}</p></div>

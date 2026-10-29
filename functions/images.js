@@ -16,6 +16,26 @@ export function decodeImage(input) {
   return { bytes, mime: `image/${match[1]}` }
 }
 
+export async function uploadRequestImage(input, kind, { env = process.env, request = fetch } = {}) {
+  if (!['logo', 'cover'].includes(kind)) fail('invalid-argument', 'Tipo de imagen inválido.')
+  const { bytes, mime } = decodeImage(input)
+  const cloud = env.CLOUDINARY_CLOUD_NAME?.trim(), key = env.CLOUDINARY_API_KEY?.trim(), secret = env.CLOUDINARY_API_SECRET?.trim()
+  if (!cloud || !/^[a-zA-Z0-9_-]+$/.test(cloud) || !key || !secret) fail('failed-precondition', 'La subida de imágenes aún no está configurada.')
+  const publicId = `citaspro/business-requests/${randomUUID()}`
+  const params = { overwrite: 'false', public_id: publicId, timestamp: String(Math.floor(Date.now() / 1000)) }
+  const signature = createHash('sha256').update(Object.entries(params).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => `${k}=${v}`).join('&') + secret).digest('hex')
+  const form = new FormData()
+  for (const [k, v] of Object.entries({ ...params, api_key: key, signature })) form.append(k, v)
+  form.append('file', new Blob([bytes], { type: mime }), `request-${kind}.${mime.split('/')[1]}`)
+  let response, data
+  try {
+    response = await request(`https://api.cloudinary.com/v1_1/${cloud}/image/upload`, { method: 'POST', body: form, signal: AbortSignal.timeout(60000) })
+    data = await response.json()
+  } catch { fail('unavailable', 'No se pudo subir la imagen. Inténtalo de nuevo.') }
+  if (!response.ok || data.public_id !== publicId || !data.secure_url?.startsWith(`https://res.cloudinary.com/${cloud}/image/upload/`)) fail('unavailable', 'El almacenamiento de imágenes no está disponible.')
+  return { url: data.secure_url, publicId, kind }
+}
+
 export async function uploadImage(db, uid, input, { env = process.env, request = fetch } = {}) {
   if (!uid) fail('unauthenticated', 'Inicia sesión para subir imágenes.')
   const { businessId, kind } = input

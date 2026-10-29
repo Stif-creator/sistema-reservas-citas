@@ -10,6 +10,7 @@ import './PlatformActivity.css'
 const eventTypes = [
   ['platformCreate', 'Negocio creado'], ['platformStatus', 'Estado del negocio'], ['businessUpdate', 'Configuración'],
   ['membershipUpdate', 'Administradores'], ['superadmin_granted', 'Acceso superadministrador otorgado'], ['superadmin_revoked', 'Acceso superadministrador retirado'],
+  ['businessRequestSubmitted', 'Solicitud recibida'], ['businessRequestin_review', 'Solicitud en revisión'], ['businessRequestneeds_info', 'Información solicitada'], ['businessRequestrejected', 'Solicitud rechazada'], ['businessRequestApproved', 'Solicitud aprobada'], ['businessRequestInfoProvided', 'Información recibida'],
 ]
 const labels = Object.fromEntries(eventTypes)
 const dateTime = value => value ? new Intl.DateTimeFormat('es-BO', { dateStyle: 'medium', timeStyle: 'short' }).format(value) : '—'

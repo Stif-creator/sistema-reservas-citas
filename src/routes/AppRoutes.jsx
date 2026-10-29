@@ -23,6 +23,8 @@ const PlatformAnalytics = lazy(() => import('../pages/PlatformAnalytics'))
 const PlatformActivity = lazy(() => import('../pages/PlatformActivity'))
 const PlatformSecurity = lazy(() => import('../pages/PlatformSecurity'))
 const PlatformSupport = lazy(() => import('../pages/PlatformSupport'))
+const PlatformRequests = lazy(() => import('../pages/PlatformRequests'))
+const BusinessRequest = lazy(() => import('../pages/BusinessRequest'))
 const BusinessSettings = lazy(() => import('../pages/BusinessSettings'))
 const Categories = lazy(() => import('../pages/Categories'))
 const Services = lazy(() => import('../pages/Services'))
@@ -64,7 +66,8 @@ function AppRoutes() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/registro" element={<Register />} />
-          <Route path="/crear-negocio" element={<Register owner />} />
+          <Route path="/crear-negocio" element={<BusinessRequest />} />
+          <Route path="/solicitud/:requestId" element={<BusinessRequest />} />
         </Route>
         <Route path="/b/:businessId" element={<PublicLayout />}>
           <Route element={<PublicHomeLayout />}><Route index element={<Home />} /><Route path="reservar" element={<PublicBooking />} /><Route path="nosotros" element={<BusinessInfo />} /><Route path="contacto" element={<BusinessInfo contact />} /></Route>
@@ -109,6 +112,7 @@ function AppRoutes() {
         >
           <Route path="/plataforma/dashboard" element={<ProtectedRoute superadminOnly><PlatformDashboard /></ProtectedRoute>} />
           <Route path="/plataforma/negocios" element={<ProtectedRoute superadminOnly><PlatformBusinesses /></ProtectedRoute>} />
+          <Route path="/plataforma/solicitudes" element={<ProtectedRoute superadminOnly><PlatformRequests /></ProtectedRoute>} />
           <Route path="/plataforma/negocios/:businessId" element={<ProtectedRoute superadminOnly><PlatformBusinessDetail /></ProtectedRoute>} />
           <Route path="/plataforma/negocios/:businessId/editar" element={<ProtectedRoute superadminOnly><BusinessSettings platform /></ProtectedRoute>} />
           <Route path="/plataforma/administradores" element={<ProtectedRoute superadminOnly><PlatformAdministrators /></ProtectedRoute>} />

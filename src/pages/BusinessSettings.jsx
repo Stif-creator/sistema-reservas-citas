@@ -176,7 +176,7 @@ function BusinessSettingsForm({ businessId, platform }) {
       await updateBusinessWithAudit(businessId, {
         ...(isSuperadmin ? { name: name.trim() } : {}),
         description,
-        'settings.publicPageEnabled': publicPageEnabled,
+        ...(isSuperadmin ? { 'settings.publicPageEnabled': publicPageEnabled } : {}),
         about: Object.fromEntries(aboutFields.map(([key, , max]) => [key, about[key].trim().slice(0, max)])),
         logo: { url: logoUrl.trim() },
         cover: { url: coverUrl.trim() },
@@ -284,7 +284,7 @@ function BusinessSettingsForm({ businessId, platform }) {
     </div>
     <form id="settings-business" onSubmit={handleSubmit} noValidate>
     <fieldset disabled={saving || savingLocation || hoursSaving || imageUploading}>
-<div id="settings-panel-general" role="tabpanel" aria-labelledby="settings-tab-general" hidden={tab !== 'general'}><div className="settings-columns"><div className="settings-fields"><Card title="Datos generales"><label className="block mb-4 text-sm"><input type="checkbox" checked={publicPageEnabled} onChange={e => setPublicPageEnabled(e.target.checked)} /> Publicar página del negocio</label>{!isSuperadmin && <p className="mb-4 text-sm text-muted">El nombre y los colores los configura el superadministrador.</p>}
+<div id="settings-panel-general" role="tabpanel" aria-labelledby="settings-tab-general" hidden={tab !== 'general'}><div className="settings-columns"><div className="settings-fields"><Card title="Datos generales">{isSuperadmin && <label className="block mb-4 text-sm"><input type="checkbox" checked={publicPageEnabled} onChange={e => setPublicPageEnabled(e.target.checked)} /> Publicar página del negocio</label>}{!isSuperadmin && <p className="mb-4 text-sm text-muted">La publicación de la página la controla el superadministrador.</p>}
           <div className="space-y-4">
             <Field label="Nombre" htmlFor="name" error={fieldErrors.name}>
               <input

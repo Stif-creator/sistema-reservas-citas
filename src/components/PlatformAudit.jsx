@@ -8,7 +8,7 @@ import Alert from './ui/Alert'
 import Button from './ui/Button'
 import { formatAppointmentDate } from '../lib/clientPresentation'
 
-const actions = { superadmin_granted: 'Acceso de superadministrador otorgado', superadmin_revoked: 'Acceso de superadministrador retirado', platformCreate: 'Negocio creado', platformStatus: 'Estado del negocio', businessUpdate: 'Configuración actualizada', membershipUpdate: 'Permisos actualizados' }
+const actions = { superadmin_granted: 'Acceso de superadministrador otorgado', superadmin_revoked: 'Acceso de superadministrador retirado', platformCreate: 'Negocio creado', platformStatus: 'Estado del negocio', businessUpdate: 'Configuración actualizada', membershipUpdate: 'Permisos actualizados', businessRequestSubmitted: 'Solicitud de negocio recibida', businessRequestin_review: 'Solicitud en revisión', businessRequestneeds_info: 'Información solicitada', businessRequestrejected: 'Solicitud rechazada', businessRequestApproved: 'Solicitud aprobada', businessRequestInfoProvided: 'Información adicional recibida' }
 const states = { pending: 'Pendiente', active: 'Activo', inactive: 'Desactivado', deleted: 'Archivado', admin: 'Administrador', professional: 'Profesional', client: 'Cliente' }
 export default function PlatformAudit({ businesses, users }) {
   const [items, setItems] = useState([]), [error, setError] = useState(''), [loading, setLoading] = useState(true)
