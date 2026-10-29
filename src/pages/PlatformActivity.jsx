@@ -27,7 +27,7 @@ export default function PlatformActivity() {
   const [refreshKey, setRefreshKey] = useState(0)
   const [state, setState] = useState({ loading: true, error: '', data: null })
 
-  useEffect(() => { let live = true; bookingRequest({ action: 'platformActivity', days, search, businessId, eventType: action, cursor: businessCursor, eventCursor }).then(data => { if (live) setState({ loading: false, error: '', data }) }).catch(error => { if (live) setState(current => ({ ...current, loading: false, error: errorText(error) })) }); return () => { live = false } }, [days, search, businessId, action, businessCursor, eventCursor, refreshKey])
+  useEffect(() => { let live = true; bookingRequest({ action: 'platformActivity', days, search, businessId, eventType: action, cursor: businessCursor, eventCursor }).then(data => { if (live) setState({ loading: false, error: '', data }) }).catch(error => { if (live) setState({ loading: false, error: errorText(error), data: null }) }); return () => { live = false } }, [days, search, businessId, action, businessCursor, eventCursor, refreshKey])
 
   const reset = () => { setState(current => ({ ...current, loading: true, error: '' })); setSearch(''); setBusinessId(''); setAction(''); setDays(30); setBusinessCursor(null); setBusinessHistory([]); setEventCursor(null); setEventHistory([]); setRefreshKey(key => key + 1) }
   const changeFilter = setter => value => { setState(current => ({ ...current, loading: true, error: '' })); setter(value); setBusinessCursor(null); setBusinessHistory([]); setEventCursor(null); setEventHistory([]) }
