@@ -10,6 +10,14 @@ async function count(query) {
   return result.data().count
 }
 
+async function countAssignedAdmins(db, memberships) {
+  const snapshot = await memberships.where('role', '==', 'admin').where('status', '==', 'active').select('userId').get()
+  const userIds = [...new Set(snapshot.docs.map(item => item.get('userId')).filter(Boolean))]
+  if (!userIds.length) return 0
+  const users = await db.getAll(...userIds.map(userId => db.doc(`users/${userId}`)))
+  return users.filter(user => user.exists && user.data().globalRole !== 'superadmin').length
+}
+
 export async function executePlatformAnalytics(db, uid, input) {
   if (!uid) fail('unauthenticated', 'Inicia sesión para continuar.')
   if (!validId(input.businessId)) fail('invalid-argument', 'Selecciona un negocio válido.')
@@ -39,7 +47,7 @@ export async function executePlatformAnalytics(db, uid, input) {
     count(scoped('professionals').where('isActive', '==', true)),
     count(scoped('services')),
     count(scoped('services').where('isActive', '==', true)),
-    count(members.where('role', '==', 'admin').where('status', '==', 'active')),
+    countAssignedAdmins(db, members),
     count(scoped('promotions').where('isActive', '==', true).where('startAt', '<=', Timestamp.fromDate(now)).where('endAt', '>', Timestamp.fromDate(now)).orderBy('startAt').orderBy('endAt')),
     count(reservations),
     Promise.all(statuses.map(status => count(reservations.where('status', '==', status)))),

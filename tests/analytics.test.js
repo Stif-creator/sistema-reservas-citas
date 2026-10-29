@@ -8,7 +8,8 @@ function fixture({ actor = { status: 'active', globalRole: 'superadmin' }, exist
   const queries = []
   const business = { name: 'Consultorio', status: 'active' }
   const db = {
-    doc(path) { return { async get() { return path.startsWith('users/') ? { data: () => actor } : { exists, data: () => business } } } },
+    doc(path) { return { path, async get() { return path === 'users/superadmin' ? { data: () => actor } : path.startsWith('users/') ? { data: () => ({ status: 'active', globalRole: 'user' }) } : { exists, data: () => business } } } },
+    async getAll(...refs) { return refs.map(ref => ({ exists: true, data: () => ({ globalRole: ref.path === 'users/assigned-superadmin' ? 'superadmin' : 'user' }) })) },
     collection(name) { return new FakeQuery(name, [], queries) },
   }
   return { db, queries }
@@ -17,6 +18,11 @@ class FakeQuery {
   constructor(name, filters, queries, orders = []) { this.name = name; this.filters = filters; this.queries = queries; this.orders = orders }
   where(field, op, value) { return new FakeQuery(this.name, [...this.filters, [field, op, value]], this.queries, this.orders) }
   orderBy(field, direction) { return new FakeQuery(this.name, this.filters, this.queries, [...this.orders, [field, direction || 'asc']]) }
+  select() { return this }
+  async get() {
+    if (this.name !== 'memberships') return { docs: [] }
+    return { docs: ['assigned-admin-1', 'assigned-superadmin', 'assigned-admin-2'].map(userId => ({ get: field => field === 'userId' ? userId : undefined })) }
+  }
   count() { return { get: async () => { this.queries.push({ name: this.name, filters: this.filters, orders: this.orders }); return { data: () => ({ count: countFor(this.name, this.filters) }) } } } }
 }
 function countFor(name, filters) {
@@ -36,8 +42,8 @@ test('platform analytics returns only scoped aggregate counts and monthly/status
   assert.equal(result.clients, 17)
   assert.equal(result.activeProfessionals, 8)
   assert.equal(result.activeServices, 24)
-  assert.equal(result.activeAdmins, 3)
-  assert.equal(result.admins, 3, 'the assigned-admin metric excludes inactive memberships')
+  assert.equal(result.activeAdmins, 2)
+  assert.equal(result.admins, 2, 'the assigned-admin metric excludes inactive memberships and superadmin accounts')
   assert.equal(result.reservations, 100)
   assert.equal(result.statuses.find(item => item.status === 'cancelled').value, 5)
   assert(result.months.length >= 1)
