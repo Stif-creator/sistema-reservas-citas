@@ -1,0 +1,53 @@
+.platform-security-page { display: grid; gap: 16px; }
+.platform-security-heading { color: #587097; font-size: 13px; }
+.platform-security-heading p { display: flex; align-items: center; gap: 8px; margin: 0; }
+.platform-security-heading svg { flex: 0 0 auto; color: #0876f9; }
+.platform-security-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.platform-security-metric { display: flex; align-items: center; gap: 13px; min-width: 0; padding: 15px; }
+.platform-security-metric-icon { display: grid; place-items: center; width: 42px; height: 42px; flex: 0 0 auto; border-radius: 13px; color: #0876f9; background: #eaf3ff; }
+.platform-security-metric > div { display: grid; gap: 2px; min-width: 0; }
+.platform-security-metric > div > span { color: #587097; font-size: 12px; }
+.platform-security-metric strong { color: #0b1d3b; font-size: 23px; line-height: 1.15; }
+.platform-security-metric small { color: #7186a7; font-size: 10px; }
+.platform-security-card { padding: 16px; }
+.platform-security-toolbar { display: grid; grid-template-columns: minmax(180px, 1.4fr) minmax(150px, 1fr) minmax(150px, 1fr) minmax(190px, 1fr) auto auto; align-items: end; gap: 10px; }
+.platform-security-toolbar label { display: grid; gap: 5px; color: #587097; font-size: 12px; }
+.platform-security-toolbar input, .platform-security-toolbar select { box-sizing: border-box; width: 100%; min-height: 40px; border: 1px solid #d6e2f2; border-radius: 9px; padding: 8px 10px; color: #10274c; background: white; font: inherit; font-size: 13px; }
+.platform-security-search { position: relative; display: flex !important; align-items: center; }
+.platform-security-search svg { position: absolute; left: 11px; color: #7186a7; }
+.platform-security-search input { padding-left: 34px; }
+.platform-security-period { grid-template-columns: auto auto 1fr !important; align-items: center; }
+.platform-security-period select { grid-column: 1 / -1; }
+.platform-security-button, .platform-security-view { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 40px; border: 1px solid #d6e2f2; border-radius: 9px; padding: 8px 11px; color: #17345f; background: white; font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap; }
+.platform-security-button:hover, .platform-security-view:hover { border-color: #8bbcff; color: #0568e8; }
+.platform-security-button:disabled { opacity: .5; cursor: not-allowed; }
+.platform-security-table-head { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding: 0 2px 10px; border-bottom: 1px solid #e2eaf5; }
+.platform-security-table-head h2 { margin: 0; color: #10274c; font-size: 17px; }
+.platform-security-table-head p { margin: 4px 0 0; color: #7186a7; font-size: 12px; }
+.platform-security-table-wrap { margin-top: 8px; }
+.platform-security-table-wrap th { white-space: nowrap; }
+.platform-security-table-wrap td { vertical-align: middle; }
+.platform-security-table-wrap td:nth-child(3) { min-width: 180px; }
+.platform-security-table-wrap td:nth-child(4), .platform-security-table-wrap td:nth-child(5) { min-width: 130px; }
+.platform-security-id { display: block; max-width: 190px; overflow: hidden; color: #7186a7; font-size: 10px; text-overflow: ellipsis; }
+.platform-security-badge { display: inline-flex; max-width: 190px; border-radius: 7px; padding: 5px 8px; color: #2457a5; background: #eaf3ff; font-size: 11px; line-height: 1.2; }
+.platform-security-badge.status { color: #047857; background: #dcfce9; }
+.platform-security-badge.config { color: #6d28d9; background: #f1eaff; }
+.platform-security-view { min-height: 30px; padding: 4px 10px; color: #0568e8; background: #edf5ff; }
+.platform-security-pagination { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 14px; color: #7186a7; font-size: 12px; }
+.platform-security-pagination > div { display: flex; gap: 8px; }
+.platform-security-error { margin: 12px 0; border: 1px solid #ffc3c8; border-radius: 9px; padding: 12px; color: #b42332; background: #fff1f2; font-size: 13px; }
+.platform-security-details { display: grid; gap: 12px; min-width: min(560px, 78vw); }
+.platform-security-details > p, .platform-security-details section > p { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 12px; margin: 0; padding-bottom: 10px; border-bottom: 1px solid #e7edf6; font-size: 13px; }
+.platform-security-details p > strong { color: #526987; }
+.platform-security-details p > span { overflow-wrap: anywhere; color: #10274c; }
+.platform-security-details small { display: block; color: #7186a7; }
+.platform-security-details section { display: grid; gap: 9px; padding-top: 4px; }
+.platform-security-details h3 { margin: 0; color: #10274c; font-size: 14px; }
+.platform-security-appearance { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.platform-security-appearance > div { border-radius: 9px; padding: 11px; background: #f4f7fb; }
+.platform-security-appearance > div > strong { font-size: 12px; }
+.platform-security-appearance p { margin: 7px 0 0; overflow-wrap: anywhere; color: #526987; font-size: 12px; }
+.platform-security-nochange { margin: 4px 0; color: #7186a7; font-size: 13px; }
+@media (max-width: 1100px) { .platform-security-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .platform-security-toolbar { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 650px) { .platform-security-stats { grid-template-columns: 1fr 1fr; gap: 8px; } .platform-security-metric { padding: 11px; gap: 9px; } .platform-security-metric-icon { width: 34px; height: 34px; } .platform-security-metric strong { font-size: 19px; } .platform-security-metric small { font-size: 9px; } .platform-security-toolbar { grid-template-columns: 1fr 1fr; } .platform-security-search { grid-column: 1 / -1; } .platform-security-toolbar > label:nth-child(3) { grid-column: 1 / -1; } .platform-security-toolbar > button { justify-content: center; } .platform-security-card { padding: 11px; } .platform-security-table-wrap { overflow-x: auto; } .platform-security-table-wrap table { min-width: 850px; } .platform-security-pagination { align-items: flex-start; flex-direction: column; } .platform-security-details { min-width: 0; } .platform-security-details > p, .platform-security-details section > p { grid-template-columns: 110px minmax(0, 1fr); gap: 8px; font-size: 12px; } .platform-security-appearance { grid-template-columns: 1fr; } }
