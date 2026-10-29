@@ -5,6 +5,7 @@ import { FieldValue, Timestamp } from 'firebase-admin/firestore'
 import { BookingError } from './bookingError.js'
 import { availableSlots } from './shared/availability.js'
 import { executeEngagement, engagementActions, discountedService, bookingNotices } from './engagement.js'
+import { executePlatformAnalytics } from './analytics.js'
 
 const fail = (code, message) => { throw new BookingError(code, message) }
 const record = snapshot => snapshot.exists ? { ...snapshot.data(), id: snapshot.id } : null
@@ -120,6 +121,7 @@ function quote(service, currencyCode = 'BOB') {
 export async function executeBooking(db, uid, input) {
   if (!input || typeof input !== 'object') fail('invalid-argument', 'Solicitud inválida.')
   const { businessId, action } = input
+  if (action === 'platformAnalytics') return executePlatformAnalytics(db, uid, input)
   if (['platformCreate', 'platformStatus'].includes(action)) return executePlatform(db, uid, input)
   if (['blockCreate', 'blockApprove', 'blockReject', 'blockDelete'].includes(action)) return executeBlocks(db, uid, input, context)
   const reader = { get: ref => ref.get() }
