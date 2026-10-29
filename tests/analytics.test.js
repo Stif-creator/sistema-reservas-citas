@@ -24,7 +24,7 @@ function countFor(name, filters) {
   if (name === 'clients') return 17
   if (name === 'professionals') return value('isActive') ? 8 : 10
   if (name === 'services') return value('isActive') ? 24 : 25
-  if (name === 'memberships') return value('role') === 'admin' && value('status') ? 3 : 3
+  if (name === 'memberships') return value('role') === 'admin' && value('status') === 'active' ? 3 : 4
   if (name === 'promotions') return 2
   if (name === 'reservations') return value('status') === 'cancelled' ? 5 : value('status') ? 10 : 100
   return 0
@@ -37,6 +37,7 @@ test('platform analytics returns only scoped aggregate counts and monthly/status
   assert.equal(result.activeProfessionals, 8)
   assert.equal(result.activeServices, 24)
   assert.equal(result.activeAdmins, 3)
+  assert.equal(result.admins, 3, 'the assigned-admin metric excludes inactive memberships')
   assert.equal(result.reservations, 100)
   assert.equal(result.statuses.find(item => item.status === 'cancelled').value, 5)
   assert(result.months.length >= 1)

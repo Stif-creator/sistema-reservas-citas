@@ -32,14 +32,13 @@ export async function executePlatformAnalytics(db, uid, input) {
   const scoped = name => db.collection(name).where('businessId', '==', input.businessId)
   const reservations = scoped('reservations').where('createdAt', '>=', Timestamp.fromDate(rangeStart))
   const members = scoped('memberships')
-  const [clients, professionals, activeProfessionals, services, activeServices, admins, activeAdmins,
+  const [clients, professionals, activeProfessionals, services, activeServices, activeAdmins,
     activePromotions, reservationCount, statusCounts, months, recentActivity] = await Promise.all([
     count(scoped('clients')),
     count(scoped('professionals')),
     count(scoped('professionals').where('isActive', '==', true)),
     count(scoped('services')),
     count(scoped('services').where('isActive', '==', true)),
-    count(members.where('role', '==', 'admin')),
     count(members.where('role', '==', 'admin').where('status', '==', 'active')),
     count(scoped('promotions').where('isActive', '==', true).where('startAt', '<=', Timestamp.fromDate(now)).where('endAt', '>', Timestamp.fromDate(now)).orderBy('startAt').orderBy('endAt')),
     count(reservations),
@@ -48,7 +47,7 @@ export async function executePlatformAnalytics(db, uid, input) {
     count(scoped('reservations').where('createdAt', '>=', Timestamp.fromDate(new Date(now.getTime() - 7 * 86400000)))),
   ])
   return { business: { id: input.businessId, name: business.name || input.businessId, status: business.status || 'unknown' },
-    range, clients, professionals, activeProfessionals, services, activeServices, admins, activeAdmins, activePromotions,
+    range, clients, professionals, activeProfessionals, services, activeServices, admins: activeAdmins, activeAdmins, activePromotions,
     reservations: reservationCount, statuses: statuses.map((status, i) => ({ status, value: statusCounts[i] })),
     months: buckets.map((bucket, i) => ({ label: bucket.label, value: months[i] })), recentActivity }
 }
