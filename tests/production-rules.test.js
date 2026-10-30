@@ -70,6 +70,17 @@ test('business location writes are scoped to admins and reject invalid or partia
   await assertFails(updateDoc(doc(env.authenticatedContext('owner').firestore(), 'businesses', 'studio'), { location: { ...location, longitude: null } }))
 })
 
+test('required-password accounts retain self-profile access but cannot clear the flag or use business data', async () => {
+  await env.withSecurityRulesDisabled(async context => {
+    await updateDoc(doc(context.firestore(), 'users', 'owner'), { mustChangePassword: true, defaultBusinessId: 'studio' })
+    await setDoc(doc(context.firestore(), 'reservations', 'locked-reservation'), { businessId: 'studio', status: 'confirmed' })
+  })
+  const db = env.authenticatedContext('owner').firestore()
+  await assertSucceeds(getDoc(doc(db, 'users', 'owner')))
+  await assertFails(updateDoc(doc(db, 'users', 'owner'), { mustChangePassword: false }))
+  await assertFails(getDoc(doc(db, 'reservations', 'locked-reservation')))
+})
+
 test('business requests cannot be read or written directly from any client', async () => {
   const ref = doc(env.authenticatedContext('owner').firestore(), 'businessRequests', 'private-request')
   const payload = { status: 'pending', applicant: { email: 'secret@example.test' }, business: { name: 'Private' } }

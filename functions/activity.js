@@ -3,7 +3,7 @@ import { BookingError } from './bookingError.js'
 
 const fail = (code, message) => { throw new BookingError(code, message) }
 const validId = value => typeof value === 'string' && /^[^/\s]{1,200}$/.test(value)
-const actions = new Set(['platformCreate', 'platformStatus', 'businessUpdate', 'membershipUpdate', 'superadmin_granted', 'superadmin_revoked', 'businessRequestSubmitted', 'businessRequestin_review', 'businessRequestneeds_info', 'businessRequestrejected', 'businessRequestApproved', 'businessRequestInfoProvided'])
+const actions = new Set(['platformCreate', 'platformStatus', 'businessUpdate', 'membershipUpdate', 'superadmin_granted', 'superadmin_revoked', 'requiredPasswordChanged', 'businessRequestSubmitted', 'businessRequestin_review', 'businessRequestneeds_info', 'businessRequestrejected', 'businessRequestApproved', 'businessRequestInfoProvided'])
 const roleNames = { admin: 'administrador', professional: 'profesional', client: 'cliente' }
 const statusNames = { active: 'activo', inactive: 'inactivo', pending: 'pendiente', deleted: 'archivado' }
 const normalizeName = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es')
@@ -32,6 +32,7 @@ function eventDescription(event) {
   }
   if (event.action === 'superadmin_granted') return 'Se otorgó acceso de superadministrador.'
   if (event.action === 'superadmin_revoked') return 'Se retiró acceso de superadministrador.'
+  if (event.action === 'requiredPasswordChanged') return 'Se completó el cambio obligatorio de contraseña inicial.'
   return 'Cambio administrativo registrado.'
 }
 

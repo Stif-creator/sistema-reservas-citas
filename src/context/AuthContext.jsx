@@ -265,10 +265,20 @@ export function AuthProvider({ children }) {
   async function login(email, password, remember = true) {
     await setPersistence(auth, remember ? browserLocalPersistence : browserSessionPersistence)
     const credential = await signInWithEmailAndPassword(auth, email, password)
-    await updateDoc(doc(db, 'users', credential.user.uid), {
-      lastLoginAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    }).catch((err) => console.error('No se pudo actualizar lastLoginAt', err))
+    const profileSnapshot = await getDoc(doc(db, 'users', credential.user.uid))
+    const profile = profileSnapshot.exists() ? profileSnapshot.data() : null
+    const businessId = profile?.defaultBusinessId || profile?.businessIds?.[0]
+    const membershipSnapshot = profile?.mustChangePassword === true && businessId
+      ? await getDoc(doc(db, 'memberships', `${businessId}_${credential.user.uid}`))
+      : null
+    const mustChangePassword = profile?.mustChangePassword === true && membershipSnapshot?.data()?.role === 'admin'
+    if (!mustChangePassword) {
+      await updateDoc(doc(db, 'users', credential.user.uid), {
+        lastLoginAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      }).catch((err) => console.error('No se pudo actualizar lastLoginAt', err))
+    }
+    return { mustChangePassword }
   }
 
   async function logout() {

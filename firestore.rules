@@ -3,8 +3,16 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
     function self(uid) { return signedIn() && request.auth.uid == uid; }
+    function adminPasswordChangeRequired() {
+      return signedIn()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('mustChangePassword', false) == true
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('defaultBusinessId', '') is string
+        && get(/databases/$(database)/documents/memberships/$(get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('defaultBusinessId', '') + '_' + request.auth.uid)).data.get('role', '') == 'admin';
+    }
     function userActive() {
-      return signedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'active';
+      return signedIn()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'active'
+        && !adminPasswordChangeRequired();
     }
     function superadmin() {
       return userActive() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('globalRole', 'user') == 'superadmin';
@@ -87,8 +95,9 @@ service cloud.firestore {
         && request.resource.data.status == 'active'
         && request.resource.data.businessIds is list && request.resource.data.businessIds.size() == 1
         && request.resource.data.createdAt == request.time;
-      allow update: if self(uid) && request.resource.data.diff(resource.data).affectedKeys()
-        .hasOnly(['firstName', 'lastName', 'phone', 'photoUrl', 'lastLoginAt', 'updatedAt', 'mustChangePassword'])
+      allow update: if self(uid) && !adminPasswordChangeRequired()
+        && request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['firstName', 'lastName', 'phone', 'photoUrl', 'lastLoginAt', 'updatedAt'])
         || (self(uid) && resource.data.get('onboardingComplete', true) == false
           && request.resource.data.onboardingComplete == true
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['onboardingComplete'])

@@ -108,9 +108,20 @@ test('business request approval creates one unpublished business and an admin me
   assert.equal(business.settings.publicPageEnabled, false)
   assert.equal(business.sourceRequestId, requestId)
   assert.equal(db.values[`memberships/${result.businessId}_applicant`].role, 'admin')
+  assert.equal(db.values['users/applicant'].mustChangePassword, undefined)
   assert.equal(db.values[`businessRequests/${requestId}`].status, 'approved')
   await assert.rejects(executeBusinessRequests(db, 'super', { action: 'businessRequestApprove', requestId }, { authService }), { code: 'failed-precondition' })
   assert.equal(Object.keys(db.values).filter(path => path.startsWith('businesses/')).length, 1)
+})
+
+test('approval assigns the first-login password marker only to an administrator account created for this request', async () => {
+  const requestId = '11111111-1111-4111-8111-111111111111'
+  const db = fakeDb()
+  const missing = Object.assign(new Error('missing'), { code: 'auth/user-not-found' })
+  const authService = { getUserByEmail: async () => { throw missing }, createUser: async () => ({ uid: 'brand-new-admin' }) }
+  const result = await executeBusinessRequests(db, 'super', { action: 'businessRequestApprove', requestId, initialPassword: 'Temporary-Password-123' }, { authService })
+  assert.equal(db.values['users/brand-new-admin'].mustChangePassword, true)
+  assert.equal(db.values[`memberships/${result.businessId}_brand-new-admin`].role, 'admin')
 })
 
 test('business request approval creates a new administrator only with an explicit temporary password and rolls back failed provisioning', async () => {

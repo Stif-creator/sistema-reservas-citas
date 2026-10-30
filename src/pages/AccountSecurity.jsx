@@ -1,6 +1,4 @@
 import { markFormSaved } from '../lib/unsavedForms'
-import { doc, updateDoc } from 'firebase/firestore'
-import { db } from '../firebase/config'
 import { useEffect, useRef, useState } from 'react'
 import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth'
 import { useAuth } from '../context/auth-context'
@@ -10,7 +8,6 @@ import Button from '../components/ui/Button'
 import Alert from '../components/ui/Alert'
 import { fieldControlClasses } from '../components/ui/fieldStyles'
 import { CheckCircle2, Eye, EyeOff, KeyRound, Shield, ShieldCheck } from 'lucide-react'
-import { useFeedback } from '../context/feedback-context'
 import './account-security.css'
 
 function passwordError(error) {
@@ -24,7 +21,6 @@ function passwordError(error) {
 
 export default function AccountSecurity() {
   const { currentUser } = useAuth()
-  const { notify } = useFeedback()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [visible, setVisible] = useState({})
@@ -46,11 +42,6 @@ export default function AccountSecurity() {
       }
       await reauthenticateWithCredential(currentUser, EmailAuthProvider.credential(currentUser.email, data.get('current')))
       await updatePassword(currentUser, data.get('password'))
-      try { await updateDoc(doc(db, 'users', currentUser.uid), { mustChangePassword: false }) }
-      catch (profileError) {
-        console.error('La contraseña se cambió, pero no se pudo actualizar el indicador de cuenta.', profileError?.code)
-        notify({ title: 'Contraseña actualizada', message: 'El cambio de contraseña se completó. Recarga la página para sincronizar el estado de la cuenta.', type: 'warning' })
-      }
       form.reset()
       markFormSaved(event.target, true)
       setVisible({})

@@ -25,8 +25,8 @@ export default function Login() {
     setInfo('')
     setBusy(true)
     try {
-      await login(email.trim(), password, remember)
-      navigate(resume ? `${base}/reservar` : '/dashboard')
+      const session = await login(email.trim(), password, remember)
+      navigate(session.mustChangePassword ? '/primer-acceso' : resume ? `${base}/reservar` : '/dashboard')
     } catch (err) {
       setError(getAuthErrorMessage(err))
     } finally {

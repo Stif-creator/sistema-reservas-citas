@@ -14,6 +14,7 @@ const PublicBusinesses = lazy(() => import('../pages/PublicBusinesses'))
 const PlatformAbout = lazy(() => import('../pages/PlatformAbout'))
 const PlatformContact = lazy(() => import('../pages/PlatformContact'))
 const Login = lazy(() => import('../pages/Login'))
+const RequiredPasswordChange = lazy(() => import('../pages/RequiredPasswordChange'))
 const Register = lazy(() => import('../pages/Register'))
 const Dashboard = lazy(() => import('../pages/Dashboard'))
 const PlatformDashboard = lazy(() => import('../pages/PlatformDashboard'))
@@ -61,6 +62,7 @@ function AppRoutes() {
       }
     >
       <Routes>
+        <Route path="/primer-acceso" element={<ProtectedRoute allowPasswordChange><RequiredPasswordChange /></ProtectedRoute>} />
         <Route element={<PublicLayout />}>
           <Route element={<PublicHomeLayout />}><Route path="/" element={<PlatformHome />} /><Route path="/negocios" element={<PublicBusinesses />} /><Route path="/nosotros" element={<PlatformAbout />} /><Route path="/contacto" element={<PlatformContact />} /></Route>
           <Route path="/login" element={<Login />} />

@@ -5,6 +5,7 @@ import { executeBooking } from './booking.js'
 import { createBookingServer } from './http.js'
 import { uploadImage } from './images.js'
 import { executeBusinessRequests, publicBusinessRequestAction } from './businessRequests.js'
+import { completeRequiredPasswordChange, enforcePasswordChangeGate } from './requiredPasswordChange.js'
 
 const projectId = process.env.GCLOUD_PROJECT
 const emulator = process.env.BOOKING_USE_EMULATORS === 'true'
@@ -20,10 +21,19 @@ if (!allowedOrigins.length || allowedOrigins.some(origin => new URL(origin).orig
 initializeApp(emulator ? { projectId } : { projectId, credential: applicationDefault() })
 const server = createBookingServer({ allowedOrigins,
   verifyToken: token => getAuth().verifyIdToken(token, true),
-  execute: (uid, data) => data.action?.startsWith('businessRequest') || data.action === 'businessRequestsList'
-    ? executeBusinessRequests(getFirestore(), uid, data)
-    : executeBooking(getFirestore(), uid, data),
-  upload: (uid, data) => uploadImage(getFirestore(), uid, data),
+  execute: async (uid, data, identity) => {
+    const db = getFirestore()
+    if (data.action === 'requiredPasswordChange')
+      return completeRequiredPasswordChange(db, uid, identity, data, getAuth())
+    await enforcePasswordChangeGate(db, uid, data.action)
+    return data.action?.startsWith('businessRequest') || data.action === 'businessRequestsList'
+      ? executeBusinessRequests(db, uid, data)
+      : executeBooking(db, uid, data)
+  },
+  upload: async (uid, data) => {
+    await enforcePasswordChangeGate(getFirestore(), uid, 'imageUpload')
+    return uploadImage(getFirestore(), uid, data)
+  },
   submitRequest: (data, remoteAddress) => publicBusinessRequestAction(getFirestore(), data, remoteAddress),
 })
 server.listen(Number(process.env.PORT || 3001), '0.0.0.0', () => console.log('Booking API lista'))

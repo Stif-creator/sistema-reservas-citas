@@ -52,7 +52,7 @@ export function createBookingServer({ allowedOrigins, verifyToken, execute, uplo
       if (!identity && !isBusinessRequest && !['publicOptions', 'publicAvailability'].includes(data.action)) throw new BookingError('unauthenticated', 'Inicia sesión para continuar.')
       const forwarded = String(req.headers['x-forwarded-for'] || '').split(',').map(value => value.trim()).filter(Boolean).at(-1)
       const remoteAddress = forwarded && isIP(forwarded) ? forwarded : req.socket.remoteAddress
-      const result = isImage ? await upload(identity?.uid, data) : isBusinessRequest ? await submitRequest(data, remoteAddress) : await execute(identity?.uid, data)
+      const result = isImage ? await upload(identity?.uid, data, identity) : isBusinessRequest ? await submitRequest(data, remoteAddress) : await execute(identity?.uid, data, identity)
       send(200, { data: result })
     } catch (error) {
       const known = error instanceof BookingError
