@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { BriefcaseBusiness, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Plus, UserRound, X } from 'lucide-react'
 import { useAuth } from '../context/auth-context'
 import useBusinessReservations from '../hooks/useBusinessReservations'
@@ -209,10 +209,14 @@ export default function Agenda() {
 }
 
 function AgendaView({ business, own }) {
+  const [searchParams] = useSearchParams()
   const zone = business.settings?.timezone || 'America/La_Paz'
-  const [date, setDate] = useState(() => dayKey(Date.now(), zone))
+  const initialDate = searchParams.get('date')
+  const validInitialDate = typeof initialDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(initialDate) && Number.isFinite(Date.parse(`${initialDate}T12:00:00Z`)) && new Date(`${initialDate}T12:00:00Z`).toISOString().slice(0, 10) === initialDate
+  const requestedProfessional = searchParams.get('professional') || ''
+  const [date, setDate] = useState(() => validInitialDate ? initialDate : dayKey(Date.now(), zone))
   const [view, setView] = useState('week')
-  const [professional, setProfessional] = useState('')
+  const [professional, setProfessional] = useState(() => own ? '' : requestedProfessional)
   const [professionals, setProfessionals] = useState([])
   const [selectedId, setSelectedId] = useState(null)
   const [editing, setEditing] = useState(false)
@@ -233,10 +237,12 @@ function AgendaView({ business, own }) {
     let active = true
     getDocs(query(collection(db, 'professionals'), where('businessId', '==', business.id))).then(snapshot => {
       if (!active) return
-      setProfessionals(snapshot.docs.map(item => ({ id: item.id, name: item.data().displayName || item.data().name || 'Profesional' })).sort((a, b) => a.name.localeCompare(b.name, 'es')))
+      const availableProfessionals = snapshot.docs.map(item => ({ id: item.id, name: item.data().displayName || item.data().name || 'Profesional' })).sort((a, b) => a.name.localeCompare(b.name, 'es'))
+      setProfessionals(availableProfessionals)
+      if (requestedProfessional && !availableProfessionals.some(item => item.id === requestedProfessional)) setProfessional('')
     }).catch(() => { if (active) setProfessionals([]) })
     return () => { active = false }
-  }, [business.id, own])
+  }, [business.id, own, requestedProfessional])
 
   const selected = items.find(item => item.id === selectedId)
   const calendarItems = useMemo(() => items.filter(item => item.status !== 'cancelled' && Number.isFinite(dateMillis(item.startAt))), [items])

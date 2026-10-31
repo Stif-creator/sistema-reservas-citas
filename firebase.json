@@ -5,6 +5,7 @@
     "indexes": "firestore.indexes.json"
   },
   "hosting": {
+    "site": "sistema-reservas-jf745-2026",
     "public": "dist",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "headers": [
