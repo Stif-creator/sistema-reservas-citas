@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
 import { randomUUID } from 'node:crypto'
 import { executeBooking } from '../functions/booking.js'
+import { createBookingServer } from '../functions/http.js'
 import { businessDate } from '../functions/shared/hours.js'
 import { discountedService } from '../functions/engagement.js'
 const require = createRequire(new URL('../functions/package.json', import.meta.url))
@@ -598,6 +599,86 @@ test('block midnight boundary is exclusive, buffers count and unrelated professi
   await ref.set({...reservation,professionalId:'another-professional',startAt:Timestamp.fromMillis(f.time('10:00')),endAt:Timestamp.fromMillis(f.time('11:00'))})
   await rejects(f.call(f.users.admin,{...input,allProfessionals:true,professionalId:null,requestId:randomUUID()}),'failed-precondition')
   assert.equal((await f.call(f.users.admin,{...input,requestId:randomUUID()})).status,'approved')
+})
+
+test('HTTP blocks support timezone-aware partial hours, approval, and inclusive full-day dates', async t => {
+  const f = await fixture()
+  const server = createBookingServer({
+    allowedOrigins: [],
+    verifyToken: async token => ({ uid: token }),
+    execute: (uid, input) => executeBooking(db, uid, input),
+  })
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
+  t.after(() => new Promise(resolve => server.close(resolve)))
+  const endpoint = `http://127.0.0.1:${server.address().port}/booking`
+  const post = (uid, payload) => fetch(endpoint, { method: 'POST', headers: { Authorization: `Bearer ${uid}`, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+  const partial = { action: 'blockCreate', requestId: randomUUID(), businessId: f.businessId, mode: 'specificHours', date: f.date, startTime: '14:00', endTime: '16:00', title: 'Reunión', reason: 'meeting', allProfessionals: false, professionalId: f.professionalId }
+
+  const createdResponse = await post(f.users.pro, partial)
+  assert.equal(createdResponse.status, 200)
+  const { data: created } = await createdResponse.json()
+  assert.equal(created.status, 'pending')
+  let available = await f.call(f.users.client, { action: 'availability', professionalId: f.professionalId, serviceId: f.serviceId, date: f.date })
+  assert(available.slots.some(slot => slot.label === '14:00'), 'pending requests do not affect availability')
+  const approval = await post(f.users.admin, { action: 'blockApprove', businessId: f.businessId, blockId: created.id, requestId: randomUUID() })
+  assert.equal(approval.status, 200)
+  const storedPartial = (await db.doc(`scheduleBlocks/${created.id}`).get()).data()
+  assert.equal(storedPartial.mode, 'specificHours')
+  assert.equal(storedPartial.startAt.toMillis(), f.time('14:00'))
+  assert.equal(storedPartial.endAt.toMillis(), f.time('16:00'))
+  available = await f.call(f.users.client, { action: 'availability', professionalId: f.professionalId, serviceId: f.serviceId, date: f.date })
+  assert(available.slots.some(slot => slot.label === '13:30'), 'a slot touching the block boundary remains available')
+  assert(available.slots.some(slot => slot.label === '16:00'), 'a slot starting at the end boundary remains available')
+  assert(!available.slots.some(slot => slot.label === '14:00' || slot.label === '15:45'))
+
+  const touching = await post(f.users.admin, { ...partial, requestId: randomUUID(), startTime: '16:00', endTime: '17:00' })
+  assert.equal(touching.status, 200, 'a new block may start exactly when the previous block ends')
+  const overlap = await post(f.users.admin, { ...partial, requestId: randomUUID(), startTime: '15:30', endTime: '16:30' })
+  assert.equal(overlap.status, 409)
+  assert.equal((await overlap.json()).error.code, 'already-exists')
+
+  const invalidResponse = await post(f.users.admin, { ...partial, requestId: randomUUID(), mode: 'specificHours', startTime: '16:00', endTime: '16:00' })
+  assert.equal(invalidResponse.status, 400)
+  assert.equal((await invalidResponse.json()).error.code, 'invalid-argument')
+  const reversedResponse = await post(f.users.admin, { ...partial, requestId: randomUUID(), mode: 'specificHours', startTime: '17:00', endTime: '16:00' })
+  assert.equal(reversedResponse.status, 400)
+  assert.equal((await reversedResponse.json()).error.code, 'invalid-argument')
+
+  const conflictDate = new Date(`${f.date}T12:00:00.000Z`)
+  conflictDate.setUTCDate(conflictDate.getUTCDate() + 2)
+  const conflictDay = conflictDate.toISOString().slice(0, 10)
+  const reservation = await f.call(f.users.client, f.create())
+  await db.doc(`reservations/${reservation.id}`).update({
+    date: conflictDay,
+    startAt: Timestamp.fromDate(businessDate(`${conflictDay}T14:00`, 'America/La_Paz')),
+    endAt: Timestamp.fromDate(businessDate(`${conflictDay}T14:30`, 'America/La_Paz')),
+  })
+  const appointmentConflict = await post(f.users.admin, { ...partial, requestId: randomUUID(), date: conflictDay, startTime: '14:00', endTime: '15:00' })
+  assert.equal(appointmentConflict.status, 409)
+  assert.equal((await appointmentConflict.json()).error.code, 'failed-precondition')
+
+  const nextDate = new Date(`${f.date}T12:00:00.000Z`)
+  nextDate.setUTCDate(nextDate.getUTCDate() + 1)
+  const fullDayDate = nextDate.toISOString().slice(0, 10)
+  const fullDayResponse = await post(f.users.admin, { action: 'blockCreate', requestId: randomUUID(), businessId: f.businessId, mode: 'fullDay', startDate: fullDayDate, endDate: fullDayDate, title: 'Cierre', reason: 'other', allProfessionals: true })
+  assert.equal(fullDayResponse.status, 200)
+  const { data: fullDay } = await fullDayResponse.json()
+  const fullDayBlock = (await db.doc(`scheduleBlocks/${fullDay.id}`).get()).data()
+  assert.equal(fullDayBlock.startAt.toMillis(), businessDate(`${fullDayDate}T00:00`, 'America/La_Paz').getTime())
+  assert.equal(fullDayBlock.endAt.toMillis(), businessDate(`${new Date(Date.parse(`${fullDayDate}T12:00:00.000Z`) + 86400000).toISOString().slice(0, 10)}T00:00`, 'America/La_Paz').getTime())
+
+  const multiStart = new Date(`${fullDayDate}T12:00:00.000Z`)
+  multiStart.setUTCDate(multiStart.getUTCDate() + 2)
+  const multiEnd = new Date(multiStart)
+  multiEnd.setUTCDate(multiEnd.getUTCDate() + 2)
+  const multiStartDate = multiStart.toISOString().slice(0, 10), multiEndDate = multiEnd.toISOString().slice(0, 10)
+  const multiResponse = await post(f.users.admin, { action: 'blockCreate', requestId: randomUUID(), businessId: f.businessId, mode: 'fullDay', startDate: multiStartDate, endDate: multiEndDate, title: 'Cierre extendido', reason: 'other', allProfessionals: true })
+  assert.equal(multiResponse.status, 200)
+  const { data: multi } = await multiResponse.json()
+  const multiBlock = (await db.doc(`scheduleBlocks/${multi.id}`).get()).data()
+  const afterInclusiveEnd = new Date(`${multiEndDate}T12:00:00.000Z`)
+  afterInclusiveEnd.setUTCDate(afterInclusiveEnd.getUTCDate() + 1)
+  assert.equal(multiBlock.endAt.toMillis(), businessDate(`${afterInclusiveEnd.toISOString().slice(0, 10)}T00:00`, 'America/La_Paz').getTime())
 })
 
 
