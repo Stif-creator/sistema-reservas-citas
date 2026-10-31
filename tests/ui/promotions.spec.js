@@ -32,6 +32,17 @@ test('promotions calculate statuses, filter offers and preview current service p
     ]
     for (const [id, title, start, end, isActive] of offers) await setDoc(doc(db, 'promotions', `${id}-${suffix}`), { id: `${id}-${suffix}`, businessId, serviceId: `service-${suffix}`, serviceName: 'Limpieza dental', title, percent: 10, startAt: Timestamp.fromMillis(start), endAt: Timestamp.fromMillis(end), isActive })
     await setDoc(doc(db, 'reminderSettings', businessId), { businessId, hours: 24 })
+    for (const [id, event, title, visibleAt] of [
+      [`promotion-start-${suffix}`, 'promotionStarted', 'Promoción iniciada', Date.now() - 60000],
+      [`promotion-end-${suffix}`, 'promotionEnded', 'Promoción finalizada', Date.now() - 30000],
+    ]) await setDoc(doc(db, 'notifications', id), { businessId, recipientUserId: uid, type: 'promotion', event,
+      promotionId: `active-${suffix}`, promotionTitle: 'Descuento de noviembre', serviceName: 'Limpieza dental', title,
+      message: 'La promoción de noviembre corresponde a Limpieza dental.', promotionEventAt: Timestamp.fromMillis(visibleAt),
+      visibleAt: Timestamp.fromMillis(visibleAt), createdAt: Timestamp.fromMillis(visibleAt), read: false })
+    await setDoc(doc(db, 'notifications', `previous-${suffix}`), { businessId, recipientUserId: uid, type: 'change',
+      title: 'Cita confirmada', message: 'Consulta dental · Profesional prueba', serviceName: 'Consulta dental',
+      professionalName: 'Profesional prueba', appointmentStartAt: Timestamp.fromMillis(Date.now() - 86400000),
+      visibleAt: Timestamp.fromMillis(Date.now() - 86400000), createdAt: Timestamp.fromMillis(Date.now() - 86400000), read: false })
   })
   await env.cleanup()
 
@@ -85,6 +96,23 @@ test('promotions calculate statuses, filter offers and preview current service p
   await page.getByLabel('Horas de anticipación adicional').fill('48')
   await page.getByRole('button', { name: 'Guardar anticipación' }).click()
   await expect(page.getByRole('status').filter({ hasText: 'Anticipación guardada' })).toBeVisible()
+
+  await page.goto('/avisos')
+  await expect(page.getByRole('heading', { name: 'Avisos y recordatorios' })).toBeVisible()
+  await page.getByLabel('Filtrar por tipo').selectOption('promotion')
+  const notices = page.getByRole('region', { name: 'avisos', exact: true })
+  await expect(notices.locator('.notice-row')).toHaveCount(3)
+  await expect(notices).toContainText('Promociones')
+  await page.getByLabel('Buscar avisos').fill('noviembre')
+  await expect(notices.locator('.notice-row')).toHaveCount(2)
+  await page.getByLabel('Buscar avisos').fill('')
+  await notices.locator('.notice-row').filter({ hasText: 'La promoción de noviembre' }).first().getByRole('link', { name: 'Ver promoción' }).click()
+  await expect(page).toHaveURL(new RegExp(`/promociones\\?promocion=active-${suffix}`))
+  await expect(page.locator(`#promotion-active-${suffix}`)).toHaveClass(/promotions-row-focused/)
+
+  await page.goto('/avisos')
+  await page.getByRole('button', { name: 'Marcar todos como leídos' }).click()
+  await expect(page.locator('.notice-row.is-unread')).toHaveCount(0)
 
   await page.setViewportSize({ width: 390, height: 844 })
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)

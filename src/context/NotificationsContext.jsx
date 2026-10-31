@@ -36,6 +36,7 @@ export function NotificationsProvider({ children }) {
   const scopeKey = `${isSuperadmin ? 'platform' : businessId}:${uid}`
   const current = snapshot.key === scopeKey
   const visible = useMemo(() => (current ? snapshot.items : [])
+    .filter(item => item.invalidated !== true)
     .filter(item => dateMillis(item.visibleAt) <= now && (!item.expiresAt || dateMillis(item.expiresAt) > now))
     .sort((a, b) => dateMillis(b.visibleAt) - dateMillis(a.visibleAt)), [current, snapshot.items, now])
 

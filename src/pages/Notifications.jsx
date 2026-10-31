@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ArrowUpDown, Bell, CalendarDays, Check, CheckCheck, CircleX, Clock3, ExternalLink, RefreshCw, Search, Settings2, ShieldCheck, Building2 } from 'lucide-react'
+import { ArrowUpDown, Bell, CalendarDays, Check, CheckCheck, CircleX, Clock3, ExternalLink, RefreshCw, Search, Settings2, ShieldCheck, Building2, Tag } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import DataList from '../components/ui/DataList'
 import Alert from '../components/ui/Alert'
@@ -12,6 +12,7 @@ import '../components/booking/booking.css'
 import './notifications.css'
 
 function categoryOf(item) {
+  if (item.type === 'promotion') return 'promotion'
   if (item.type === 'reminder') return 'reminder'
   if (item.type === 'platform') return 'platform'
   if (item.type === 'waitlist') return 'waitlist'
@@ -28,14 +29,14 @@ function categoryOf(item) {
 const categoryLabels = {
   reminder: 'Recordatorio', confirmed: 'Confirmación', cancelled: 'Cancelación',
   completed: 'Finalización', rescheduled: 'Reprogramación', requested: 'Solicitud', change: 'Cambio',
-  block: 'Disponibilidad', waitlist: 'Lista de espera', platform: 'Plataforma', other: 'Aviso',
+  block: 'Disponibilidad', waitlist: 'Lista de espera', platform: 'Plataforma', promotion: 'Promociones', other: 'Aviso',
 }
 const categoryIcons = {
   reminder: Clock3, confirmed: CalendarDays, cancelled: CircleX, completed: CheckCheck,
-  rescheduled: ArrowUpDown, requested: Bell, change: Bell, block: CalendarDays, waitlist: Bell, platform: Building2, other: Bell,
+  rescheduled: ArrowUpDown, requested: Bell, change: Bell, block: CalendarDays, waitlist: Bell, platform: Building2, promotion: Tag, other: Bell,
 }
 const normalize = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es')
-const eventMillis = item => dateMillis(item.appointmentStartAt || item.createdAt || item.visibleAt)
+const eventMillis = item => dateMillis(item.promotionEventAt || item.appointmentStartAt || item.createdAt || item.visibleAt)
 const noticeMillis = item => dateMillis(item.visibleAt || item.createdAt)
 
 function NotificationsCenter({ role, zone = 'America/La_Paz' }) {
@@ -50,7 +51,7 @@ function NotificationsCenter({ role, zone = 'America/La_Paz' }) {
   const [quickRange, setQuickRange] = useState('all')
   const [rangeError, setRangeError] = useState('')
 
-  const categories = useMemo(() => [...new Set(items.map(categoryOf))], [items])
+  const categories = useMemo(() => [...new Set([...items.map(categoryOf), ...(role === 'admin' ? ['promotion'] : [])])], [items, role])
   const unread = items.filter(item => !item.read)
   const stats = [
     { label: 'Total de avisos', value: items.length, icon: Bell, tone: 'brand' },
@@ -138,20 +139,23 @@ function NotificationsCenter({ role, zone = 'America/La_Paz' }) {
         : <DataList label="avisos" items={filtered} search={false} resetKey={`${readFilter}:${typeFilter}:${search}:${sort}:${appliedRange?.from || ''}:${appliedRange?.to || ''}`}>
           {rows => <div className="notice-list">{rows.map(item => {
             const category = categoryOf(item)
-            const Icon = categoryIcons[category] || Bell
+            const isPromotionEnd = item.type === 'promotion' && item.event === 'promotionEnded'
+            const Icon = isPromotionEnd ? CalendarDays : categoryIcons[category] || Bell
             const service = item.serviceName || (item.type === 'change' ? item.message?.split(' · ')[0] : '') || item.title?.replace(/^Recordatorio:\s*/i, '') || 'Tu cita'
             const professional = item.professionalName || (item.type === 'change' ? item.message?.split(' · ')[1] : '') || ''
-            const related = Boolean(item.reservationId || item.waitlistId || item.type === 'platform')
-            const appointmentDate = item.appointmentStartAt || item.expiresAt || item.createdAt || item.visibleAt
+            const related = Boolean(item.reservationId || item.waitlistId || item.promotionId || item.type === 'platform')
+            const appointmentDate = item.promotionEventAt || item.appointmentStartAt || item.expiresAt || item.createdAt || item.visibleAt
             const status = item.status && reservationStatuses[item.status]
             const destination = item.event === 'businessRequestSubmitted' ? '/plataforma/solicitudes' : item.type === 'platform' ? '/plataforma/negocios'
-              : item.waitlistId ? `/lista-espera?solicitud=${encodeURIComponent(item.waitlistId)}`
-                : item.reservationId ? `${role === 'client' ? '/cliente' : ''}/reservas/${encodeURIComponent(item.reservationId)}` : ''
-            const actionLabel = item.event === 'businessRequestSubmitted' ? 'Ver solicitudes' : item.type === 'platform' ? 'Ver negocio' : item.waitlistId ? 'Ver solicitud' : 'Ver cita'
-            return <article key={item.id} className={`notice-row ${item.read ? 'is-read' : 'is-unread'} notice-row-${category}`}>
+              : item.promotionId ? `/promociones?promocion=${encodeURIComponent(item.promotionId)}`
+                : item.waitlistId ? `/lista-espera?solicitud=${encodeURIComponent(item.waitlistId)}`
+                  : item.reservationId ? `${role === 'client' ? '/cliente' : ''}/reservas/${encodeURIComponent(item.reservationId)}` : ''
+            const actionLabel = item.event === 'businessRequestSubmitted' ? 'Ver solicitudes' : item.type === 'platform' ? 'Ver negocio' : item.promotionId ? 'Ver promoción' : item.waitlistId ? 'Ver solicitud' : 'Ver cita'
+            const promotionEventClass = isPromotionEnd ? 'notice-row-promotion-ended' : 'notice-row-promotion-started'
+            return <article key={item.id} className={`notice-row ${item.read ? 'is-read' : 'is-unread'} notice-row-${category} ${item.type === 'promotion' ? promotionEventClass : ''}`}>
               <span className="notice-row-icon"><Icon size={21} aria-hidden="true" /></span>
               <div className="notice-copy"><h3>{item.title || 'Actualización de tu cita'} {!item.read && <span className="notice-new">Nuevo</span>}</h3><p className="notice-meta">{service}{professional ? ` · ${professional}` : ''}</p><p className="notice-message">{item.message}</p></div>
-              <div className="notice-appointment-date"><span><CalendarDays size={14} aria-hidden="true" />{formatAppointmentDate(appointmentDate, zone)}</span><span><Clock3 size={14} aria-hidden="true" />{formatAppointmentDate(appointmentDate, zone, true)}</span></div>
+              <div className="notice-appointment-date"><span><CalendarDays size={14} aria-hidden="true" />{formatAppointmentDate(appointmentDate, item.type === 'promotion' ? 'UTC' : zone)}</span><span><Clock3 size={14} aria-hidden="true" />{formatAppointmentDate(appointmentDate, item.type === 'promotion' ? 'UTC' : zone, true)}</span></div>
               <div className="notice-row-state"><span className="notice-category">{categoryLabels[category] || 'Aviso'}</span>{status && <small>{status}</small>}</div>
               <div className="notice-row-actions">{related && <Link className="notice-view" to={destination} onClick={() => { if (!item.read) markRead(item.id) }}><ExternalLink size={14} />{actionLabel}</Link>}{!item.read && <button className="notice-mark-read" type="button" disabled={busy} onClick={() => markRead(item.id)} aria-label={`Marcar como leído: ${item.title || 'aviso'}`}>{markingId === item.id ? 'Guardando…' : <><Check size={15} />Marcar leído</>}</button>}</div>
               {!item.read && <span className="notice-unread-dot" aria-label="No leído" />}

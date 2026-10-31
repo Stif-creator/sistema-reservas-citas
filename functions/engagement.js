@@ -24,7 +24,48 @@ const clientContact = client => ({
   ...(typeof client.isActive === 'boolean' ? { isActive: client.isActive } : {}),
   ...(client.createdAt ? { createdAt: client.createdAt } : {}),
 })
-export const engagementActions = ['hub', 'waitlist', 'favorite', 'wait', 'unwait', 'review', 'clients', 'clientHistory', 'clientUpdate', 'promotionSave', 'reminderSave', 'notificationRead', 'notificationReadAll']
+export const engagementActions = ['hub', 'waitlist', 'favorite', 'wait', 'unwait', 'review', 'clients', 'clientHistory', 'clientUpdate', 'promotionSave', 'promotionServiceStatus', 'reminderSave', 'notificationRead', 'notificationReadAll']
+
+function syncPromotionNotices(db, tx, businessId, promotion, service, adminIds, noticeDocs, now, stamp) {
+  const promotionId = promotion.id
+  const startAt = ms(promotion.startAt), endAt = ms(promotion.endAt)
+  const title = text(promotion.title, 100) || 'Promoción'
+  const serviceName = text(service.name, 100) || 'el servicio'
+  const existing = new Map(noticeDocs.filter(item => item.data().businessId === businessId)
+    .map(item => [item.id, { ref: item.ref, ...item.data() }]))
+  const desired = new Map()
+  if (promotion.isActive === true && service.isActive === true && endAt > now && endAt > startAt) {
+    for (const recipientUserId of adminIds) {
+      const events = [
+        { name: 'promotionStarted', eventAt: startAt, visibleAt: Math.max(startAt, now), title: 'Promoción iniciada',
+          message: `La promoción «${title}» ya está vigente para el servicio «${serviceName}».` },
+        { name: 'promotionEnded', eventAt: endAt - 1, visibleAt: endAt, title: 'Promoción finalizada',
+          message: `La promoción «${title}» para el servicio «${serviceName}» terminó. Su descuento ya no se aplica a nuevas reservas.` },
+      ]
+      for (const event of events) {
+        const noticeId = createHash('sha256').update(`${businessId}:${promotionId}:${event.name}:${event.eventAt}:${recipientUserId}`).digest('hex')
+        desired.set(noticeId, { ...event, recipientUserId })
+      }
+    }
+  }
+  const invalidations = [...existing].filter(([noticeId, item]) => !desired.has(noticeId) && item.invalidated !== true && ms(item.visibleAt) > now)
+  if (desired.size + invalidations.length > 499) fail('resource-exhausted', 'Demasiados administradores o avisos pendientes para actualizar esta promoción en una sola operación.')
+  let writes = 0
+  for (const [noticeId, event] of desired) {
+    const item = existing.get(noticeId)
+    if (item && item.visibleAt && ms(item.visibleAt) <= now && item.invalidated !== true) continue
+    tx.set(db.doc(`notifications/${noticeId}`), {
+      ...(item?.createdAt ? {} : { createdAt: stamp }),
+      businessId, recipientUserId: event.recipientUserId, type: 'promotion', event: event.name,
+      promotionId, promotionTitle: title, serviceName, title: event.title, message: event.message,
+      promotionEventAt: Timestamp.fromMillis(event.eventAt), visibleAt: Timestamp.fromMillis(event.visibleAt),
+      read: item?.read === true, invalidated: false,
+    }, { merge: true })
+    writes++
+  }
+  for (const [, item] of invalidations) { tx.set(item.ref, { invalidated: true, invalidatedAt: stamp }, { merge: true }); writes++ }
+  return writes
+}
 
 export function discountedService(service, promotions, now = Date.now()) {
   const valid = promotions.filter(p => p.isActive && Number.isInteger(p.percent) && p.percent >= 1 && p.percent <= 90 && p.serviceId === service.id && ms(p.startAt) <= now && ms(p.endAt) > now)
@@ -79,7 +120,7 @@ export async function executeEngagement(db, uid, input, actor) {
       scoped(db, 'promotions', businessId).get().then(rows),
       scoped(db, 'reviews', businessId).get().then(rows), db.doc(`reminderSettings/${businessId}`).get(),
     ])
-    return serial({ favorites, waiting, notifications: notifications.filter(n => ms(n.visibleAt) <= Date.now() && (!n.expiresAt || ms(n.expiresAt) > Date.now())).sort((a, b) => ms(b.visibleAt) - ms(a.visibleAt)),
+    return serial({ favorites, waiting, notifications: notifications.filter(n => n.invalidated !== true && ms(n.visibleAt) <= Date.now() && (!n.expiresAt || ms(n.expiresAt) > Date.now())).sort((a, b) => ms(b.visibleAt) - ms(a.visibleAt)),
       promotions: actor.member.role === 'admin' ? promotions : promotions.filter(p => p.isActive && ms(p.startAt) <= Date.now() && ms(p.endAt) > Date.now()),
       reviews: reviews.filter(r => r.status === 'published').map(r => ({ id: r.id, serviceId: r.serviceId || null, professionalId: r.professionalId || null, professionalName: r.professionalName || null, professionalRating: r.professionalRating || null, rating: r.rating, comment: r.comment, authorName: r.authorName, serviceName: r.serviceName, reviewedAt: Number.isFinite(ms(r.updatedAt || r.createdAt)) ? ms(r.updatedAt || r.createdAt) : null })), reminderHours: reminder.data()?.hours ?? 24 })
   }
@@ -101,7 +142,7 @@ export async function executeEngagement(db, uid, input, actor) {
       : scoped(db, 'notifications', businessId).where('recipientUserId', '==', uid)
     const snapshot = await source.limit(2001).get()
     if (snapshot.size > 2000) fail('resource-exhausted', 'Hay demasiados avisos para marcar en una sola operación.')
-    const unread = snapshot.docs.filter(item => item.data().read !== true)
+    const unread = snapshot.docs.filter(item => item.data().read !== true && item.data().invalidated !== true)
     for (let offset = 0; offset < unread.length; offset += 450) {
       const batch = db.batch()
       for (const item of unread.slice(offset, offset + 450)) batch.update(item.ref, { read: true, readAt: stamp })
@@ -283,9 +324,56 @@ export async function executeEngagement(db, uid, input, actor) {
     if (!id(input.serviceId) || !id(input.id) || !text(input.title, 100) || !Number.isInteger(input.percent) || input.percent < 1 || input.percent > 90 || !Number.isSafeInteger(input.startAt) || !Number.isSafeInteger(input.endAt) || input.endAt <= input.startAt || typeof input.isActive !== 'boolean') fail('invalid-argument', 'Completa la promoción: descuento de 1 a 90 % y fechas válidas.')
     await db.runTransaction(async tx => {
       const ref = db.doc(`promotions/${input.id}`)
-      const [previous, service] = await Promise.all([tx.get(ref).then(record), tx.get(db.doc(`services/${input.serviceId}`)).then(record)])
+      const noticeQuery = db.collection('notifications').where('promotionId', '==', input.id).limit(501)
+      const membersQuery = db.collection('memberships').where('businessId', '==', businessId).limit(2001)
+      const [previous, service, members, previousNotices] = await Promise.all([
+        tx.get(ref).then(record), tx.get(db.doc(`services/${input.serviceId}`)).then(record),
+        tx.get(membersQuery), tx.get(noticeQuery),
+      ])
       if ((previous && previous.businessId !== businessId) || service?.businessId !== businessId) fail('permission-denied', 'La promoción o servicio pertenece a otro negocio.')
+      if (members.size > 2000 || previousNotices.size > 500) fail('resource-exhausted', 'No se pudieron programar los avisos de esta promoción. Contacta al administrador.')
+      const adminIds = [...new Set(members.docs.map(item => record(item))
+        .filter(member => member.role === 'admin' && member.status === 'active' && id(member.userId))
+        .map(member => member.userId))]
+      const activeAdmins = (await Promise.all(adminIds.map(userId => tx.get(db.doc(`users/${userId}`)).then(record))))
+        .filter(user => user?.status === 'active').map(user => user.id)
+      const now = Date.now()
+      const promotion = { ...input, businessId, id: input.id, title: text(input.title, 100),
+        serviceName: service.name, startAt: Timestamp.fromMillis(input.startAt), endAt: Timestamp.fromMillis(input.endAt) }
+      syncPromotionNotices(db, tx, businessId, promotion, service, activeAdmins, previousNotices.docs, now, stamp)
       tx.set(ref, { businessId, serviceId: input.serviceId, serviceName: service.name, title: text(input.title, 100), percent: input.percent, startAt: Timestamp.fromMillis(input.startAt), endAt: Timestamp.fromMillis(input.endAt), isActive: input.isActive, updatedAt: stamp })
+    })
+    return { ok: true }
+  }
+  if (action === 'promotionServiceStatus') {
+    if (actor.isSuperadmin) fail('permission-denied', 'El superadministrador no puede modificar servicios de un negocio.')
+    admin()
+    if (!id(input.serviceId) || typeof input.isActive !== 'boolean') fail('invalid-argument', 'Servicio inválido.')
+    await db.runTransaction(async tx => {
+      const serviceRef = db.doc(`services/${input.serviceId}`)
+      const promotionQuery = db.collection('promotions').where('serviceId', '==', input.serviceId).limit(101)
+      const membersQuery = db.collection('memberships').where('businessId', '==', businessId).limit(2001)
+      const [service, promotions, members] = await Promise.all([
+        tx.get(serviceRef).then(record), tx.get(promotionQuery), tx.get(membersQuery),
+      ])
+      if (service?.businessId !== businessId) fail('permission-denied', 'El servicio pertenece a otro negocio.')
+      if (promotions.size > 100 || members.size > 2000) fail('resource-exhausted', 'No se pudieron actualizar los avisos de este servicio. Contacta al administrador.')
+      const scopedPromotions = promotions.docs.map(record).filter(promotion => promotion.businessId === businessId)
+      const noticeSnapshots = await Promise.all(scopedPromotions.map(promotion =>
+        tx.get(db.collection('notifications').where('promotionId', '==', promotion.id).limit(501))))
+      if (noticeSnapshots.some(snapshot => snapshot.size > 500)) fail('resource-exhausted', 'Hay demasiados avisos relacionados con este servicio. Contacta al administrador.')
+      const adminIds = [...new Set(members.docs.map(record)
+        .filter(member => member.role === 'admin' && member.status === 'active' && id(member.userId))
+        .map(member => member.userId))]
+      const activeAdmins = (await Promise.all(adminIds.map(userId => tx.get(db.doc(`users/${userId}`)).then(record))))
+        .filter(user => user?.status === 'active').map(user => user.id)
+      const now = Date.now()
+      const updatedService = { ...service, isActive: input.isActive }
+      let noticeWrites = 0
+      for (let index = 0; index < scopedPromotions.length; index++)
+        noticeWrites += syncPromotionNotices(db, tx, businessId, scopedPromotions[index], updatedService, activeAdmins, noticeSnapshots[index].docs, now, stamp)
+      if (noticeWrites + 1 > 500) fail('resource-exhausted', 'Hay demasiados avisos pendientes para cambiar el estado de este servicio en una sola operación.')
+      tx.set(serviceRef, { isActive: input.isActive, updatedAt: stamp }, { merge: true })
     })
     return { ok: true }
   }

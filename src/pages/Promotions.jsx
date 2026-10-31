@@ -3,6 +3,7 @@ import { CalendarDays, Clock3, Pause, Pencil, Plus, RefreshCw, Tag } from 'lucid
 import { collection, onSnapshot, query, where } from 'firebase/firestore'
 import { useAuth } from '../context/auth-context'
 import { useFeedback } from '../context/feedback-context'
+import { useSearchParams } from 'react-router-dom'
 import useSprintData from '../hooks/useSprintData'
 import { dateMillis, formatAppointmentDate } from '../lib/clientPresentation'
 import { confirmDiscard, markFormSaved } from '../lib/unsavedForms'
@@ -58,6 +59,7 @@ export default function Promotions() {
 }
 
 function PromotionsView({ businessId }) {
+  const [searchParams] = useSearchParams()
   const { confirm, notify } = useFeedback()
   const { data, error, busy, mutate, reload, refreshing } = useSprintData()
   const [services, setServices] = useState([])
@@ -70,6 +72,8 @@ function PromotionsView({ businessId }) {
   const [now, setNow] = useState(Date.now)
   const [reminderBusy, setReminderBusy] = useState(false)
   const reminderGuard = useRef(false)
+  const focusedPromotionRef = useRef('')
+  const targetPromotionId = searchParams.get('promocion') || ''
   const promotions = data?.promotions || emptyPromotions
 
   useEffect(() => {
@@ -93,7 +97,16 @@ function PromotionsView({ businessId }) {
     total[promotion.calculatedStatus] += 1
     return total
   }, { active: 0, scheduled: 0, expired: 0, disabled: 0 }), [promotionsWithState])
-  const visiblePromotions = statusFilter === 'all' ? promotionsWithState : promotionsWithState.filter(item => item.calculatedStatus === statusFilter)
+  const visiblePromotions = (statusFilter === 'all' ? promotionsWithState : promotionsWithState.filter(item => item.calculatedStatus === statusFilter))
+    .slice().sort((a, b) => Number(b.id === targetPromotionId) - Number(a.id === targetPromotionId))
+
+  useEffect(() => {
+    if (!targetPromotionId || !data || focusedPromotionRef.current === targetPromotionId) return
+    focusedPromotionRef.current = targetPromotionId
+    if (promotions.some(promotion => promotion.id === targetPromotionId)) {
+      requestAnimationFrame(() => document.getElementById(`promotion-${targetPromotionId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }))
+    }
+  }, [data, promotions, targetPromotionId])
 
   function openCreate() {
     setEditingPromotion(null)
@@ -175,8 +188,9 @@ function PromotionsView({ businessId }) {
         <div className="promotions-tools"><label><span className="sr-only">Filtrar promociones por estado</span><select aria-label="Filtrar promociones por estado" value={statusFilter} onChange={event => setStatusFilter(event.target.value)}>{Object.entries(filterLabels).map(([value, label]) => <option key={value} value={value}>{value === 'all' ? 'Todos los estados' : label}</option>)}</select></label><button type="button" className="booking-button secondary promotions-refresh" onClick={() => { reload(); setServicesLoading(true); setServicesError(''); setServicesAttempt(attempt => attempt + 1) }} disabled={refreshing || busy || servicesLoading} aria-label="Actualizar promociones"><RefreshCw size={16} />{refreshing || servicesLoading ? 'Actualizando…' : 'Actualizar'}</button></div>
       </div>
       {!data && refreshing && <p className="promotions-loading" role="status">Cargando promociones…</p>}
+      {data && targetPromotionId && !promotions.some(promotion => promotion.id === targetPromotionId) && <p className="promotions-loading" role="status">Esta promoción ya no está disponible en el negocio.</p>}
       {data && <DataList label="Promociones" items={visiblePromotions} resetKey={statusFilter} searchText={promotion => `${promotion.title} ${promotion.serviceName || serviceById.get(promotion.serviceId)?.name || ''} ${promotion.percent} ${labels[promotion.calculatedStatus]}`}>
-        {rows => <div className="promotions-list">{rows.map(promotion => <PromotionRow key={promotion.id} promotion={promotion} service={serviceById.get(promotion.serviceId)} onEdit={() => openEdit(promotion)} onToggle={() => togglePromotion(promotion)} busy={busy} />)}</div>}
+        {rows => <div className="promotions-list">{rows.map(promotion => <PromotionRow key={promotion.id} promotion={promotion} service={serviceById.get(promotion.serviceId)} focused={promotion.id === targetPromotionId} onEdit={() => openEdit(promotion)} onToggle={() => togglePromotion(promotion)} busy={busy} />)}</div>}
       </DataList>}
     </section>
 
@@ -193,10 +207,10 @@ function Stat({ icon: Icon, tone, count, label, detail }) {
   return <article className={`promotions-stat promotions-stat-${tone}`}><span className="promotions-stat-icon"><Icon size={21} /></span><div><strong>{count}</strong><b>{label}</b><small>{detail}</small></div></article>
 }
 
-function PromotionRow({ promotion, service, onEdit, onToggle, busy }) {
+function PromotionRow({ promotion, service, focused, onEdit, onToggle, busy }) {
   const status = promotion.calculatedStatus
   const active = promotion.isActive === true
-  return <article className="promotions-row">
+  return <article id={`promotion-${promotion.id}`} className={`promotions-row${focused ? ' promotions-row-focused' : ''}`}>
     <span className="promotions-discount"><strong>{promotion.percent}%</strong><small>descuento</small></span>
     <div className="promotions-row-main"><h3>{promotion.title || 'Promoción sin título'}</h3><p className="promotions-service">{service?.name || promotion.serviceName || 'Servicio no disponible'}</p></div>
     <div className="promotions-row-state"><Badge className={`promotion-status promotion-status-${status}`}>{labels[status]}</Badge><span><CalendarDays size={15} />{dateLabel(promotion.startAt)} <i>–</i> {dateLabel(dateMillis(promotion.endAt) - 1)}</span></div>

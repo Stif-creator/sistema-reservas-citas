@@ -48,6 +48,10 @@
 .client-notifications .notice-row-icon { display:grid; place-items:center; width:44px; height:44px; border-radius:12px; background:color-mix(in srgb,var(--brand-secondary) 60%,white); color:var(--brand-ink); }
 .client-notifications .notice-row-confirmed .notice-row-icon,.client-notifications .notice-row-completed .notice-row-icon { background:#e8f7ef; color:#08774e; }
 .client-notifications .notice-row-reminder .notice-row-icon { background:#fff3d8; color:#875b00; }
+.client-notifications .notice-row-promotion-started .notice-row-icon,.client-notifications .notice-row-promotion-started .notice-category { background:#e6f7ef; color:#08774e; }
+.client-notifications .notice-row-promotion-ended .notice-row-icon,.client-notifications .notice-row-promotion-ended .notice-category { background:#fff3d8; color:#875b00; }
+.client-notifications .notice-row-promotion-started.is-unread { border-left-color:#16a36a; }
+.client-notifications .notice-row-promotion-ended.is-unread { border-left-color:#e49714; }
 .client-notifications .notice-row-cancelled .notice-row-icon { background:#ffeded; color:#b12c34; }
 .client-notifications .notice-row-rescheduled .notice-row-icon { background:color-mix(in srgb,var(--brand) 12%,white); color:var(--brand-ink); }
 .client-notifications .notice-copy { min-width:0; }

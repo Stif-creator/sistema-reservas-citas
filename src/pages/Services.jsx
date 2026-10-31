@@ -7,6 +7,7 @@ import { useFeedback } from '../context/feedback-context'
 import { confirmDiscard, markFormSaved } from '../lib/unsavedForms'
 import { safeImageUrl } from '../lib/brand'
 import { getServiceProfessionals } from '../lib/serviceProfessionals'
+import { bookingRequest } from '../lib/bookingApi'
 import PageHeader from '../components/ui/PageHeader'
 import Button from '../components/ui/Button'
 import Alert from '../components/ui/Alert'
@@ -49,6 +50,7 @@ function ServicesContent() {
   const [page, setPage] = useState(1)
   const [dialog, setDialog] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [togglingServiceId, setTogglingServiceId] = useState('')
   const [uploading, setUploading] = useState(false)
   const loading = Boolean(businessId && loadedBusinessId !== businessId)
   const error = loadError?.businessId === businessId ? loadError.message : ''
@@ -146,10 +148,12 @@ function ServicesContent() {
 
   async function toggleActive(service) {
     if (service.isActive && !await confirm({ title: '¿Desactivar servicio?', description: 'Dejará de estar disponible para nuevas reservas. Las reservas existentes se conservarán.', confirmLabel: 'Desactivar servicio' })) return
+    setTogglingServiceId(service.id)
     try {
-      await updateDoc(doc(db, 'services', service.id), { isActive: !service.isActive, updatedAt: serverTimestamp() })
+      await bookingRequest({ action: 'promotionServiceStatus', businessId, serviceId: service.id, isActive: !service.isActive })
       notify({ title: service.isActive ? 'Servicio desactivado' : 'Servicio activado', message: service.isActive ? 'Se conserva el historial y no estará disponible para nuevas reservas.' : 'El servicio vuelve a estar disponible según su configuración.', type: 'success' })
-    } catch (reason) { setLoadError({ businessId, message:reason.code === 'permission-denied' ? 'No tienes permisos para cambiar el estado del servicio.' : 'No se pudo actualizar el estado del servicio.' }) }
+    } catch (reason) { setLoadError({ businessId, message:reason.code === 'permission-denied' ? 'No tienes permisos para cambiar el estado del servicio.' : reason.message || 'No se pudo actualizar el estado del servicio.' }) }
+    finally { setTogglingServiceId('') }
   }
 
   const pageHeader = <PageHeader title={isProfessional ? 'Mis servicios' : 'Servicios'} description={isProfessional ? 'Consulta los servicios asignados a tu perfil.' : 'Administra los servicios que ofrece tu negocio.'} actions={isProfessional ? <span className="service-readonly"><Info size={17} />Solo lectura</span> : <Button onClick={openCreate} disabled={loading || !categories.some(category => category.isActive)}><Plus size={17} />Nuevo servicio</Button>} />
@@ -175,7 +179,7 @@ function ServicesContent() {
         <td className="service-description-cell" title={service.description}>{service.description || 'Sin descripción'}</td>
         <td>{categories.find(item => item.id === service.categoryId)?.name || '—'}</td><td>{service.price} {service.currencyCode || currencyCode}</td><td>{service.durationMinutes} min</td>
         <td><Badge tone={service.isActive ? 'success' : 'neutral'}>{service.isActive ? 'Activo' : 'Inactivo'}</Badge></td>
-        <td><div className="service-actions"><button type="button" onClick={() => openDetails(service)} aria-label={`Ver detalle de ${service.name}`}><Eye size={16} />Detalle</button>{!isProfessional && <><button type="button" onClick={() => openEdit(service)}><Pencil size={16} />Editar</button><button type="button" className={service.isActive ? 'service-action-disable' : ''} onClick={() => toggleActive(service)}>{service.isActive ? 'Desactivar' : 'Activar'}</button></>}</div></td>
+        <td><div className="service-actions"><button type="button" onClick={() => openDetails(service)} aria-label={`Ver detalle de ${service.name}`}><Eye size={16} />Detalle</button>{!isProfessional && <><button type="button" onClick={() => openEdit(service)}><Pencil size={16} />Editar</button><button type="button" className={service.isActive ? 'service-action-disable' : ''} onClick={() => toggleActive(service)} disabled={togglingServiceId === service.id}>{togglingServiceId === service.id ? 'Actualizando…' : service.isActive ? 'Desactivar' : 'Activar'}</button></>}</div></td>
       </tr>)}</tbody></table></div>}
       <footer className="services-pagination"><span>{visible.length ? `${(currentPage - 1) * PAGE_SIZE + 1}–${Math.min(currentPage * PAGE_SIZE, visible.length)} de ${visible.length} servicios` : '0 servicios'}</span><div><button type="button" aria-label="Página anterior" disabled={currentPage <= 1} onClick={() => setPage(value => value - 1)}><ChevronLeft size={17} /></button><span>Página {currentPage} de {pageCount}</span><button type="button" aria-label="Página siguiente" disabled={currentPage >= pageCount} onClick={() => setPage(value => value + 1)}><ChevronRight size={17} /></button></div></footer>
     </div>

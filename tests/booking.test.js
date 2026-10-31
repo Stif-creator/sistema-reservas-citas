@@ -199,6 +199,67 @@ test('Sprint 3 reviews require own completed reservation; promotions alter serve
   assert.equal((await f.call(f.users.client, { action:'options' })).services[0].price, 100)
 })
 
+test('promotion lifecycle notices are scheduled per active admin, deduplicated, and invalidated safely', async () => {
+  const f = await fixture()
+  const secondAdmin = `admin-second-${f.businessId}`
+  await db.doc(`users/${secondAdmin}`).set({ firstName: 'Segundo', lastName: 'Admin', status: 'active' })
+  await db.doc(`memberships/${f.businessId}_${secondAdmin}`).set({ businessId: f.businessId, userId: secondAdmin, role: 'admin', status: 'active' })
+  const now = Date.now()
+  const promotionId = `scheduled-${f.businessId}`
+  const save = changes => f.call(f.users.admin, { action: 'promotionSave', id: promotionId, serviceId: f.serviceId,
+    title: 'Descuento de noviembre', percent: 15, startAt: now + 3600000, endAt: now + 86400000, isActive: true, ...changes })
+  await rejects(f.call(f.users.pro, { action: 'promotionSave', id: promotionId, serviceId: f.serviceId,
+    title: 'Oferta profesional', percent: 15, startAt: now + 3600000, endAt: now + 86400000, isActive: true }), 'permission-denied')
+  await save()
+  let snapshot = await db.collection('notifications').where('promotionId', '==', promotionId).get()
+  assert.equal(snapshot.size, 4)
+  assert.deepEqual(new Set(snapshot.docs.map(item => item.data().recipientUserId)), new Set([f.users.admin, secondAdmin]))
+  assert(snapshot.docs.every(item => item.data().businessId === f.businessId && item.data().type === 'promotion'))
+  assert(snapshot.docs.every(item => ![f.users.pro, f.users.client, f.users.other].includes(item.data().recipientUserId)))
+  assert.equal(snapshot.docs.filter(item => item.data().event === 'promotionStarted').length, 2)
+  assert.equal(snapshot.docs.filter(item => item.data().event === 'promotionEnded').length, 2)
+  assert(snapshot.docs.filter(item => item.data().event === 'promotionStarted').every(item => item.data().visibleAt.toMillis() === now + 3600000))
+  assert(snapshot.docs.filter(item => item.data().event === 'promotionEnded').every(item => item.data().visibleAt.toMillis() === now + 86400000))
+
+  await save()
+  assert.equal((await db.collection('notifications').where('promotionId', '==', promotionId).get()).size, 4)
+  await save({ isActive: false })
+  snapshot = await db.collection('notifications').where('promotionId', '==', promotionId).get()
+  assert(snapshot.docs.every(item => item.data().invalidated === true))
+  assert.equal((await f.call(f.users.admin, { action: 'hub' })).notifications.some(item => item.promotionId === promotionId), false)
+
+  await save({ isActive: true })
+  snapshot = await db.collection('notifications').where('promotionId', '==', promotionId).get()
+  assert.equal(snapshot.size, 4)
+  assert(snapshot.docs.every(item => item.data().invalidated === false))
+  const movedStart = now + 2 * 86400000
+  await save({ startAt: movedStart, endAt: movedStart + 86400000 })
+  snapshot = await db.collection('notifications').where('promotionId', '==', promotionId).get()
+  assert.equal(snapshot.size, 8)
+  assert.equal(snapshot.docs.filter(item => item.data().invalidated === true).length, 4)
+  assert.equal(snapshot.docs.filter(item => item.data().invalidated === false).length, 4)
+
+  const liveId = `live-${f.businessId}`
+  const liveStart = Date.now() - 3600000
+  const liveEnd = Date.now() + 3600000
+  await f.call(f.users.admin, { action: 'promotionSave', id: liveId, serviceId: f.serviceId, title: 'Descuento vigente', percent: 10,
+    startAt: liveStart, endAt: liveEnd, isActive: true })
+  const liveNotices = await db.collection('notifications').where('promotionId', '==', liveId).get()
+  const liveStartNotice = liveNotices.docs.find(item => item.data().event === 'promotionStarted')
+  const liveEndNotice = liveNotices.docs.find(item => item.data().event === 'promotionEnded')
+  assert(liveStartNotice.data().visibleAt.toMillis() >= Date.now() - 1000)
+  assert.equal(liveStartNotice.data().promotionEventAt.toMillis(), liveStart)
+  assert(liveEndNotice.data().visibleAt.toMillis() > Date.now())
+  assert.equal((await f.call(f.users.admin, { action: 'hub' })).notifications.some(item => item.id === liveEndNotice.id), false)
+  await rejects(f.call(f.users.pro, { action: 'promotionServiceStatus', serviceId: f.serviceId, isActive: false }), 'permission-denied')
+  await f.call(f.users.admin, { action: 'promotionServiceStatus', serviceId: f.serviceId, isActive: false })
+  assert.equal((await db.doc(`services/${f.serviceId}`).get()).data().isActive, false)
+  assert.equal((await db.doc(`notifications/${liveEndNotice.id}`).get()).data().invalidated, true)
+  assert.equal((await db.doc(`notifications/${liveStartNotice.id}`).get()).data().invalidated, false)
+  await f.call(f.users.admin, { action: 'promotionServiceStatus', serviceId: f.serviceId, isActive: true })
+  assert.equal((await db.doc(`notifications/${liveEndNotice.id}`).get()).data().invalidated, false)
+})
+
 test('Sprint 3 client management is tenant scoped and does not edit auth identities', async () => {
   const f = await fixture(), foreign = await fixture()
   await rejects(f.call(f.users.client, { action:'clients' }), 'permission-denied')
@@ -256,6 +317,8 @@ test('client records and appointment history are restricted by role and global a
   await rejects(executeBooking(db, superadminId, { action: 'promotionSave', businessId: f.businessId,
     id: `promo-${f.businessId}`, serviceId: `service-${f.businessId}`, title: 'Oferta', percent: 15,
     startAt: Date.now(), endAt: Date.now() + 86400000, isActive: true }), 'permission-denied')
+  await rejects(executeBooking(db, superadminId, { action: 'promotionServiceStatus', businessId: f.businessId,
+    serviceId: `service-${f.businessId}`, isActive: false }), 'permission-denied')
 })
 
 test('simultaneous overlapping reservations serialize; retries are idempotent', async () => {
