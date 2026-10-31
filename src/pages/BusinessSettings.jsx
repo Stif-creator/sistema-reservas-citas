@@ -1,7 +1,6 @@
 import { markFormSaved, markFormSectionSaved } from '../lib/unsavedForms'
 import { updateBusinessWithAudit } from '../lib/audit'
 import SettingsPreview from '../components/SettingsPreview'
-import BusinessMap from '../components/BusinessMap'
 import LocationPickerMap from '../components/LocationPickerMap'
 import { Building2, Image, Clock3, FileText, Phone, ExternalLink, Save, Info, MapPin, Palette, ShieldCheck, ArrowLeft } from 'lucide-react'
 import './business-settings.css'
@@ -25,6 +24,14 @@ import { useFeedback } from '../context/feedback-context'
 
 const PHONE_REGEX = /^\+?\d{8,}$/
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+function HexColorControl({ id, label, value, onChange, disabled }) {
+  const [draft, setDraft] = useState(value)
+  const valid = /^#[\da-f]{6}$/i.test(draft)
+  return <Field label={label} htmlFor={id} error={!valid ? 'Usa un color hexadecimal como #6A44FF.' : undefined}>
+    <div className="settings-color-input"><input id={id} type="color" value={valid ? draft : '#ffffff'} disabled={disabled} onChange={event => { setDraft(event.target.value); onChange(event.target.value) }} aria-label={`Selector ${label}`} /><input type="text" value={draft} disabled={disabled} maxLength={7} pattern="#[0-9a-fA-F]{6}" onChange={event => { setDraft(event.target.value); if (/^#[\da-f]{6}$/i.test(event.target.value)) onChange(event.target.value) }} aria-label={`Codigo hexadecimal ${id}`} aria-invalid={!valid} /></div>
+  </Field>
+}
 
 function BusinessSettings({ platform = false }) {
   const { businessId: routeBusinessId } = useParams()
@@ -157,6 +164,10 @@ function BusinessSettingsForm({ businessId, platform }) {
     if (imageUploading || saving || savingLocation || hoursSaving) return
     setError('')
     setSuccess('')
+    if (isSuperadmin && e.currentTarget.querySelector('[aria-invalid="true"]')) {
+      setError('Corrige los colores hexadecimales antes de guardar.')
+      return
+    }
 
     const errors = validate()
     if ((latitude !== '' || longitude !== '') && (latitude === '' || longitude === '' || !Number.isFinite(Number(latitude)) || !Number.isFinite(Number(longitude)) || Math.abs(Number(latitude)) > 85 || Math.abs(Number(longitude)) > 180)) {
@@ -284,7 +295,7 @@ function BusinessSettingsForm({ businessId, platform }) {
     </div>
     <form id="settings-business" onSubmit={handleSubmit} noValidate>
     <fieldset disabled={saving || savingLocation || hoursSaving || imageUploading}>
-<div id="settings-panel-general" role="tabpanel" aria-labelledby="settings-tab-general" hidden={tab !== 'general'}><div className="settings-columns"><div className="settings-fields"><Card title="Datos generales">{isSuperadmin && <label className="block mb-4 text-sm"><input type="checkbox" checked={publicPageEnabled} onChange={e => setPublicPageEnabled(e.target.checked)} /> Publicar página del negocio</label>}{!isSuperadmin && <p className="mb-4 text-sm text-muted">La publicación de la página la controla el superadministrador.</p>}
+<div id="settings-panel-general" role="tabpanel" aria-labelledby="settings-tab-general" hidden={tab !== 'general'}><div className="settings-columns"><div className="settings-fields"><Card title="Datos generales">{!isSuperadmin && <p className="mb-4 text-sm text-muted">La publicación de la página la controla el superadministrador.</p>}
           <div className="space-y-4">
             <Field label="Nombre" htmlFor="name" error={fieldErrors.name}>
               <input
@@ -308,67 +319,37 @@ function BusinessSettingsForm({ businessId, platform }) {
               />
             </Field>
           </div>
-        </Card></div><div className="settings-preview-column"><SettingsPreview {...{ tab, name, description, logoUrl, coverUrl, primaryColor, secondaryColor, accentColor, surfaceColor, about, contactPhone, contactWhatsapp, contactEmail, addressLine, city }} /></div></div></div>
-<div id="settings-panel-appearance" role="tabpanel" aria-labelledby="settings-tab-appearance" hidden={tab !== 'appearance'}><div className="settings-columns"><div className="settings-fields"><Card title="Colores">{!isSuperadmin && <p className="text-sm text-muted mb-3">Los colores los gestiona el superadministrador de la plataforma.</p>}
+        </Card></div><div className="settings-preview-column"><SettingsPreview {...{ tab, name, description, logoUrl, coverUrl, primaryColor, secondaryColor, accentColor, surfaceColor, about, contactPhone, contactWhatsapp, contactEmail, addressLine, city, stateRegion, countryCode, weeklyHours, timeZone }} published={publicPageEnabled} /></div></div></div>
+<div id="settings-panel-appearance" role="tabpanel" aria-labelledby="settings-tab-appearance" hidden={tab !== 'appearance'}><div className="settings-columns"><div className="settings-fields"><Card title="Identidad visual">{!isSuperadmin && <p className="text-sm text-muted mb-3">Los colores de tu negocio son administrados por la plataforma.</p>}{isSuperadmin && <label className="settings-publish-control"><input type="checkbox" checked={publicPageEnabled} onChange={e => setPublicPageEnabled(e.target.checked)} /> Publica tu pagina para los clientes <span>{publicPageEnabled ? "Publicada" : "No publicada"}</span></label>}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Color primario" htmlFor="primaryColor">
-              <input
-                id="primaryColor" disabled={!isSuperadmin}
-                type="color"
-                value={primaryColor}
-                onChange={(e) => setPrimaryColor(e.target.value)}
-                className="h-10 w-16 cursor-pointer rounded-lg border border-border bg-white p-1"
-              />
-            </Field>
-
-            <Field label="Color secundario" htmlFor="secondaryColor">
-              <input
-                id="secondaryColor" disabled={!isSuperadmin}
-                type="color"
-                value={secondaryColor}
-                onChange={(e) => setSecondaryColor(e.target.value)}
-                className="h-10 w-16 cursor-pointer rounded-lg border border-border bg-white p-1"
-              />
-            </Field>
-            <Field label="Color de acento" htmlFor="accentColor">
-              <input
-                id="accentColor" disabled={!isSuperadmin}
-                type="color"
-                value={accentColor}
-                onChange={(e) => setAccentColor(e.target.value)}
-                className="h-10 w-16 cursor-pointer rounded-lg border border-border bg-white p-1"
-              />
-            </Field>
-            <Field label="Color de superficie" htmlFor="surfaceColor">
-              <input
-                id="surfaceColor" disabled={!isSuperadmin}
-                type="color"
-                value={surfaceColor}
-                onChange={(e) => setSurfaceColor(e.target.value)}
-                className="h-10 w-16 cursor-pointer rounded-lg border border-border bg-white p-1"
-              />
-            </Field>
+            <HexColorControl key={`${primaryColor}`} id="primaryColor" label="Color primario" value={primaryColor} onChange={setPrimaryColor} disabled={!isSuperadmin} />
+            <HexColorControl key={`${secondaryColor}`} id="secondaryColor" label="Color secundario" value={secondaryColor} onChange={setSecondaryColor} disabled={!isSuperadmin} />
+            <HexColorControl key={`${accentColor}`} id="accentColor" label="Color de acento" value={accentColor} onChange={setAccentColor} disabled={!isSuperadmin} />
+            <HexColorControl key={`${surfaceColor}`} id="surfaceColor" label="Color de superficie" value={surfaceColor} onChange={setSurfaceColor} disabled={!isSuperadmin} />
           </div>
           {isSuperadmin && <Button type="button" variant="secondary" className="mt-4" onClick={() => { setPrimaryColor('#1672ed'); setSecondaryColor('#eaf3ff'); setAccentColor('#d97706'); setSurfaceColor('#f4f6f8') }}>Restablecer colores predeterminados</Button>}
           <p className="mt-3 text-xs text-muted">El acento destaca detalles y la superficie colorea la vista previa. El texto se ajusta automáticamente para mantener el contraste.</p>
-        </Card></div><div className="settings-preview-column"><SettingsPreview {...{ tab, name, description, logoUrl, coverUrl, primaryColor, secondaryColor, accentColor, surfaceColor, about, contactPhone, contactWhatsapp, contactEmail, addressLine, city }} /></div></div></div>
+        </Card></div><div className="settings-preview-column"><SettingsPreview {...{ tab, name, description, logoUrl, coverUrl, primaryColor, secondaryColor, accentColor, surfaceColor, about, contactPhone, contactWhatsapp, contactEmail, addressLine, city, stateRegion, countryCode, weeklyHours, timeZone }} published={publicPageEnabled} /></div></div></div>
 <div id="settings-panel-images" role="tabpanel" aria-labelledby="settings-tab-images" hidden={tab !== 'images'}><div className="settings-columns"><div className="settings-fields"><Card title="Imágenes">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <ImageUploadField label="Logo" value={logoUrl} onChange={setLogoUrl} businessId={businessId} kind="logo" disabled={saving || imageUploading} onBusyChange={setImageUploading} />
 
             <ImageUploadField label="Portada" value={coverUrl} onChange={setCoverUrl} businessId={businessId} kind="cover" disabled={saving || imageUploading} onBusyChange={setImageUploading} />
           </div>
-        </Card></div><div className="settings-preview-column"><SettingsPreview {...{ tab, name, description, logoUrl, coverUrl, primaryColor, secondaryColor, accentColor, surfaceColor, about, contactPhone, contactWhatsapp, contactEmail, addressLine, city }} /></div></div></div>
+        </Card></div><div className="settings-preview-column"><SettingsPreview {...{ tab, name, description, logoUrl, coverUrl, primaryColor, secondaryColor, accentColor, surfaceColor, about, contactPhone, contactWhatsapp, contactEmail, addressLine, city, stateRegion, countryCode, weeklyHours, timeZone }} published={publicPageEnabled} /></div></div></div>
 <div id="settings-panel-about" role="tabpanel" aria-labelledby="settings-tab-about" hidden={tab !== 'about'}><div className="settings-columns"><div className="settings-fields"><Card title="Página Nosotros">
           <p className="mb-4 text-sm text-muted">El administrador del negocio y el superadministrador pueden personalizar estos textos. Escribe valores propios de tu actividad, uno por línea; no hay textos específicos de un rubro. La visión es opcional y se muestra en Nosotros del cliente cuando tiene contenido.</p>
-          <div className="grid gap-4">
-            {aboutFields.map(([key, label, max]) => <Field key={key} label={label} htmlFor={`about-${key}`}
-              hint={key === 'values' ? 'Cada línea aparece como un valor independiente en la página Nosotros.' : undefined}>
+          <div className="settings-about-fields">
+            {aboutFields.filter(([key]) => !['mission', 'vision'].includes(key)).map(([key, label, max]) => <Field key={key} label={label} htmlFor={`about-${key}`}
+              hint={key === 'values' ? 'Escribe un valor en cada linea.' : key === 'story' ? 'Cuenta brevemente la historia de tu negocio.' : key === 'title' ? 'Un titulo claro que represente tu negocio.' : undefined}>
               {key === 'title' ? <input id={`about-${key}`} value={about[key]} maxLength={max} onChange={event => setAbout(previous => ({ ...previous, [key]: event.target.value }))} className={fieldControlClasses(false)} />
-                : <textarea id={`about-${key}`} value={about[key]} rows={key === 'story' ? 6 : 3} maxLength={max} onChange={event => setAbout(previous => ({ ...previous, [key]: event.target.value }))} className={fieldControlClasses(false)} />}
+                : <textarea id={`about-${key}`} value={about[key]} rows={key === 'story' ? 5 : 4} maxLength={max} onChange={event => setAbout(previous => ({ ...previous, [key]: event.target.value }))} className={fieldControlClasses(false)} />}
             </Field>)}
+            <div className="settings-about-pair">{aboutFields.filter(([key]) => ['mission', 'vision'].includes(key)).map(([key, label, max]) => <Field key={key} label={label} htmlFor={`about-${key}`} hint={key === 'mission' ? 'El proposito principal de tu negocio.' : 'La direccion que quieres seguir.'}>
+              <textarea id={`about-${key}`} value={about[key]} rows={4} maxLength={max} onChange={event => setAbout(previous => ({ ...previous, [key]: event.target.value }))} className={fieldControlClasses(false)} />
+            </Field>)}</div>
           </div>
-        </Card></div><div className="settings-preview-column"><SettingsPreview {...{ tab, name, description, logoUrl, coverUrl, primaryColor, secondaryColor, accentColor, surfaceColor, about, contactPhone, contactWhatsapp, contactEmail, addressLine, city }} /></div></div></div>
+        </Card></div><div className="settings-preview-column"><SettingsPreview {...{ tab, name, description, logoUrl, coverUrl, primaryColor, secondaryColor, accentColor, surfaceColor, about, contactPhone, contactWhatsapp, contactEmail, addressLine, city, stateRegion, countryCode, weeklyHours, timeZone }} published={publicPageEnabled} /></div></div></div>
 <div id="settings-panel-contact" role="tabpanel" aria-labelledby="settings-tab-contact" hidden={tab !== 'contact'}><div className="settings-columns"><div className="settings-fields"><Card title="Contacto">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Teléfono" htmlFor="contactPhone" error={fieldErrors.contactPhone}>
@@ -450,7 +431,7 @@ function BusinessSettingsForm({ businessId, platform }) {
           </div>
           <div className="mt-5"><LocationPickerMap latitude={latitude} longitude={longitude} onChange={(lat, lon) => { setLatitude(String(lat)); setLongitude(String(lon)) }} /></div>
           <div className="mt-5 flex justify-end"><Button type="button" disabled={savingLocation || saving || imageUploading} onClick={handleLocationSave}><MapPin size={16} />{savingLocation ? 'Guardando ubicación…' : 'Guardar ubicación'}</Button></div>
-        </Card></div><div className="settings-preview-column"><SettingsPreview {...{ tab, name, description, logoUrl, coverUrl, primaryColor, secondaryColor, accentColor, surfaceColor, about, contactPhone, contactWhatsapp, contactEmail, addressLine, city }} /><Card title="Ubicación en el mapa">{tab === 'contact' && <BusinessMap business={{ name, location: { latitude: latitude === '' ? null : Number(latitude), longitude: longitude === '' ? null : Number(longitude), addressLine, city } }} />}</Card></div></div></div>
+        </Card></div><div className="settings-preview-column"><SettingsPreview {...{ tab, name, description, logoUrl, coverUrl, primaryColor, secondaryColor, accentColor, surfaceColor, about, contactPhone, contactWhatsapp, contactEmail, addressLine, city, stateRegion, countryCode, weeklyHours, timeZone }} published={publicPageEnabled} /></div></div></div>
     </fieldset></form>
     <div id="settings-panel-hours" role="tabpanel" aria-labelledby="settings-tab-hours" hidden={tab !== 'hours'}>
       <div className="settings-columns settings-hours-columns"><div>      <form id="settings-hours" onSubmit={handleHoursSubmit}>
@@ -473,7 +454,7 @@ function BusinessSettingsForm({ businessId, platform }) {
       </Card></div>
     </div>
     {platform && <div id="settings-panel-administration" role="tabpanel" aria-labelledby="settings-tab-administration" hidden={tab !== 'administration'}>{tab === 'administration' && <PlatformBusinessAdministration business={business} onStatusChange={status => setBusiness(previous => ({ ...previous, status }))} />}</div>}
-    <div className="settings-savebar"><div><p>Configuración del negocio</p><small>{tab === 'hours' ? 'Guarda el horario de atención.' : 'Guarda para aplicar los cambios en tu página pública.'}</small>
+    <div className="settings-savebar"><div><p>Configuración del negocio</p><small>{tab === 'hours' ? 'Guarda el horario semanal.' : tab === 'contact' ? 'Guardar cambios aplica los datos del negocio; Guardar ubicacion guarda solo direccion y marcador.' : tab === 'appearance' ? 'Guarda identidad visual y publicacion.' : tab === 'images' ? 'La imagen se carga al seleccionarla; guarda para aplicarla al negocio.' : tab === 'about' ? 'Guarda los textos de Nosotros.' : 'Guarda los datos generales del negocio.'}</small>
       {error && <Alert tone="error">{error}</Alert>}{success && <Alert tone="success">{success}</Alert>}</div>
       <Link className="settings-public-link" to={backTo}>Cancelar</Link>
       {tab !== 'administration' && <Button type="submit" form={tab === 'hours' ? 'settings-hours' : 'settings-business'} disabled={saving || savingLocation || hoursSaving || imageUploading}><Save size={17} />{saving || hoursSaving ? 'Guardando...' : tab === 'hours' ? 'Guardar horario' : 'Guardar cambios'}</Button>}
