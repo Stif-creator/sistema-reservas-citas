@@ -23,13 +23,15 @@ import Card from '../components/ui/Card'
 import PageHeader from '../components/ui/PageHeader'
 import Field from '../components/ui/Field'
 import { fieldControlClasses } from '../components/ui/fieldStyles'
+import { DAYS } from '../../functions/shared/hours'
 import Button from '../components/ui/Button'
 import Alert from '../components/ui/Alert'
 import Badge from '../components/ui/Badge'
 import EditorDialog from '../components/ui/EditorDialog'
 import AdminSummary from '../components/ui/AdminSummary'
-import { MoreVertical, User, Users, Clock, Briefcase, ShieldCheck, Plus, Pencil } from 'lucide-react'
+import { MoreVertical, User, Users, Clock, Briefcase, ShieldCheck, Plus, Pencil, Mail, CalendarDays, Phone, Search } from 'lucide-react'
 import { useFeedback } from '../context/feedback-context'
+import './professionals-page.css'
 
 const PHONE_REGEX = /^\+?\d{8,}$/
 
@@ -61,10 +63,7 @@ function ProfessionalCard({ professional, services, onEdit, onToggleActive }) {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const bioSnippet =
-    professional.bio && professional.bio.length > 60
-      ? `${professional.bio.slice(0, 60)}…`
-      : professional.bio
+  const assignedServices = services.filter(s => professional.serviceIds?.includes(s.id))
 
   return (
     <Card className="relative professional-list-card">
@@ -120,20 +119,10 @@ function ProfessionalCard({ professional, services, onEdit, onToggleActive }) {
         </Badge>
       </div>
 
-      <p className="mt-2 text-xs text-muted break-all">{professional.email}</p>
-      <div className="flex flex-wrap gap-2 mt-3">{services.filter(s => professional.serviceIds?.includes(s.id)).slice(0,3).map(s => <span key={s.id} className="rounded-full bg-indigo-50 px-3 py-1 text-xs text-primary">{s.name}</span>)}</div>
-      <p className="flex gap-2 items-center mt-3 text-xs text-muted"><Clock size={15} />{Object.values(professional.weeklyHours || {}).some(slots => slots.length) ? 'Horario configurado' : 'Horario pendiente de configurar'}</p>
-      {bioSnippet && <p className="mt-3 text-sm text-muted">{bioSnippet}</p>}
-
-      <p className="mt-3 text-xs text-muted">
-        {professional.serviceIds?.length ?? 0} servicio
-        {professional.serviceIds?.length === 1 ? '' : 's'} asignado
-        {professional.serviceIds?.length === 1 ? '' : 's'}
-      </p>
-
-      <Button variant="secondary" className="mt-4 w-full" onClick={() => onEdit(professional)}>
-        <Pencil size={16} /> Editar perfil
-      </Button>
+      <p className="professional-card-email"><Mail size={15} />{professional.email}</p>
+      <div className="professional-card-services" aria-label="Servicios asignados">{assignedServices.slice(0,3).map(s => <span key={s.id}>{s.name}</span>)}{assignedServices.length > 3 && <span>+{assignedServices.length - 3}</span>}{!assignedServices.length && <span className="muted">Sin servicios</span>}</div>
+      <div className="professional-card-meta"><span><Clock size={15} />{Object.values(professional.weeklyHours || {}).some(slots => slots?.length) ? 'Horario configurado' : 'Horario pendiente'}</span><span><Briefcase size={15} />{professional.serviceIds?.length ?? 0} servicios</span></div>
+      <Button variant="secondary" className="professional-card-manage" onClick={() => onEdit(professional)}><Pencil size={16} />Gestionar</Button>
     </Card>
   )
 }
@@ -152,6 +141,7 @@ function Professionals() {
 
   // --- Lista de servicios (para los checkboxes) ---
   const [services, setServices] = useState([])
+  const [categories, setCategories] = useState([])
   const [servicesLoading, setServicesLoading] = useState(true)
   const [servicesListError, setServicesListError] = useState('')
 
@@ -162,6 +152,7 @@ function Professionals() {
   const [creatingBusy, setCreatingBusy] = useState(false)
   const [statusFilter, setStatusFilter] = useState('')
   const [serviceFilter, setServiceFilter] = useState('')
+  const [serviceSearch, setServiceSearch] = useState('')
 
   // --- Sección A: datos del perfil ---
   const [jobTitle, setJobTitle] = useState('')
@@ -193,6 +184,13 @@ function Professionals() {
     return onSnapshot(query(collection(db, 'memberships'), where('businessId', '==', businessId)),
       (snapshot) => setProfessionalUsers(snapshot.docs.filter((item) => item.data().role === 'professional').map((item) => item.data().userId)),
       () => setProfessionalsListError('No se pudieron cargar los roles de los profesionales.'))
+  }, [businessId])
+
+  useEffect(() => {
+    if (!businessId) return
+    return onSnapshot(query(collection(db, 'categories'), where('businessId', '==', businessId)),
+      snapshot => setCategories(snapshot.docs.map(item => ({ ...item.data(), id: item.id }))),
+      error => console.error('Error al cargar categorías de servicios', error))
   }, [businessId])
 
   useEffect(() => {
@@ -324,7 +322,7 @@ function Professionals() {
         jobTitle: jobTitle.trim(),
         bio: bio.trim(),
         phone: phone.trim(),
-        photo: { url: photoUrl.trim() || null, publicId: null },
+        photo: { url: photoUrl.trim() || null, publicId: photoUrl.trim() === (editingProfessional?.photo?.url ?? '') ? (editingProfessional?.photo?.publicId ?? null) : null },
         updatedAt: serverTimestamp(),
       })
       markFormSaved(e.target, false); setProfileSuccess('Perfil actualizado.')
@@ -395,7 +393,8 @@ function Professionals() {
     try {
       const previousIds = new Set(editingProfessional?.serviceIds ?? [])
       const existingIds = new Set(services.map((service) => service.id))
-      const newIds = new Set([...selectedServiceIds].filter((id) => existingIds.has(id)))
+      // Keep legacy references to deleted services unless an explicit UI can remove them.
+      const newIds = new Set(selectedServiceIds)
 
       const added = [...newIds].filter((id) => !previousIds.has(id))
       const removed = [...previousIds].filter((id) => existingIds.has(id) && !newIds.has(id))
@@ -431,19 +430,19 @@ function Professionals() {
   }
 
   return (
-    <div>
+    <div className="professionals-page">
       <PageHeader
         title="Profesionales"
         description="Registra profesionales y administra su perfil, servicios y horario."
       />
 
-      <div className="flex flex-wrap justify-between items-center gap-4 mb-6"><AdminSummary items={[
+      <div className="professionals-heading"><AdminSummary items={[
         { label: 'Profesionales activos', value: professionals.filter(p => p.isActive).length, icon: Users },
         { label: 'Sin servicios asignados', value: professionals.filter(p => !p.serviceIds?.length).length, icon: Briefcase, tone: 'blue' },
         { label: 'Sin horario configurado', value: professionals.filter(p => !Object.values(p.weeklyHours || {}).some(slots => slots.length)).length, icon: Clock, tone: 'green' },
       ]} /><Button onClick={() => setCreating(true)}><Plus size={18} />Registrar profesional</Button></div>
       {creating && <EditorDialog title="Registrar profesional" busy={creatingBusy} onClose={() => setCreating(false)}><CreateProfessionalForm businessId={businessId} onBusyChange={setCreatingBusy} /></EditorDialog>}
-      <div className="grid sm:grid-cols-2 gap-4 mb-5"><label className="text-sm">Estado<select aria-label="Filtrar estado del profesional" className={fieldControlClasses(false)} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}><option value="">Todos los estados</option><option value="active">Activos</option><option value="inactive">Inactivos</option></select></label><label className="text-sm">Servicio<select aria-label="Filtrar servicio del profesional" className={fieldControlClasses(false)} value={serviceFilter} onChange={e => setServiceFilter(e.target.value)}><option value="">Todos los servicios</option>{services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label></div>
+      <div className="professionals-filters"><label className="professional-filter-search"><span>Buscar profesionales</span><span className="professional-search-input"><Search size={17}/><input type="search" placeholder="Nombre, correo o especialidad…" value={serviceSearch} onChange={e=>setServiceSearch(e.target.value)}/></span></label><label>Estado<select aria-label="Filtrar estado del profesional" className={fieldControlClasses(false)} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}><option value="">Todos los estados</option><option value="active">Activos</option><option value="inactive">Inactivos</option></select></label><label>Servicio<select aria-label="Filtrar servicio del profesional" className={fieldControlClasses(false)} value={serviceFilter} onChange={e => setServiceFilter(e.target.value)}><option value="">Todos los servicios</option>{services.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label></div>
 
       {professionalsListError && (
         <div className="mb-4">
@@ -463,7 +462,7 @@ function Professionals() {
           Todavía no hay profesionales registrados en este negocio.
         </p>
       ) : (
-        <DataList label="Profesionales" items={professionals.filter(prof => professionalUsers.includes(prof.userId) && (!statusFilter || prof.isActive === (statusFilter === 'active')) && (!serviceFilter || prof.serviceIds?.includes(serviceFilter)))}>{rows => <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <DataList label="Profesionales" search={false} items={professionals.filter(prof => professionalUsers.includes(prof.userId) && (!statusFilter || prof.isActive === (statusFilter === 'active')) && (!serviceFilter || prof.serviceIds?.includes(serviceFilter)) && (!serviceSearch.trim() || [prof.displayName,prof.email,prof.jobTitle].some(value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().includes(serviceSearch.trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()))))}>{rows => <div className="professionals-grid">
           {rows.map((prof) => (
             <ProfessionalCard
               key={prof.id}
@@ -477,14 +476,15 @@ function Professionals() {
       )}
 
       {editingProfessional && (
-        <EditorDialog title={`Editar profesional: ${editingProfessional.displayName}`} onClose={closeEditor} busy={imageUploading || profileSaving || hoursSaving || svcAssignSaving}>
-          <div className="flex flex-wrap items-center gap-3 mb-5"><div className="rounded-full bg-indigo-100 p-3 text-primary"><User size={24} /></div><div><p className="font-semibold">{editingProfessional.displayName}</p><p className="text-sm text-muted">{editingProfessional.email}</p></div><Badge tone={editingProfessional.isActive ? 'success' : 'neutral'}>{editingProfessional.isActive ? 'Activo' : 'Inactivo'}</Badge></div>
+        <EditorDialog title="Gestionar profesional" description="Edita la información, servicios, horarios y permisos del profesional." onClose={closeEditor} busy={imageUploading || profileSaving || hoursSaving || svcAssignSaving}>
+          <div className="professional-workspace">
+          <div className="professional-editor-identity"><div className="professional-avatar">{editingProfessional.photo?.url ? <img src={photoUrl || editingProfessional.photo.url} alt=""/> : <User size={25}/>}</div><div className="min-w-0"><p className="font-semibold truncate">{editingProfessional.displayName}</p><p className="text-sm text-muted truncate">{editingProfessional.email}</p><p className="professional-job"><Briefcase size={14}/>{jobTitle || 'Puesto sin especificar'}</p></div><Badge tone={editingProfessional.isActive ? 'success' : 'neutral'}>{editingProfessional.isActive ? 'Activo' : 'Inactivo'}</Badge></div>
           <div className="workspace-tabs" role="tablist" aria-label="Editar profesional">{[['profile','Datos personales',User],['services','Servicios',Briefcase],['hours','Horarios',Clock],['access','Acceso',ShieldCheck]].map(([id,label,Icon]) => <button key={id} type="button" role="tab" aria-selected={tab === id} aria-controls={`professional-${id}`} id={`tab-${id}`} onClick={() => setTab(id)}><Icon size={18} />{label}</button>)}</div>
           <div className="professional-editor">
 
-              <section role="tabpanel" id="professional-profile" aria-labelledby="tab-profile" hidden={tab !== 'profile'}>
+              <section className="professional-panel professional-panel-with-summary" role="tabpanel" id="professional-profile" aria-labelledby="tab-profile" hidden={tab !== 'profile'}>
                 <h4 className="mb-4 text-sm font-semibold text-ink">Datos del perfil</h4>
-                <form onSubmit={handleProfileSubmit} noValidate className="grid md:grid-cols-2 gap-5 [&>div]:min-w-0">
+                <form onSubmit={handleProfileSubmit} noValidate className="professional-form-grid">
                   <Field label="Puesto" htmlFor="jobTitle">
                     <input
                       id="jobTitle"
@@ -544,6 +544,7 @@ function Professionals() {
                     {profileSaving ? 'Guardando...' : 'Guardar perfil'}
                   </Button>
                 </form>
+                <aside className="professional-summary-card" aria-live="polite"><h3>Resumen del profesional</h3><p className="text-sm text-muted">Vista previa de la información actual.</p><div className="professional-summary-person"><div className="professional-avatar">{photoUrl ? <img src={photoUrl} alt=""/> : <User size={24}/>}</div><div className="min-w-0"><strong>{editingProfessional.displayName}</strong><span>{jobTitle || 'Puesto sin especificar'}</span></div><Badge tone={editingProfessional.isActive ? 'success' : 'neutral'}>{editingProfessional.isActive ? 'Activo' : 'Inactivo'}</Badge></div><p><Mail size={15}/>{editingProfessional.email}</p>{phone && <p><Phone size={15}/>{phone}</p>}<div className="professional-summary-divider"/><strong>Servicios asignados <small>{selectedServiceIds.size}</small></strong><div className="professional-summary-tags">{services.filter(s=>selectedServiceIds.has(s.id)).slice(0,4).map(s=><span key={s.id}>{s.name}</span>)}{selectedServiceIds.size>4&&<span>+{selectedServiceIds.size-4}</span>}{!selectedServiceIds.size&&<span className="muted">Sin servicios</span>}</div><p><Clock size={15}/>{Object.values(weeklyHours).some(slots=>slots?.length)?'Horario configurado':'Sin horario configurado'}</p></aside>
               </section>
 
               <section role="tabpanel" id="professional-services" aria-labelledby="tab-services" hidden={tab !== 'services'}>
@@ -553,7 +554,7 @@ function Professionals() {
                 )}
                 <form onSubmit={handleServicesSubmit} className="space-y-4">
                   {!servicesLoading && !servicesListError && [...selectedServiceIds].some((id) => !services.some((service) => service.id === id)) && (
-                    <p className="text-sm text-muted">Hay servicios asignados que ya no existen. Al guardar se conservarán únicamente los servicios disponibles seleccionados.</p>
+                    <p className="text-sm text-muted">Hay referencias a servicios que ya no existen. Se conservarán para no alterar registros anteriores.</p>
                   )}
                   {servicesLoading ? (
                     <p className="text-sm text-muted">Cargando servicios...</p>
@@ -574,8 +575,8 @@ function Professionals() {
                             onChange={() => toggleServiceSelected(svc.id)}
                             className="h-4 w-4 rounded border-border text-primary focus:ring-primary/30"
                           />
-                          <span className="text-ink">{svc.name}</span>
-                          {!svc.isActive && <span className="text-xs text-muted">(inactivo)</span>}
+                          <span className="min-w-0 flex-1"><span className="block text-ink">{svc.name}</span><span className="block text-xs text-muted">{categories.find(category=>category.id===svc.categoryId)?.name || 'Sin categoría'}{svc.durationMinutes ? ` · ${svc.durationMinutes} min` : ''}</span></span>
+                          {!svc.isActive && <span className="text-xs text-muted">Inactivo</span>}
                         </label>
                       ))}
                     </div>}</DataList>
@@ -591,8 +592,8 @@ function Professionals() {
                 </form>
               </section>
 
-              <section role="tabpanel" id="professional-hours" aria-labelledby="tab-hours" hidden={tab !== 'hours'}>
-                <h4 className="mb-4 text-sm font-semibold text-ink">Horario semanal</h4>
+              <section className="professional-panel professional-panel-with-summary" role="tabpanel" id="professional-hours" aria-labelledby="tab-hours" hidden={tab !== 'hours'}>
+                <div className="professional-panel-heading"><h4 className="text-sm font-semibold text-ink">Horario semanal</h4><p className="text-sm text-muted">Configura los días y las franjas horarias disponibles para reservas.</p></div>
                 <form onSubmit={handleHoursSubmit} className="space-y-4">
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <Field label="Vigente desde" htmlFor="scheduleValidFrom">
@@ -626,9 +627,11 @@ function Professionals() {
                     {hoursSaving ? 'Guardando...' : 'Guardar horario'}
                   </Button>
                 </form>
+                <aside className="professional-summary-card hours-summary"><h3>Resumen de horario</h3><p className="text-sm text-muted">Se actualiza mientras editas.</p><div className="hours-summary-counts"><span><strong>{Object.values(weeklyHours).filter(slots=>slots?.length).length}</strong>días activos</span><span><strong>{Object.values(weeklyHours).reduce((n,slots)=>n+(slots?.length||0),0)}</strong>franjas</span></div><p className="hours-validity"><CalendarDays size={15}/>Vigente desde {scheduleValidFrom || 'sin fecha'}{scheduleValidUntil ? ` hasta ${scheduleValidUntil}` : ''}</p><div className="hours-day-summary">{DAYS.map(({key,label})=>{const slots=weeklyHours[key]||[];return <p key={key}><strong>{label}</strong><span>{slots.length ? slots.map(slot=>`${slot.start || '—'}–${slot.end || '—'}`).join(', ') : 'Cerrado'}</span></p>})}</div></aside>
               </section>
               <section role="tabpanel" id="professional-access" aria-labelledby="tab-access" hidden={tab !== 'access'}><Card title="Acceso a la cuenta" description="La cuenta y el perfil del profesional mantienen los mismos permisos."><p className="mb-4 text-sm">{editingProfessional.email}</p><Alert>El profesional puede cambiar su clave desde Mi seguridad o recuperar el acceso desde el inicio de sesión.</Alert><div className="mt-5"><Button variant="secondary" onClick={() => toggleProfessionalActive(editingProfessional)}>{editingProfessional.isActive ? 'Desactivar acceso' : 'Activar acceso'}</Button></div></Card></section>
             </div>
+          </div>
         </EditorDialog>
       )}
     </div>
