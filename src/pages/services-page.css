@@ -77,3 +77,82 @@
 @media(max-width:1050px) { .services-toolbar { grid-template-columns:minmax(160px,1fr) repeat(2,minmax(115px,.5fr)); } .services-toolbar > label:last-child { grid-column:3; } .services-table th,.services-table td { padding-inline:10px; } }
 @media(max-width:760px) { .services-toolbar { grid-template-columns:repeat(2,minmax(0,1fr)); padding:12px; } .services-search { grid-column:1/-1; } .services-toolbar > label:last-child { grid-column:auto; } .services-table { min-width:850px; } .service-cards-grid { grid-template-columns:minmax(0,1fr); padding:11px; } .service-editor-grid { grid-template-columns:minmax(0,1fr); } .service-preview { position:static; grid-row:1; } .service-preview > .service-image-large { height:160px; } }
 @media(max-width:480px) { .services-page { gap:13px; } .services-toolbar { gap:9px; } .services-toolbar > label { font-size:10px; } .services-pagination { align-items:flex-start; flex-direction:column; } .services-pagination > div { align-self:flex-end; } .service-card { grid-template-columns:72px minmax(0,1fr); gap:10px; padding:10px; } .service-card > .service-image-large { height:82px; } .service-card-title { flex-wrap:wrap; } .service-form-two { grid-template-columns:minmax(0,1fr); } .service-form-actions { bottom:-16px; } }
+
+/* Service editor: keep the form and preview inside a bounded, independently scrollable dialog. */
+.editor-dialog:has(.service-editor-form) { display:flex; width:min(1080px,calc(100vw - 32px)); height:min(900px,calc(100dvh - 32px)); max-height:calc(100dvh - 32px); flex-direction:column; overflow:hidden; }
+.editor-dialog:has(.service-editor-form) .editor-dialog-header { position:static; flex:none; padding:18px 26px; }
+.editor-dialog:has(.service-editor-form) .editor-dialog-content { min-height:0; flex:1; overflow:auto; overscroll-behavior:contain; padding:20px 26px 26px; }
+.editor-dialog:has(.service-detail-layout) { width:min(900px,calc(100vw - 32px)); max-height:calc(100dvh - 32px); overflow:hidden; }
+.editor-dialog:has(.service-detail-layout) .editor-dialog-header { position:sticky; top:0; }
+.editor-dialog:has(.service-detail-layout) .editor-dialog-content { max-height:calc(100dvh - 110px); overflow:auto; overscroll-behavior:contain; }
+.service-editor-form { gap:14px; }
+.service-editor-grid { grid-template-columns:minmax(0,1.35fr) minmax(290px,.9fr); align-items:stretch; gap:22px; }
+.service-form-fields { gap:12px; }
+.service-form-two { gap:12px; }
+.service-form-fields .service-form-two input,.service-form-fields textarea { min-height:42px; }
+.service-form-fields textarea { min-height:82px; }
+.service-image-upload { display:grid; min-width:0; gap:8px; }
+.service-image-upload > label:first-child { color:#293a58; font-size:13px; font-weight:650; }
+.service-image-upload-row { display:grid; grid-template-columns:120px minmax(0,1fr); align-items:center; gap:12px; }
+.service-image-upload-thumb,.service-image-upload-placeholder { display:grid; width:120px; height:86px; place-items:center; overflow:hidden; border:1px solid #e1e8f2; border-radius:10px; background:#f4f6fb; color:#6654f5; object-fit:cover; }
+.service-image-upload-placeholder { background:linear-gradient(145deg,#f3f0ff,#f8faff); }
+.service-image-upload-actions { display:flex; min-width:0; flex-wrap:wrap; align-items:center; gap:8px; }
+.service-image-upload-change,.service-image-upload-remove { display:inline-flex; min-height:38px; align-items:center; justify-content:center; gap:7px; padding:8px 11px; border:1px solid #dce4f1; border-radius:9px; background:#fff; color:#394d6e; font-size:12px; font-weight:600; cursor:pointer; }
+.service-image-upload-change input { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; }
+.service-image-upload-change:focus-within { outline:3px solid #818cf8; outline-offset:2px; }
+.service-image-upload-change.is-disabled,.service-image-upload-remove:disabled { opacity:.5; cursor:not-allowed; }
+.service-image-upload-remove { color:#b43f45; }
+.service-image-upload-help,.service-image-upload-status,.service-image-upload-error { width:100%; color:#7b89a0; font-size:11px; }
+.service-image-upload-status { color:#5d4bdb; }
+.service-image-upload-error { color:#be3434; }
+.service-active-toggle { padding:9px 11px; }
+.service-active-toggle input { accent-color:#6552ff; }
+.service-active-toggle span { gap:3px; }
+.service-preview { position:static; align-content:start; gap:9px; padding:16px; border-color:#e2e7ff; background:linear-gradient(160deg,#f8f8ff,#fbfcff); }
+.service-preview > div:first-child > h3 { color:#263754; font-size:15px; font-weight:700; }
+.service-preview > div:first-child > p { margin-top:3px; color:#74829c; font-size:12px; }
+.service-preview > .service-image-large { height:160px; }
+.service-preview-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
+.service-preview-heading > h4 { color:#1d2d49; font-size:16px; font-weight:700; overflow-wrap:anywhere; }
+.service-preview > p { color:#65758f; font-size:12px; line-height:1.45; white-space:pre-wrap; }
+.service-preview-facts { display:grid; gap:7px; color:#5d6f8c; font-size:12px; }
+.service-preview-facts > div { display:grid; grid-template-columns:115px minmax(0,1fr); gap:8px; }
+.service-preview-facts dt,.service-preview-facts dd { display:flex; align-items:center; gap:6px; }
+.service-preview-facts dt { color:#73819a; }
+.service-preview-facts dd { overflow-wrap:anywhere; color:#344867; }
+.service-associated { margin-top:2px; padding:11px 12px; }
+.service-associated > p { padding:7px 0; }
+.service-metadata { margin-top:4px; padding-top:8px!important; }
+.service-form-actions { bottom:0; margin:0 -26px -26px; padding:13px 26px; }
+.service-detail-layout { display:grid; max-width:none; gap:18px; }
+.service-detail-columns { display:grid; grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr); align-items:start; gap:22px; }
+.service-detail-image > .service-image-large { height:260px; }
+.service-detail-information { display:grid; min-width:0; align-content:start; justify-items:start; gap:11px; }
+.service-detail-information > h3 { color:#182744; font-size:20px; font-weight:750; overflow-wrap:anywhere; }
+.service-detail-information .service-detail-description { margin-bottom:3px; white-space:pre-wrap; }
+.service-detail-facts { display:grid; width:100%; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin:0; }
+.service-detail-facts > div { display:grid; gap:4px; }
+.service-detail-facts dt { display:flex; align-items:center; gap:6px; color:#77859d; font-size:11px; }
+.service-detail-facts dd { color:#344867; font-size:13px; font-weight:600; }
+.service-detail-metadata { display:flex; flex-wrap:wrap; gap:6px 20px; padding-top:10px; border-top:1px solid #e9edf4; color:#78869c; font-size:11px; }
+@media(max-width:760px) {
+  .editor-dialog:has(.service-editor-form) { width:calc(100vw - 16px); height:calc(100dvh - 16px); max-height:calc(100dvh - 16px); }
+  .editor-dialog:has(.service-editor-form) .editor-dialog-header { padding:14px 16px; }
+  .editor-dialog:has(.service-editor-form) .editor-dialog-content { padding:15px 16px 20px; }
+  .service-editor-grid,.service-detail-columns { grid-template-columns:minmax(0,1fr); }
+  .service-preview { grid-row:auto; }
+  .service-preview > .service-image-large { height:170px; }
+  .service-detail-image > .service-image-large { height:230px; }
+  .editor-dialog:has(.service-detail-layout) { width:calc(100vw - 16px); max-height:calc(100dvh - 16px); }
+  .editor-dialog:has(.service-detail-layout) .editor-dialog-content { max-height:calc(100dvh - 100px); }
+}
+@media(max-width:480px) {
+  .service-image-upload-row { grid-template-columns:92px minmax(0,1fr); gap:9px; }
+  .service-image-upload-thumb,.service-image-upload-placeholder { width:92px; height:76px; }
+  .service-image-upload-actions { gap:6px; }
+  .service-image-upload-change,.service-image-upload-remove { min-height:36px; padding:7px 8px; font-size:11px; }
+  .service-form-actions { bottom:0; margin:0 -16px -20px; padding:11px 16px; }
+  .service-form-actions button { min-height:42px; }
+  .service-detail-facts { grid-template-columns:1fr; }
+  .service-detail-image > .service-image-large { height:190px; }
+}

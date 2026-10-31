@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { collection, doc, getDoc, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore'
-import { BriefcaseBusiness, Check, ChevronLeft, ChevronRight, Clock3, Eye, Info, Pencil, Plus, Scissors, Search, Users } from 'lucide-react'
+import { BriefcaseBusiness, Check, ChevronLeft, ChevronRight, CircleDollarSign, Clock3, Eye, Info, Pencil, Plus, Scissors, Search, Users } from 'lucide-react'
 import { db } from '../firebase/config'
 import { useAuth } from '../context/auth-context'
 import { useFeedback } from '../context/feedback-context'
@@ -114,14 +114,13 @@ function ServicesContent() {
     event.preventDefault()
     if (saving || uploading) return
     const form = event.currentTarget
-    const formData = new FormData(form)
-    const name = String(formData.get('name') || '').trim()
-    const description = String(formData.get('description') || '').trim()
-    const categoryId = String(formData.get('categoryId') || '')
-    const price = Number(formData.get('price'))
-    const durationMinutes = Number(formData.get('durationMinutes'))
-    const bufferBeforeMinutes = Number(formData.get('bufferBeforeMinutes') || 0)
-    const bufferAfterMinutes = Number(formData.get('bufferAfterMinutes') || 0)
+    const name = String(values.name || '').trim()
+    const description = String(values.description || '').trim()
+    const categoryId = String(values.categoryId || '')
+    const price = Number(values.price)
+    const durationMinutes = Number(values.durationMinutes)
+    const bufferBeforeMinutes = Number(values.bufferBeforeMinutes || 0)
+    const bufferAfterMinutes = Number(values.bufferAfterMinutes || 0)
     const category = categories.find(item => item.id === categoryId && item.businessId === businessId)
     if (!name || name.length > 100) return setDialogError('El nombre es obligatorio y debe tener hasta 100 caracteres.')
     if (!category || (!category.isActive && categoryId !== dialog.service.categoryId)) return setDialogError('Selecciona una categoría activa de este negocio.')
@@ -130,7 +129,7 @@ function ServicesContent() {
     if (![bufferBeforeMinutes, bufferAfterMinutes].every(value => Number.isInteger(value) && value >= 0)) return setDialogError('Los márgenes deben ser números enteros iguales o mayores a 0.')
     if (!currencyCode) return setDialogError('Espera a que se cargue la moneda del negocio y vuelve a intentar.')
     setDialogError(''); setSaving(true)
-    const common = { name, description, categoryId, price, durationMinutes, bufferBeforeMinutes, bufferAfterMinutes, isActive: formData.get('isActive') === 'on', image: { url: values.imageUrl || null, publicId: dialog.service.image?.publicId || null }, updatedAt: serverTimestamp() }
+    const common = { name, description, categoryId, price, durationMinutes, bufferBeforeMinutes, bufferAfterMinutes, isActive: values.isActive, image: { url: values.imageUrl || null, publicId: values.imageUrl === dialog.service.image?.url ? dialog.service.image?.publicId || null : null }, updatedAt: serverTimestamp() }
     try {
       if (dialog.mode === 'edit') {
         await updateDoc(doc(db, 'services', dialog.service.id), common)
@@ -183,7 +182,7 @@ function ServicesContent() {
       </tr>)}</tbody></table></div>}
       <footer className="services-pagination"><span>{visible.length ? `${(currentPage - 1) * PAGE_SIZE + 1}–${Math.min(currentPage * PAGE_SIZE, visible.length)} de ${visible.length} servicios` : '0 servicios'}</span><div><button type="button" aria-label="Página anterior" disabled={currentPage <= 1} onClick={() => setPage(value => value - 1)}><ChevronLeft size={17} /></button><span>Página {currentPage} de {pageCount}</span><button type="button" aria-label="Página siguiente" disabled={currentPage >= pageCount} onClick={() => setPage(value => value + 1)}><ChevronRight size={17} /></button></div></footer>
     </div>
-    {dialog?.mode === 'details' && <ServiceDetailsDialog service={dialog.service} categories={categories} professionals={professionals} professionalsReady={professionalsLoadedBusinessId === businessId} professionalsError={professionalsError} professionalId={professionalId} onClose={() => setDialog(null)} />}
+    {dialog?.mode === 'details' && <ServiceDetailsDialog service={dialog.service} categories={categories} professionals={professionals} professionalsReady={professionalsLoadedBusinessId === businessId} professionalsError={professionalsError} professionalId={professionalId} canEdit={!isProfessional} onEdit={() => openEdit(dialog.service)} onClose={() => setDialog(null)} />}
     {(dialog?.mode === 'create' || dialog?.mode === 'edit') && <ServiceEditorDialog key={`${dialog.mode}-${dialog.service.id || 'new'}`} dialog={dialog} categories={categories} professionals={professionals} professionalsReady={professionalsLoadedBusinessId === businessId} professionalsError={professionalsError} businessId={businessId} currencyCode={currencyCode} error={dialogError} saving={saving} uploading={uploading} onUpload={setUploading} onSave={saveService} onClose={() => setDialog(null)} />}
   </section>
 }
@@ -192,15 +191,33 @@ function ServiceImage({ service, large = false }) {
   return <span className={`service-image${large ? ' service-image-large' : ''}`}>{safeImageUrl(service.image?.url) ? <img src={service.image.url} alt={service.name ? `Imagen de ${service.name}` : ''} loading="lazy" /> : <Scissors size={large ? 24 : 18} aria-hidden="true" />}</span>
 }
 
-function ServiceDetailsDialog({ service, categories, professionals, professionalsReady, professionalsError, professionalId, onClose }) {
+function ServiceDetailsDialog({ service, categories, professionals, professionalsReady, professionalsError, professionalId, canEdit, onEdit, onClose }) {
   const category = categories.find(item => item.id === service.categoryId)?.name || 'Categoría no disponible'
   const assigned = getServiceProfessionals(service, professionals)
   const ownAssignment = professionalId && service.professionalIds?.includes(professionalId)
-  return <EditorDialog title={service.name || 'Detalle del servicio'} onClose={onClose}>
-    <div className="service-detail-layout"><div className="service-detail-main"><ServiceImage service={service} large /><Badge tone={service.isActive ? 'success' : 'neutral'}>{service.isActive ? 'Activo' : 'Inactivo'}</Badge><h3>{service.name}</h3><p className="service-detail-description">{service.description || 'Este servicio no tiene descripción registrada.'}</p><div className="service-detail-facts"><span><Scissors size={17} />{category}</span><span><Clock3 size={17} />{service.durationMinutes} minutos</span><span>{service.price} {service.currencyCode || ''}</span></div><p><strong>Margen antes:</strong> {service.bufferBeforeMinutes ?? 0} minutos</p><p><strong>Margen después:</strong> {service.bufferAfterMinutes ?? 0} minutos</p>
+  const createdAt = formatDate(service.createdAt)
+  const updatedAt = formatDate(service.updatedAt)
+  return <EditorDialog title={service.name || 'Detalle del servicio'} description="Información del servicio" headerAction={canEdit && <Button variant="secondary" onClick={onEdit}><Pencil size={15} />Editar servicio</Button>} onClose={onClose}>
+    <div className="service-detail-layout">
+      <div className="service-detail-columns">
+        <div className="service-detail-image"><ServiceImage service={service} large /></div>
+        <div className="service-detail-information">
+          <Badge tone={service.isActive ? 'success' : 'neutral'}>{service.isActive ? 'Activo' : 'Inactivo'}</Badge>
+          <h3>{service.name}</h3>
+          <p className="service-detail-description">{service.description || 'Este servicio no tiene descripción registrada.'}</p>
+          <dl className="service-detail-facts">
+            <div><dt><Scissors size={16} />Categoría</dt><dd>{category}</dd></div>
+            <div><dt><CircleDollarSign size={16} />Precio</dt><dd>{service.price} {service.currencyCode || ''}</dd></div>
+            <div><dt><Clock3 size={16} />Duración</dt><dd>{service.durationMinutes} minutos</dd></div>
+            <div><dt>Margen antes</dt><dd>{service.bufferBeforeMinutes ?? 0} minutos</dd></div>
+            <div><dt>Margen después</dt><dd>{service.bufferAfterMinutes ?? 0} minutos</dd></div>
+          </dl>
+        </div>
+      </div>
       {!professionalId && <section className="service-associated"><h4><Users size={17} />Profesionales asociados</h4>{professionalsError ? <p role="alert">{professionalsError}</p> : !professionalsReady ? <p role="status">Cargando profesionales asociados…</p> : assigned.length ? assigned.map(person => <p key={person.id}>{person.displayName || `${person.firstName || ''} ${person.lastName || ''}`.trim() || 'Profesional'}</p>) : <p>No hay profesionales asociados a este servicio.</p>}</section>}
       {professionalId && <p className="service-assignment"><Check size={16} />{ownAssignment ? 'Asignado a tu perfil' : 'La asignación a tu perfil no está disponible.'}</p>}
-    </div></div>
+      {(createdAt || updatedAt) && <div className="service-detail-metadata">{createdAt && <span>Creado el {createdAt}</span>}{updatedAt && <span>Actualizado el {updatedAt}</span>}</div>}
+    </div>
   </EditorDialog>
 }
 
@@ -209,23 +226,30 @@ function ServiceEditorDialog({ dialog, categories, professionals, professionalsR
   const isEdit = dialog.mode === 'edit'
   const { confirm } = useFeedback()
   const formRef = useRef(null)
-  const [imageUrl, setImageUrl] = useState(service.image?.url || '')
+  const [preview, setPreview] = useState(() => ({
+    name: service.name || '', categoryId: service.categoryId || '', description: service.description || '',
+    price: service.price ?? '', durationMinutes: service.durationMinutes ?? '',
+    bufferBeforeMinutes: service.bufferBeforeMinutes ?? 0, bufferAfterMinutes: service.bufferAfterMinutes ?? 0,
+    isActive: service.isActive !== false, imageUrl: service.image?.url || '',
+  }))
   const associated = getServiceProfessionals(service, professionals)
   const activeCategories = categories.filter(item => item.isActive || item.id === service.categoryId)
-  return <EditorDialog title={isEdit ? 'Editar servicio' : 'Nuevo servicio'} busy={saving || uploading} onClose={onClose}>
-    <form ref={formRef} className="service-editor-form" onSubmit={event => onSave(event, { imageUrl })}>
-      {error && <Alert>{error}</Alert>}
+  const selectedCategory = categories.find(category => category.id === preview.categoryId)
+  const updatePreview = key => event => setPreview(current => ({ ...current, [key]: event.target.type === 'checkbox' ? event.target.checked : event.target.value }))
+  return <EditorDialog title={isEdit ? 'Editar servicio' : 'Nuevo servicio'} description={isEdit ? 'Actualiza la información del servicio.' : 'Completa la información para agregar un servicio.'} busy={saving || uploading} onClose={onClose}>
+    <form ref={formRef} className="service-editor-form" onSubmit={event => onSave(event, preview)}>
+      {error && <Alert tone="error">{error}</Alert>}
       <div className="service-editor-grid">
         <div className="service-form-fields">
-          <ImageUploadField label="Imagen del servicio" value={imageUrl} onChange={setImageUrl} businessId={businessId} kind="service" disabled={saving || uploading} onBusyChange={onUpload} />
-          <div className="service-form-two"><Field label="Nombre del servicio" htmlFor="service-name"><input id="service-name" name="name" required maxLength={100} defaultValue={service.name || ''} className={fieldControlClasses(false)} /></Field><Field label="Categoría" htmlFor="service-category"><select id="service-category" name="categoryId" required defaultValue={service.categoryId || ''} className={fieldControlClasses(false)}><option value="" disabled>Selecciona una categoría</option>{activeCategories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}</select></Field></div>
-          <Field label="Descripción" htmlFor="service-description"><textarea id="service-description" name="description" maxLength={500} rows={4} defaultValue={service.description || ''} className={fieldControlClasses(false)} /></Field>
-          <div className="service-form-two"><Field label={`Precio (${currencyCode || 'moneda del negocio'})`} htmlFor="service-price"><input id="service-price" name="price" type="number" min="0.01" step="0.01" required defaultValue={service.price ?? ''} className={fieldControlClasses(false)} /></Field><Field label="Duración (minutos)" htmlFor="service-duration"><input id="service-duration" name="durationMinutes" type="number" min="1" step="1" required defaultValue={service.durationMinutes ?? ''} className={fieldControlClasses(false)} /></Field></div>
-          <div className="service-form-two"><Field label="Margen antes (minutos)" htmlFor="service-before"><input id="service-before" name="bufferBeforeMinutes" type="number" min="0" step="1" defaultValue={service.bufferBeforeMinutes ?? 0} className={fieldControlClasses(false)} /></Field><Field label="Margen después (minutos)" htmlFor="service-after"><input id="service-after" name="bufferAfterMinutes" type="number" min="0" step="1" defaultValue={service.bufferAfterMinutes ?? 0} className={fieldControlClasses(false)} /></Field></div>
-          <label className="service-active-toggle"><input type="checkbox" name="isActive" defaultChecked={service.isActive !== false} /><span><strong>Servicio activo</strong><small>{service.isActive === false ? 'Al activarlo, volverá a ofrecerse para nuevas reservas.' : 'Al desactivarlo, dejará de ofrecerse para nuevas reservas.'}</small></span></label>
+          <ImageUploadField compact label="Imagen del servicio" value={preview.imageUrl} onChange={url => setPreview(current => ({ ...current, imageUrl: url }))} businessId={businessId} kind="service" disabled={saving || uploading} onBusyChange={onUpload} />
+          <div className="service-form-two"><Field label="Nombre del servicio" htmlFor="service-name"><input id="service-name" name="name" required maxLength={100} value={preview.name} onChange={updatePreview('name')} className={fieldControlClasses(false)} /></Field><Field label="Categoría" htmlFor="service-category"><select id="service-category" name="categoryId" required value={preview.categoryId} onChange={updatePreview('categoryId')} className={fieldControlClasses(false)}><option value="" disabled>Selecciona una categoría</option>{activeCategories.map(category => <option key={category.id} value={category.id}>{category.name}</option>)}</select></Field></div>
+          <Field label="Descripción" htmlFor="service-description"><textarea id="service-description" name="description" maxLength={500} rows={3} value={preview.description} onChange={updatePreview('description')} className={fieldControlClasses(false)} /></Field>
+          <div className="service-form-two"><Field label={`Precio (${currencyCode || 'moneda del negocio'})`} htmlFor="service-price"><input id="service-price" name="price" type="number" min="0.01" step="0.01" required value={preview.price} onChange={updatePreview('price')} className={fieldControlClasses(false)} /></Field><Field label="Duración (minutos)" htmlFor="service-duration"><input id="service-duration" name="durationMinutes" type="number" min="1" step="1" required value={preview.durationMinutes} onChange={updatePreview('durationMinutes')} className={fieldControlClasses(false)} /></Field></div>
+          <div className="service-form-two"><Field label="Margen antes (minutos)" htmlFor="service-before"><input id="service-before" name="bufferBeforeMinutes" type="number" min="0" step="1" value={preview.bufferBeforeMinutes} onChange={updatePreview('bufferBeforeMinutes')} className={fieldControlClasses(false)} /></Field><Field label="Margen después (minutos)" htmlFor="service-after"><input id="service-after" name="bufferAfterMinutes" type="number" min="0" step="1" value={preview.bufferAfterMinutes} onChange={updatePreview('bufferAfterMinutes')} className={fieldControlClasses(false)} /></Field></div>
+          <label className="service-active-toggle"><input type="checkbox" name="isActive" checked={preview.isActive} onChange={updatePreview('isActive')} /><span><strong>Servicio activo</strong><small>{preview.isActive ? 'Habilitado para ofrecerse en nuevas reservas.' : 'Deshabilitado para nuevas reservas.'}</small></span></label>
         </div>
-        <aside className="service-preview"><h3>Vista previa</h3><ServiceImage service={{ ...service, image: { ...service.image, url: imageUrl } }} large /><h4>{service.name || 'Nombre del servicio'}</h4><Badge tone={service.isActive === false ? 'neutral' : 'success'}>{service.isActive === false ? 'Inactivo' : 'Activo'}</Badge><p>{categories.find(category => category.id === service.categoryId)?.name || 'Categoría'}</p><div className="service-detail-facts"><span><Clock3 size={16} />{service.durationMinutes || '—'} min</span><span>{service.price ?? '—'} {currencyCode}</span></div>
-          {isEdit && <section className="service-associated"><h4><Users size={17} />Profesionales asociados</h4>{professionalsError ? <p role="alert">{professionalsError}</p> : !professionalsReady ? <p role="status">Cargando profesionales asociados…</p> : associated.length ? associated.map(person => <p key={person.id}>{person.displayName || person.id}</p>) : <p>No hay asociaciones registradas.</p>}<p className="service-metadata">{service.createdAt ? `Creado el ${formatDate(service.createdAt)}` : 'No hay fecha de creación disponible.'}</p></section>}
+        <aside className="service-preview" aria-live="polite"><div><h3>Vista previa del servicio</h3><p>Así se mostrará en la lista y en el detalle.</p></div><ServiceImage service={{ name: preview.name, image: { url: preview.imageUrl } }} large /><div className="service-preview-heading"><h4>{preview.name || 'Nombre del servicio'}</h4><Badge tone={preview.isActive ? 'success' : 'neutral'}>{preview.isActive ? 'Activo' : 'Inactivo'}</Badge></div><p>{preview.description || 'Sin descripción.'}</p><dl className="service-preview-facts"><div><dt><Scissors size={15} />Categoría</dt><dd>{selectedCategory?.name || 'Sin categoría'}</dd></div><div><dt><Clock3 size={15} />Duración</dt><dd>{preview.durationMinutes || '—'} minutos</dd></div><div><dt><CircleDollarSign size={15} />Precio</dt><dd>{preview.price || '—'} {currencyCode}</dd></div><div><dt>Margen antes</dt><dd>{preview.bufferBeforeMinutes || 0} min</dd></div><div><dt>Margen después</dt><dd>{preview.bufferAfterMinutes || 0} min</dd></div></dl>
+          <section className="service-associated"><h4><Users size={17} />Profesionales asociados</h4>{!isEdit ? <p>El servicio todavía no tiene profesionales asignados.</p> : professionalsError ? <p role="alert">{professionalsError}</p> : !professionalsReady ? <p role="status">Cargando profesionales asociados…</p> : associated.length ? associated.map(person => <p key={person.id}>{person.displayName || `${person.firstName || ''} ${person.lastName || ''}`.trim() || 'Profesional'}</p>) : <p>No hay profesionales asociados a este servicio.</p>}{isEdit && formatDate(service.createdAt) && <p className="service-metadata">Creado el {formatDate(service.createdAt)}</p>}</section>
         </aside>
       </div>
       <div className="service-form-actions"><Button type="button" variant="secondary" disabled={saving || uploading} onClick={async () => { if (await confirmDiscard(formRef.current, confirm)) onClose() }}>Cancelar</Button><Button type="submit" disabled={saving || uploading}>{saving ? 'Guardando…' : isEdit ? 'Guardar cambios' : 'Crear servicio'}</Button></div>
