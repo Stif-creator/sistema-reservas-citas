@@ -132,26 +132,26 @@ function AvailabilityView({ membership, ownId }) {
     const publish = () => {
       const blocksById = new Map([...globalBlocks, ...professionalBlocks].map(block => [block.id, block]))
       const blocks = [...blocksById.values()]
-      if (blocks.length > 2000) return fail({ code: 'resource-exhausted' })
+      if (blocks.length > 2000) return fail('bloqueos', { code: 'resource-exhausted' })
       if (active) setAvailability({ key: occupancyKey, reservations, blocks, loaded: reservationsLoaded && globalBlocksLoaded && professionalBlocksLoaded, error: '' })
     }
-    const fail = error => {
-      console.error('Error al consultar disponibilidad en Firestore:', error?.code || error)
+    const fail = (source, error) => {
+      console.error(`Error al consultar disponibilidad en Firestore (${source}):`, error)
       if (active) setAvailability(previous => previous.key === occupancyKey ? { ...previous, loaded: false, error: errorMessage(error) } : previous)
     }
     const stops = [
       onSnapshot(reservationQuery, snapshot => {
-        if (snapshot.size > 2000) return fail({ code: 'resource-exhausted' })
+        if (snapshot.size > 2000) return fail('reservas', { code: 'resource-exhausted' })
         reservations = snapshot.docs.map(item => ({ ...item.data(), id: item.id })); reservationsLoaded = true; publish()
-      }, fail),
+      }, error => fail('reservas', error)),
       onSnapshot(globalBlocksQuery, snapshot => {
-        if (snapshot.size > 2000) return fail({ code: 'resource-exhausted' })
+        if (snapshot.size > 2000) return fail('bloqueos globales', { code: 'resource-exhausted' })
         globalBlocks = snapshot.docs.map(item => ({ ...item.data(), id: item.id })); globalBlocksLoaded = true; publish()
-      }, fail),
+      }, error => fail('bloqueos globales', error)),
       onSnapshot(professionalBlocksQuery, snapshot => {
-        if (snapshot.size > 2000) return fail({ code: 'resource-exhausted' })
+        if (snapshot.size > 2000) return fail('bloqueos del profesional', { code: 'resource-exhausted' })
         professionalBlocks = snapshot.docs.map(item => ({ ...item.data(), id: item.id })); professionalBlocksLoaded = true; publish()
-      }, fail),
+      }, error => fail('bloqueos del profesional', error)),
     ]
     return () => { active = false; stops.forEach(stop => stop()) }
   }, [occupancyKey, businessId, isAdmin, membership.role, membership.userId, queryProfessionalId, queryRange, baseLoaded])
