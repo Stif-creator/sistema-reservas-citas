@@ -29,12 +29,12 @@ test('client booking, admin agenda, manual booking and assigned professional sta
       appearance: { primaryColor: '#7c3aed', secondaryColor: '#f0e7ff' },
       settings: { publicPageEnabled: true, timezone: 'America/La_Paz', currencyCode: 'BOB', minAdvanceMinutes: 0, maxAdvanceDays: 90, bookingIntervalMinutes: 30, cancellationLimitHours: 24, autoConfirmBookings: false } })
     for (const [role, account] of Object.entries(accounts)) {
-      await setDoc(doc(db, 'users', account.uid), { id: account.uid, auth_uid: account.uid, firstName: role === 'client' ? 'María' : role === 'admin' ? 'Dueña' : 'Ana', lastName: 'Prueba', email: account.email, phone: '70000000', status: 'active', globalRole: 'user', businessIds: [businessId], onboardingComplete: true })
+      await setDoc(doc(db, 'users', account.uid), { id: account.uid, auth_uid: account.uid, firstName: role === 'client' ? 'MarÃ­a' : role === 'admin' ? 'DueÃ±a' : 'Ana', lastName: 'Prueba', email: account.email, phone: '70000000', status: 'active', globalRole: 'user', businessIds: [businessId], onboardingComplete: true })
       await setDoc(doc(db, 'memberships', `${businessId}_${account.uid}`), { userId: account.uid, businessId, role, status: 'active', permissions: {} })
     }
-    await setDoc(doc(db, 'clients', `client-${suffix}`), { businessId, userId: accounts.client.uid, firstName: 'María', lastName: 'Prueba', email: accounts.client.email, phone: '70000000' })
+    await setDoc(doc(db, 'clients', `client-${suffix}`), { businessId, userId: accounts.client.uid, firstName: 'MarÃ­a', lastName: 'Prueba', email: accounts.client.email, phone: '70000000' })
     await setDoc(doc(db, 'categories', `category-${suffix}`), { businessId, name: 'Bienestar', isActive: true })
-    await setDoc(doc(db, 'services', serviceId), { businessId, name: 'Consulta integral', description: 'Atención personalizada.', price: 100, durationMinutes: 30, currencyCode: 'BOB', categoryId: `category-${suffix}`, isActive: true, isPublic: true })
+    await setDoc(doc(db, 'services', serviceId), { businessId, name: 'Consulta integral', description: 'AtenciÃ³n personalizada.', price: 100, durationMinutes: 30, currencyCode: 'BOB', categoryId: `category-${suffix}`, isActive: true, isPublic: true })
     await setDoc(doc(db, 'professionals', professionalId), { businessId, userId: accounts.professional.uid, displayName: 'Ana Agenda', jobTitle: 'Especialista', serviceIds: [serviceId], isActive: true, weeklyHours: hours })
   })
   await env.cleanup()
@@ -43,9 +43,9 @@ test('client booking, admin agenda, manual booking and assigned professional sta
   const staff = await staffContext.newPage(), pro = await proContext.newPage()
   async function login(target, role) {
     await target.goto('http://127.0.0.1:4173/login')
-    await target.getByLabel('Correo electrónico').fill(accounts[role].email)
-    await target.getByLabel('Contraseña', { exact: true }).fill(password)
-    await target.getByRole('button', { name: 'Iniciar sesión', exact: true }).click()
+    await target.getByLabel('Correo electrÃ³nico').fill(accounts[role].email)
+    await target.getByLabel('ContraseÃ±a', { exact: true }).fill(password)
+    await target.getByRole('button', { name: 'Iniciar sesiÃ³n', exact: true }).click()
     await expect(target).toHaveURL(role === 'client' ? /\/cliente$/ : /\/dashboard$/)
   }
   async function selectTime(target, label) {
@@ -55,7 +55,7 @@ test('client booking, admin agenda, manual booking and assigned professional sta
   }
   try {
     await login(page, 'client')
-    // Una respuesta de disponibilidad que supera el período de sondeo no debe descartarse.
+    // Una respuesta de disponibilidad que supera el perÃ­odo de sondeo no debe descartarse.
     let availabilityCalls = 0
     await page.route('**/booking', async route => {
       const input = route.request().postDataJSON()
@@ -79,14 +79,14 @@ test('client booking, admin agenda, manual booking and assigned professional sta
     await selectTime(page, '10:00')
     await page.getByLabel('Notas adicionales (opcional)').fill('Primera visita')
     await page.getByRole('button', { name: /^(Confirmar reserva|Solicitar cita)$/ }).click()
-    await expect(page.getByRole('heading', { name: '¡Solicitud registrada!' })).toBeVisible({ timeout: 20000 })
+    await expect(page.getByRole('heading', { name: 'Â¡Solicitud registrada!' })).toBeVisible({ timeout: 20000 })
     await page.getByRole('link', { name: 'Ver mi reserva', exact: true }).click()
     await expect(page.getByText('Pendiente', { exact: true })).toBeVisible()
     const originalUrl = page.url()
 
     await login(staff, 'admin')
     await staff.getByRole('link', { name: 'Reservas', exact: true }).click()
-    await staff.getByRole('row').filter({ hasText: 'María Prueba' }).getByRole('link', { name: 'Ver detalle' }).click()
+    await staff.getByRole('row').filter({ hasText: 'MarÃ­a Prueba' }).getByRole('link', { name: 'Ver detalle' }).click()
     await staff.getByRole('button', { name: 'Confirmar', exact: true }).click()
     await staff.getByRole('button', { name: 'Aplicar cambio', exact: true }).click()
     await expect(page.getByText('Confirmada', { exact: true })).toBeVisible()
@@ -94,7 +94,7 @@ test('client booking, admin agenda, manual booking and assigned professional sta
     await page.getByRole('button', { name: 'Reprogramar', exact: true }).click()
     await selectTime(page, '11:00')
     // El servidor guarda, pero la respuesta se pierde. El snapshot no debe borrar
-    // la solicitud original: reintentar debe recuperar exactamente esa operación.
+    // la solicitud original: reintentar debe recuperar exactamente esa operaciÃ³n.
     const rescheduleRequests = []
     await page.route('**/booking', async route => {
       const input = route.request().postDataJSON()
@@ -110,7 +110,7 @@ test('client booking, admin agenda, manual booking and assigned professional sta
       return route.continue()
     })
     await page.getByRole('button', { name: 'Guardar nuevo horario', exact: true }).click()
-    await page.getByRole('button', { name: 'Reintentar confirmación', exact: true }).click()
+    await page.getByRole('button', { name: 'Reintentar confirmaciÃ³n', exact: true }).click()
     await expect(page).toHaveURL(originalUrl)
     expect(rescheduleRequests).toHaveLength(2)
     expect(rescheduleRequests[1]).toEqual(rescheduleRequests[0])
@@ -125,23 +125,23 @@ test('client booking, admin agenda, manual booking and assigned professional sta
     await staff.getByRole('button', { name: /Consulta integral/ }).click()
     await staff.getByRole('button', { name: /Ana Agenda/ }).click()
     await selectTime(staff, '11:00')
-    await staff.getByLabel('Nombre completo', { exact: true }).fill('Manuel Teléfono')
-    await staff.getByLabel('Teléfono', { exact: true }).fill('70000002')
+    await staff.getByLabel('Nombre completo', { exact: true }).fill('Manuel TelÃ©fono')
+    await staff.getByLabel('TelÃ©fono', { exact: true }).fill('70000002')
     await staff.getByRole('button', { name: /^(Confirmar reserva|Solicitar cita)$/ }).click()
     await expect(staff.getByRole('heading', { name: 'Detalle de reserva' })).toBeVisible()
-    await expect(staff.getByText('Manuel Teléfono', { exact: true })).toBeVisible()
+    await expect(staff.getByText('Manuel TelÃ©fono', { exact: true })).toBeVisible()
 
     await staff.goto('/reservas')
     await staff.getByLabel('Fecha desde').fill(date)
     await staff.getByLabel('Fecha hasta').fill(date)
     await staff.getByRole('button', { name: 'Aplicar filtros' }).click()
-    const manualRow = staff.getByRole('row').filter({ hasText: 'Manuel Teléfono' })
+    const manualRow = staff.getByRole('row').filter({ hasText: 'Manuel TelÃ©fono' })
     await expect(manualRow).toBeVisible()
     await staff.getByLabel('Estado').selectOption('pending')
     await staff.getByLabel('Servicio').selectOption(serviceId)
     await staff.getByLabel('Profesional').selectOption(professionalId)
     await expect(manualRow).toBeVisible()
-    await staff.getByLabel('Buscar reservas').fill('manuel telÉfono')
+    await staff.getByLabel('Buscar en la página actual').fill('manuel telÃ‰fono')
     await expect(manualRow).toBeVisible()
     await staff.getByLabel('Fecha hasta').fill('')
     await staff.getByRole('button', { name: 'Aplicar filtros' }).click()
@@ -156,18 +156,18 @@ test('client booking, admin agenda, manual booking and assigned professional sta
     await login(pro, 'professional')
     await pro.getByRole('link', { name: 'Mis reservas', exact: true }).click()
     await expect(pro.getByRole('link', { name: 'Reserva manual', exact: true })).toHaveCount(0)
-    await pro.getByRole('row').filter({ hasText: 'Manuel Teléfono' }).getByRole('link', { name: 'Ver detalle' }).click()
+    await pro.getByRole('row').filter({ hasText: 'Manuel TelÃ©fono' }).getByRole('link', { name: 'Ver detalle' }).click()
     await pro.getByRole('button', { name: 'Confirmar', exact: true }).click()
     await pro.getByRole('button', { name: 'Aplicar cambio', exact: true }).click()
     await staff.getByRole('link', { name: 'Reservas', exact: true }).click()
-    await expect(staff.getByRole('row').filter({ hasText: 'Manuel Teléfono' }).getByText('Confirmada', { exact: true })).toBeVisible()
+    await expect(staff.getByRole('row').filter({ hasText: 'Manuel TelÃ©fono' }).getByText('Confirmada', { exact: true })).toBeVisible()
 
     await staff.getByRole('link', { name: 'Agenda', exact: true }).click()
     await staff.getByLabel('Fecha de agenda').fill(date)
-    for (const label of ['Día', 'Semana', 'Mes']) {
+    for (const label of ['DÃ­a', 'Semana', 'Mes']) {
       await staff.getByRole('button', { name: label, exact: true }).click()
-      await expect(staff.getByText('Manuel Teléfono', { exact: true })).toBeVisible()
-      await expect(staff.getByText('María Prueba', { exact: true })).toHaveCount(0)
+      await expect(staff.getByText('Manuel TelÃ©fono', { exact: true })).toBeVisible()
+      await expect(staff.getByText('MarÃ­a Prueba', { exact: true })).toHaveCount(0)
     }
     await staff.screenshot({ path: 'test-results/sprint2-agenda.png', fullPage: true })
     await page.setViewportSize({ width: 390, height: 844 })
@@ -178,7 +178,7 @@ test('client booking, admin agenda, manual booking and assigned professional sta
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
     await page.screenshot({ path: 'test-results/sprint2-confirm-mobile.png', fullPage: true })
     await page.getByRole('button', { name: /^(Confirmar reserva|Solicitar cita)$/ }).click()
-    await expect(page.getByRole('heading', { name: '¡Solicitud registrada!' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Â¡Solicitud registrada!' })).toBeVisible()
     expect(errors).toEqual([])
   } finally { await staffContext.close(); await proContext.close() }
 })

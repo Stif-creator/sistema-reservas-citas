@@ -4,7 +4,7 @@ import { collection, doc, onSnapshot, query, where } from 'firebase/firestore'
 import { useAuth } from '../context/auth-context'
 import { db } from '../firebase/config'
 
-export default function useBusinessReservations(range = null) {
+export default function useBusinessReservations(range = null, { includeItems = true } = {}) {
   const { membership, currentUser } = useAuth()
   const businessId = membership?.businessId || ''
   const role = membership?.role || ''
@@ -36,6 +36,7 @@ export default function useBusinessReservations(range = null) {
       const value = snap.exists() ? { ...snap.data(), id: snap.id } : null
       setState(previous => ({ ...(previous.key === key ? previous : {}), key, business: value, businessError: !value ? 'Negocio no disponible.' : '' }))
     }, () => setState(previous => ({ ...(previous.key === key ? previous : {}), key, businessError: 'No se pudieron cargar los datos. Recarga la página.' }))))
+    if (!includeItems) return () => stops.forEach(stop => stop())
     let fallbackStarted = false
     stops.push(onSnapshot(rangeQuery, snap => receive(snap), error => {
       const missingIndex = error?.code === 'failed-precondition' && /index/i.test(error.message || '')
@@ -47,9 +48,9 @@ export default function useBusinessReservations(range = null) {
       setState(previous => ({ ...(previous.key === key ? previous : {}), key, itemsKey, itemsError: 'No se pudieron cargar los datos. Recarga la página.' }))
     }))
     return () => stops.forEach(stop => stop())
-  }, [businessId, role, uid, key, range, rangeKey, range?.start, range?.end])
+  }, [businessId, role, uid, key, range, rangeKey, range?.start, range?.end, includeItems])
   const current = state.key === key ? state : {}
-  const items = useReservationStates(current.itemsKey === `${key}:${rangeKey}` ? current.items || [] : [])
+  const items = useReservationStates(includeItems && current.itemsKey === `${key}:${rangeKey}` ? current.items || [] : [])
   const missingScope = !businessId || !uid
-  return { business: current.business, items, loading: !missingScope && !('business' in current && current.itemsKey === `${key}:${rangeKey}`), rangeFallback: current.itemsKey === `${key}:${rangeKey}` && current.itemsFallback === true, error: missingScope ? 'Selecciona un negocio para consultar las reservas.' : current.businessError || (current.itemsKey === `${key}:${rangeKey}` ? current.itemsError : '') || '' }
+  return { business: current.business, items, loading: !missingScope && (!('business' in current) || (includeItems && current.itemsKey !== `${key}:${rangeKey}`)), rangeFallback: current.itemsKey === `${key}:${rangeKey}` && current.itemsFallback === true, error: missingScope ? 'Selecciona un negocio para consultar las reservas.' : current.businessError || (includeItems && current.itemsKey === `${key}:${rangeKey}` ? current.itemsError : '') || '' }
 }
