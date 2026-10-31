@@ -53,6 +53,16 @@ test('professional manager shows a live profile preview and retains synchronized
     await dialog.getByRole('tab', { name: 'Horarios' }).click()
     await expect(dialog.getByText('Resumen de horario')).toBeVisible()
     await expect(dialog.locator('.hours-day-summary p')).toHaveCount(7)
+    await dialog.getByRole('switch', { name: 'Abrir Lunes' }).click()
+    await dialog.getByLabel('Lunes, inicio de franja 1').fill('09:00')
+    await dialog.getByLabel('Lunes, fin de franja 1').fill('13:00')
+    await dialog.getByRole('button', { name: 'Copiar a otros días' }).click()
+    await dialog.getByLabel('Martes', { exact: true }).check()
+    await dialog.getByRole('button', { name: 'Confirmar y copiar' }).click()
+    const copyConfirmation = page.getByRole('alertdialog')
+    await expect(copyConfirmation).toContainText('Martes')
+    await copyConfirmation.getByRole('button', { name: 'Confirmar copia' }).click()
+    await expect(dialog.locator('.hours-day-summary')).toContainText('09:00–13:00')
   } finally {
     await env.cleanup()
   }

@@ -618,7 +618,7 @@ function Professionals() {
                     </Field>
                   </div>
 
-                  <WeeklyHoursEditor value={weeklyHours} onChange={setWeeklyHours} />
+                  <WeeklyHoursEditor value={weeklyHours} onChange={setWeeklyHours} confirmCopy emptyNewSlot compact />
 
                   {hoursError && <Alert tone="error">{hoursError}</Alert>}
                   {hoursSuccess && <Alert tone="success">{hoursSuccess}</Alert>}
