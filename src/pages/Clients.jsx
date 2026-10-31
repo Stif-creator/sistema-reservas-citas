@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   CalendarClock, ChevronLeft, ChevronRight, Clock3, Mail, Phone,
@@ -27,6 +27,7 @@ export default function Clients() {
   const { membership, isSuperadmin } = useAuth()
   const { confirm, notify } = useFeedback()
   const { data, error, refreshing, reload } = useSprintData('clients')
+  const scopeKey = membership?.businessId || (isSuperadmin ? 'platform' : '')
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [sort, setSort] = useState('recent')
@@ -35,14 +36,16 @@ export default function Clients() {
   const [tab, setTab] = useState('general')
   const [history, setHistory] = useState([])
   const [historyFor, setHistoryFor] = useState('')
-  const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyLoadingFor, setHistoryLoadingFor] = useState('')
   const [historyError, setHistoryError] = useState('')
+  const [historyErrorFor, setHistoryErrorFor] = useState('')
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
+  const savingRef = useRef(false)
+  const historyRequestRef = useRef(0)
   const [formError, setFormError] = useState('')
   const [overrides, setOverrides] = useState({})
-  const clients = useMemo(() => (data?.clients || []).map(client => overrides[client.id] || client), [data?.clients, overrides])
-  const selectedClient = selected === undefined ? clients[0] || null : clients.find(client => client.id === selected) || null
+  const clients = useMemo(() => (data?.clients || []).map(client => overrides[`${scopeKey}:${client.id}`] || client), [data?.clients, overrides, scopeKey])
   const hasStatus = clients.some(client => typeof client.status === 'string' || typeof client.isActive === 'boolean')
   const hasCreatedAt = clients.some(client => client.createdAt != null)
 
@@ -60,48 +63,85 @@ export default function Clients() {
         : (dateMillis(b.createdAt) || 0) - (dateMillis(a.createdAt) || 0))
   }, [clients, search, sort, statusFilter])
   const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize))
-  const pageRows = filtered.slice((page - 1) * pageSize, page * pageSize)
+  const currentPage = Math.min(page, pageCount)
+  const pageRows = useMemo(() => filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize), [filtered, currentPage])
+  const selectionKey = JSON.stringify([scopeKey, search, statusFilter, sort, currentPage])
+  const selectedClient = selected === null ? null : pageRows.find(client => client.id === selected?.id && selected?.selectionKey === selectionKey) || pageRows[0] || null
+  const selectedHistoryKey = selectedClient ? `${scopeKey}:${selectedClient.id}` : ''
+  const selectionRef = useRef({ selectionKey, clientId: selectedClient?.id })
+  useEffect(() => {
+    if (selectionRef.current.selectionKey !== selectionKey || selectionRef.current.clientId !== selectedClient?.id) historyRequestRef.current += 1
+    selectionRef.current = { selectionKey, clientId: selectedClient?.id }
+  }, [selectionKey, selectedClient?.id])
   const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime()
   const newThisMonth = clients.filter(client => dateMillis(client.createdAt) >= monthStart).length
 
-  async function openClient(client) {
-    if (editing && !await confirm({ title: '¿Descartar los cambios?', description: 'Tienes cambios sin guardar. Si continúas, se perderán.', confirmLabel: 'Descartar cambios' })) return
-    setSelected(client.id)
+  function resetResultSelection() {
+    historyRequestRef.current += 1
+    setSelected(undefined)
     setTab('general')
     setHistory([])
     setHistoryFor('')
+    setHistoryLoadingFor('')
     setHistoryError('')
+    setHistoryErrorFor('')
+  }
+
+  async function openClient(client) {
+    if (editing && !await confirm({ title: '¿Descartar los cambios?', description: 'Tienes cambios sin guardar. Si continúas, se perderán.', confirmLabel: 'Descartar cambios' })) return
+    historyRequestRef.current += 1
+    setSelected({ selectionKey, id: client.id })
+    setTab('general')
+    setHistory([])
+    setHistoryFor('')
+    setHistoryLoadingFor('')
+    setHistoryError('')
+    setHistoryErrorFor('')
     setEditing(false)
   }
 
   async function showHistory() {
     setTab('history')
-    if (!selectedClient || historyFor === selectedClient.id || isSuperadmin) return
-    setHistoryLoading(true)
+    if (!selectedClient || isSuperadmin || historyLoadingFor === selectedHistoryKey || (historyFor === selectedHistoryKey && !historyError)) return
+    const requestId = ++historyRequestRef.current
+    const clientId = selectedClient.id
+    const businessId = membership?.businessId
+    const requestScope = selectionKey
+    setHistory([])
+    setHistoryFor('')
+    setHistoryLoadingFor(selectedHistoryKey)
     setHistoryError('')
+    setHistoryErrorFor('')
     try {
-      const result = await bookingRequest({ action: 'clientHistory', businessId: membership.businessId, clientId: selectedClient.id })
+      const result = await bookingRequest({ action: 'clientHistory', businessId, clientId })
+      if (requestId !== historyRequestRef.current || selectionRef.current.selectionKey !== requestScope || selectionRef.current.clientId !== clientId) return
       setHistory(result.history || [])
-      setHistoryFor(selectedClient.id)
+      setHistoryFor(selectedHistoryKey)
     } catch (loadError) {
-      setHistoryError(loadError.message || 'No se pudo cargar el historial de citas.')
+      if (requestId === historyRequestRef.current && selectionRef.current.selectionKey === requestScope && selectionRef.current.clientId === clientId) {
+        setHistoryError(loadError.message || 'No se pudo cargar el historial de citas.')
+        setHistoryErrorFor(selectedHistoryKey)
+      }
     } finally {
-      setHistoryLoading(false)
+      if (requestId === historyRequestRef.current) {
+        setHistoryLoadingFor('')
+      }
     }
   }
 
   async function saveClient(event) {
     event.preventDefault()
-    if (!selectedClient || saving) return
+    if (!selectedClient || savingRef.current) return
     const form = event.currentTarget
     const values = Object.fromEntries(new FormData(form))
     setFormError('')
+    savingRef.current = true
     setSaving(true)
     try {
       await bookingRequest({ action: 'clientUpdate', businessId: membership.businessId, id: selectedClient.id, ...values })
       const updated = { ...selectedClient, ...values }
-      setOverrides(current => ({ ...current, [selectedClient.id]: updated }))
-      setSelected(updated.id)
+      setOverrides(current => ({ ...current, [`${scopeKey}:${selectedClient.id}`]: updated }))
+      setSelected({ selectionKey, id: updated.id })
       markFormSaved(form, true)
       setEditing(false)
       reload()
@@ -109,6 +149,7 @@ export default function Clients() {
     } catch (saveError) {
       setFormError(saveError.message || 'No se pudieron guardar los datos del cliente.')
     } finally {
+      savingRef.current = false
       setSaving(false)
     }
   }
@@ -131,9 +172,9 @@ export default function Clients() {
     <div className={`clients-workspace${selectedClient ? ' has-selection' : ''}`}>
       <section className="clients-list-panel" aria-label="Listado de clientes">
         <div className="clients-toolbar">
-          <label className="clients-search"><Search size={18} aria-hidden="true" /><span className="sr-only">Buscar clientes</span><input type="search" value={search} onChange={event => { setSearch(event.target.value); setPage(1) }} placeholder="Buscar por nombre, teléfono o correo…" /></label>
-          {hasStatus && <label className="clients-filter">Estado<select value={statusFilter} onChange={event => { setStatusFilter(event.target.value); setPage(1) }}><option value="all">Todos</option><option value="active">Activos</option><option value="inactive">Inactivos</option></select></label>}
-          <label className="clients-filter">Ordenar por<select value={sort} onChange={event => { setSort(event.target.value); setPage(1) }}><option value="recent">Más recientes</option><option value="name">Nombre</option></select></label>
+          <label className="clients-search"><Search size={18} aria-hidden="true" /><span className="sr-only">Buscar clientes</span><input type="search" value={search} onChange={event => { resetResultSelection(); setSearch(event.target.value); setPage(1) }} placeholder="Buscar por nombre, teléfono o correo…" /></label>
+          {hasStatus && <label className="clients-filter">Estado<select value={statusFilter} onChange={event => { resetResultSelection(); setStatusFilter(event.target.value); setPage(1) }}><option value="all">Todos</option><option value="active">Activos</option><option value="inactive">Inactivos</option></select></label>}
+          <label className="clients-filter">Ordenar por<select value={sort} onChange={event => { resetResultSelection(); setSort(event.target.value); setPage(1) }}><option value="recent">Más recientes</option><option value="name">Nombre</option></select></label>
         </div>
         {!data && refreshing && <p className="clients-empty" role="status">Cargando clientes…</p>}
         {data && clients.length === 0 && <p className="clients-empty" role="status">Aún no hay clientes registrados.</p>}
@@ -146,7 +187,7 @@ export default function Clients() {
             <button type="button" className="clients-row-button" onClick={() => openClient(client)} aria-label={`Ver detalles de ${fullName(client)}`}>Ver detalles</button>
           </article>)}
         </div>
-        {data && <footer className="clients-pagination"><span>{filtered.length ? `${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, filtered.length)} de ${filtered.length} registros` : '0 registros'}</span><div><button type="button" aria-label="Página anterior" disabled={page <= 1} onClick={() => setPage(value => value - 1)}><ChevronLeft size={17} /></button><span>Página {page} de {pageCount}</span><button type="button" aria-label="Página siguiente" disabled={page >= pageCount} onClick={() => setPage(value => value + 1)}><ChevronRight size={17} /></button></div></footer>}
+        {data && <footer className="clients-pagination"><span>{filtered.length ? `${(currentPage - 1) * pageSize + 1}–${Math.min(currentPage * pageSize, filtered.length)} de ${filtered.length} registros` : '0 registros'}</span><div><button type="button" aria-label="Página anterior" disabled={currentPage <= 1} onClick={() => { resetResultSelection(); setPage(currentPage - 1) }}><ChevronLeft size={17} /></button><span>Página {currentPage} de {pageCount}</span><button type="button" aria-label="Página siguiente" disabled={currentPage >= pageCount} onClick={() => { resetResultSelection(); setPage(currentPage + 1) }}><ChevronRight size={17} /></button></div></footer>}
       </section>
 
       {selectedClient ? <aside className="clients-detail-panel" aria-label={`Detalles de ${fullName(selectedClient)}`}>
@@ -170,10 +211,10 @@ export default function Clients() {
           {hasStatus && clientHasStatus(selectedClient) && <DetailRow label="Estado" value={<StatusBadge client={selectedClient} />} />}
           {selectedClient.createdAt && <DetailRow label="Fecha de registro" value={formatAppointmentDate(selectedClient.createdAt)} />}
         </div> : <div className="clients-history" role="tabpanel" id="client-panel-history" aria-labelledby="client-tab-history">
-          {historyLoading && <p className="clients-empty" role="status">Cargando historial…</p>}
-          {historyError && <Alert tone="error">{historyError}</Alert>}
-          {!historyLoading && !historyError && historyFor === selectedClient.id && history.length === 0 && <p className="clients-empty" role="status">Este cliente aún no tiene citas registradas.</p>}
-          {!historyLoading && !historyError && historyFor === selectedClient.id && history.length > 0 && <DataList label="citas" items={history} searchText={appointment => `${appointment.serviceName} ${appointment.professionalName} ${formatAppointmentDate(appointment.startAt, appointment.timeZone)} ${reservationStatuses[appointment.status] || appointment.status}`}>
+          {historyLoadingFor === selectedHistoryKey && <p className="clients-empty" role="status">Cargando historial…</p>}
+          {historyErrorFor === selectedHistoryKey && historyError && <Alert tone="error">{historyError}</Alert>}
+          {historyLoadingFor !== selectedHistoryKey && historyErrorFor !== selectedHistoryKey && historyFor === selectedHistoryKey && history.length === 0 && <p className="clients-empty" role="status">Este cliente aún no tiene citas registradas.</p>}
+          {historyLoadingFor !== selectedHistoryKey && historyErrorFor !== selectedHistoryKey && historyFor === selectedHistoryKey && history.length > 0 && <DataList label="citas" items={history} searchText={appointment => `${appointment.serviceName} ${appointment.professionalName} ${formatAppointmentDate(appointment.startAt, appointment.timeZone)} ${reservationStatuses[appointment.status] || appointment.status}`}>
             {rows => <div className="clients-appointments">{rows.map(appointment => <article className="clients-appointment" key={appointment.id}>
               <div className="clients-appointment-copy"><strong>{appointment.serviceName || 'Servicio'}</strong><span>{formatAppointmentDate(appointment.startAt, appointment.timeZone)} · {formatAppointmentDate(appointment.startAt, appointment.timeZone, true)}</span><span>{appointment.professionalName || 'Profesional'}</span><StatusBadge status={appointment.status} /></div>
               <Link to={`/reservas/${encodeURIComponent(appointment.id)}`} className="clients-reservation-link">Ver reserva</Link>
