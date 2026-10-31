@@ -1,0 +1,71 @@
+.categories-page { min-width: 0; }
+.categories-page > section { min-width: 0; }
+.categories-page .data-list { margin-block: 0; }
+.categories-page .data-list-toolbar { align-items: end; justify-content: flex-start; gap: 16px; margin: 0 0 14px; }
+.categories-page .data-list-toolbar > label:first-child { flex: 1 1 260px; max-width: 440px; }
+.categories-page .data-list-toolbar > label { color: #60718e; font-size: 12px; }
+.categories-page .data-list-toolbar input, .categories-page .data-list-toolbar select { min-height: 44px; border-color: #dce4f1; border-radius: 10px; }
+.categories-page .data-list-toolbar > label:last-child { flex: 0 0 140px; margin-left: auto; }
+.categories-page .data-list-toolbar .categories-filter { flex: 0 0 190px; margin: 0; }
+.categories-filter { display: grid; gap: 5px; color: #60718e; font-size: 12px; }
+.categories-filter select { width: 100%; min-height: 44px; padding: 0 12px; border: 1px solid #dce4f1; border-radius: 10px; background: white; color: #17233f; }
+.categories-table-wrap { width: 100%; overflow-x: auto; }
+.categories-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
+.categories-table th { padding: 14px 16px; background: #f5f7fc; color: #62738f; font-size: 12px; font-weight: 650; text-transform: uppercase; letter-spacing: .025em; }
+.categories-table th:first-child { border-radius: 10px 0 0 10px; }
+.categories-table th:last-child { border-radius: 0 10px 10px 0; }
+.categories-table td { padding: 15px 16px; border-bottom: 1px solid #e8edf5; color: #425574; vertical-align: middle; }
+.categories-table td:first-child { color: #17233f; }
+.categories-table td:first-child strong { font-weight: 650; }
+.categories-description { max-width: 300px; white-space: normal; }
+.categories-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.categories-page .categories-action { min-height: 38px; padding: 7px 12px; white-space: nowrap; }
+.categories-page .categories-disable { border: 1px solid #fee2e2; background: #fff6f6; color: #dc2626; }
+.categories-page .categories-disable:hover { background: #feecec; }
+.categories-page .categories-enable { border-color: #d9f3e5; background: #f0fbf4; color: #079447; }
+.categories-page .categories-enable:hover { background: #e2f8eb; }
+.categories-note, .category-form-note { display: flex; align-items: center; gap: 10px; padding: 12px 15px; border-radius: 10px; background: #f1f4ff; color: #53668d; font-size: 13px; }
+.categories-note { margin-top: 14px; }
+.categories-note svg, .category-form-note svg { flex: 0 0 auto; color: #6552ff; }
+.categories-loading { padding: 25px 10px; text-align: center; color: #71809a; font-size: 13px; }
+.editor-dialog:has(.category-form) { width: min(580px, calc(100vw - 32px)); }
+.category-form { display: grid; gap: 18px; }
+.category-form-description { margin-top: -6px; color: #667793; font-size: 14px; }
+.category-form textarea { resize: vertical; }
+.category-character-count { display: block; margin-top: 5px; color: #8290a6; font-size: 11px; text-align: right; }
+.category-active-toggle { display: inline-flex; width: fit-content; align-items: center; gap: 10px; color: #17233f; font-size: 14px; font-weight: 550; cursor: pointer; }
+.category-active-toggle input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.category-switch { position: relative; width: 46px; height: 26px; border-radius: 999px; background: #cbd5e1; transition: background .18s ease; }
+.category-switch::after { position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: white; box-shadow: 0 1px 4px #0f172a35; content: ''; transition: transform .18s ease; }
+.category-active-toggle input:checked + .category-switch { background: #6552ff; }
+.category-active-toggle input:checked + .category-switch::after { transform: translateX(20px); }
+.category-active-toggle input:focus-visible + .category-switch { outline: 3px solid #818cf8; outline-offset: 3px; }
+.category-form-actions { display: flex; justify-content: flex-end; gap: 10px; padding-top: 2px; }
+@media (max-width: 720px) {
+  .categories-page .data-list-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) minmax(120px, .7fr); gap: 12px; }
+  .categories-page .data-list-toolbar > label:first-child { min-width: 0; max-width: none; grid-column: 1 / -1; }
+  .categories-page .data-list-toolbar .categories-filter { min-width: 0; grid-column: 1; }
+  .categories-page .data-list-toolbar > label:last-child { min-width: 0; grid-column: 2; margin: 0; }
+  .categories-page .data-list-footer { align-items: flex-start; flex-direction: column; }
+  .categories-page .data-list-footer nav { width: 100%; justify-content: space-between; }
+  .categories-table-wrap { overflow: visible; }
+  .categories-table, .categories-table tbody { display: block; }
+  .categories-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
+  .categories-table tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 12px; padding: 12px; border: 1px solid #e8edf5; border-radius: 12px; }
+  .categories-table tr + tr { margin-top: 10px; }
+  .categories-table td { display: grid; min-width: 0; grid-template-columns: 92px minmax(0, 1fr); gap: 8px; padding: 6px 2px; border: 0; font-size: 13px; }
+  .categories-table td::before { content: attr(data-label); color: #78869c; font-size: 10px; font-weight: 650; text-transform: uppercase; }
+  .categories-table td:first-child { grid-column: 1 / -1; }
+  .categories-table td:first-child::before { content: none; }
+  .categories-table td[data-label="Acciones"] { grid-column: 1 / -1; }
+  .categories-table td[data-label="Acciones"]::before { align-self: center; }
+  .categories-actions { gap: 6px; }
+  .categories-page .categories-action { min-height: 36px; padding: 6px 9px; font-size: 12px; }
+}
+@media (max-width: 420px) {
+  .categories-page .data-list-toolbar { grid-template-columns: 1fr; }
+  .categories-page .data-list-toolbar .categories-filter, .categories-page .data-list-toolbar > label:last-child { grid-column: 1; }
+  .categories-table td { grid-template-columns: 78px minmax(0, 1fr); }
+  .category-form-actions { flex-direction: column-reverse; }
+  .category-form-actions button { width: 100%; min-height: 44px; }
+}

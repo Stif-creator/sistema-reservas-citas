@@ -65,6 +65,21 @@ service cloud.firestore {
       return request.resource.data.businessId == resource.data.businessId
         && request.resource.data.get('id', null) == resource.data.get('id', null);
     }
+    function validCategory(data) {
+      return data.keys().hasOnly(['id', 'businessId', 'name', 'description', 'displayOrder', 'isActive', 'image', 'createdAt', 'updatedAt'])
+        && data.keys().hasAll(['id', 'businessId', 'name'])
+        && data.id is string && data.businessId is string
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 80
+        && (!data.keys().hasAny(['description']) || (data.description is string && data.description.size() <= 300))
+        && (!data.keys().hasAny(['displayOrder']) || (data.displayOrder is int && data.displayOrder >= 0))
+        && (!data.keys().hasAny(['isActive']) || data.isActive is bool)
+        && (!data.keys().hasAny(['image']) || (data.image is map
+          && data.image.keys().hasOnly(['url', 'publicId'])
+          && (data.image.get('url', null) == null || data.image.get('url', null) is string)
+          && (data.image.get('publicId', null) == null || data.image.get('publicId', null) is string)))
+        && (!data.keys().hasAny(['createdAt']) || data.createdAt is timestamp)
+        && (!data.keys().hasAny(['updatedAt']) || data.updatedAt is timestamp);
+    }
     function professionalMatches(businessId, uid, role, status) {
       let membership = getAfter(/databases/$(database)/documents/memberships/$(businessId + '_' + uid)).data;
       let pid = membership.get('professionalId', businessId + '_' + uid);
@@ -220,8 +235,13 @@ service cloud.firestore {
         || professional(resource.data.businessId)
         || (activeMember(resource.data.businessId) && member(resource.data.businessId).role == 'client')
         || (resource.data.get('isActive', false) == true && publicBusiness(resource.data.businessId));
-      allow create: if admin(request.resource.data.businessId) && request.resource.data.id == cid;
-      allow update: if admin(resource.data.businessId) && sameIdentity();
+      allow create: if admin(request.resource.data.businessId) && request.resource.data.id == cid
+        && validCategory(request.resource.data)
+        && request.resource.data.keys().hasAll(['description', 'displayOrder', 'isActive', 'image', 'createdAt', 'updatedAt'])
+        && request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time;
+      allow update: if admin(resource.data.businessId) && sameIdentity()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'description', 'isActive', 'updatedAt'])
+        && validCategory(request.resource.data) && request.resource.data.updatedAt == request.time;
     }
     match /services/{sid} {
       allow read: if (resource.data.get('isActive', false) == true && resource.data.get('isPublic', false) == true && publicBusiness(resource.data.businessId))

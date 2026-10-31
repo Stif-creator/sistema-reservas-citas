@@ -5,7 +5,7 @@ import './data-list.css'
 const normalize = value => String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 const defaultText = item => Object.values(item).filter(value => ['string', 'number'].includes(typeof value)).join(' ')
 
-export default function DataList({ items = [], label, searchText = defaultText, children, search = true, resetKey = '' }) {
+export default function DataList({ items = [], label, searchText = defaultText, children, search = true, resetKey = '', toolbar }) {
   const [term, setTerm] = useState('')
   const [size, setSize] = useState(10)
   const [position, setPosition] = useState({ page: 1, key: '' })
@@ -19,6 +19,7 @@ export default function DataList({ items = [], label, searchText = defaultText, 
   return <section className="data-list" aria-label={label}>
     <div className="data-list-toolbar">
       {search && <label>Buscar {label.toLowerCase()}<input type="search" value={term} onChange={event => setTerm(event.target.value)} placeholder="Escribe para filtrar…" /></label>}
+      {toolbar}
       <label>Registros por página<select value={size} onChange={event => setSize(Number(event.target.value))}>{[10, 25, 50].map(value => <option key={value} value={value}>{value}</option>)}</select></label>
     </div>
     {filtered.length ? children(filtered.slice(start, start + size)) : <p className="data-list-empty" role="status">No hay resultados para esta selección.</p>}

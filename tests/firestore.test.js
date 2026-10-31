@@ -102,8 +102,12 @@ before(async () => {
       id: 'care',
       businessId: 'studio',
       name: 'Bienestar',
+      description: '',
       isActive: true,
       displayOrder: 1,
+      image: { url: null, publicId: null },
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
     })
     await setDoc(doc(db, 'services', 'massage'), {
       id: 'massage',
@@ -154,6 +158,26 @@ test('professionals can read services in their business but cannot write service
   await assertSucceeds(getDocs(query(collection(db, 'categories'), where('businessId', '==', 'studio'))))
   await assertFails(getDocs(query(collection(db, 'services'), where('businessId', '==', 'other-business'))))
   await assertFails(updateDoc(doc(db, 'services', 'massage'), { price: 1 }))
+})
+
+test('category writes are tenant scoped and validate editable fields', async () => {
+  const db = dbFor('owner')
+  const category = id => ({
+    id, businessId: 'studio', name: 'Odontología general', description: 'Atención odontológica.',
+    displayOrder: 2, isActive: true, image: { url: null, publicId: null },
+    createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+  })
+  await assertSucceeds(setDoc(doc(db, 'categories', 'category-valid'), category('category-valid')))
+  await assertFails(setDoc(doc(db, 'categories', 'category-long'), { ...category('category-long'), name: 'x'.repeat(81) }))
+  await assertFails(setDoc(doc(db, 'categories', 'category-description-long'), { ...category('category-description-long'), description: 'x'.repeat(301) }))
+  await assertFails(setDoc(doc(db, 'categories', 'category-extra'), { ...category('category-extra'), elevated: true }))
+  await assertFails(setDoc(doc(db, 'categories', 'category-other'), { ...category('category-other'), businessId: 'private' }))
+  await assertFails(setDoc(doc(dbFor('pro'), 'categories', 'category-professional'), category('category-professional')))
+  await assertFails(setDoc(doc(dbFor('client'), 'categories', 'category-client'), category('category-client')))
+  await assertFails(updateDoc(doc(db, 'categories', 'care'), { businessId: 'private', updatedAt: serverTimestamp() }))
+  await assertFails(updateDoc(doc(db, 'categories', 'care'), { isActive: 'false', updatedAt: serverTimestamp() }))
+  await assertFails(updateDoc(doc(db, 'categories', 'care'), { adminOnly: true, updatedAt: serverTimestamp() }))
+  await assertSucceeds(updateDoc(doc(db, 'categories', 'care'), { name: 'Bienestar y salud', updatedAt: serverTimestamp() }))
 })
 
 test('reservations are read by active scoped actors but all direct mutations and locks are denied', async () => {
