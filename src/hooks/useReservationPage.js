@@ -15,15 +15,16 @@ function queryParts({ businessId, role, uid, range, status, serviceId, professio
   if (serviceId) clauses.push(where('serviceId', '==', serviceId))
   if (professionalId && role === 'admin') clauses.push(where('professionalId', '==', professionalId))
   const nowValue = Timestamp.fromMillis(now)
+  const ensureStartAtRange = () => { if (!range?.start) clauses.push(where('startAt', '>=', Timestamp.fromMillis(0))) }
   if (closuresOnly) {
-    if (!status) clauses.push(where('status', 'in', ['pending', 'confirmed']), where('endAt', '<=', nowValue))
-    else if (status === 'expired') clauses.push(where('status', '==', 'pending'), where('endAt', '<=', nowValue))
-    else if (status === 'awaiting_closure') clauses.push(where('status', '==', 'confirmed'), where('endAt', '<=', nowValue))
+    if (!status) { clauses.push(where('status', 'in', ['pending', 'confirmed'])); ensureStartAtRange(); clauses.push(where('endAt', '<=', nowValue)) }
+    else if (status === 'expired') { clauses.push(where('status', '==', 'pending')); ensureStartAtRange(); clauses.push(where('endAt', '<=', nowValue)) }
+    else if (status === 'awaiting_closure') { clauses.push(where('status', '==', 'confirmed')); ensureStartAtRange(); clauses.push(where('endAt', '<=', nowValue)) }
     else return { clauses: [], impossible: true }
-  } else if (status === 'pending') clauses.push(where('status', '==', 'pending'), where('endAt', '>', nowValue))
+  } else if (status === 'pending') { clauses.push(where('status', '==', 'pending')); ensureStartAtRange(); clauses.push(where('endAt', '>', nowValue)) }
   else if (status === 'confirmed') clauses.push(where('status', '==', 'confirmed'), where('startAt', '>', nowValue))
-  else if (status === 'expired') clauses.push(where('status', '==', 'pending'), where('endAt', '<=', nowValue))
-  else if (status === 'awaiting_closure') clauses.push(where('status', '==', 'confirmed'), where('endAt', '<=', nowValue))
+  else if (status === 'expired') { clauses.push(where('status', '==', 'pending')); ensureStartAtRange(); clauses.push(where('endAt', '<=', nowValue)) }
+  else if (status === 'awaiting_closure') { clauses.push(where('status', '==', 'confirmed')); ensureStartAtRange(); clauses.push(where('endAt', '<=', nowValue)) }
   else if (status === 'in_progress') clauses.push(where('status', '==', 'confirmed'), where('startAt', '<=', nowValue), where('endAt', '>', nowValue))
   else if (status) clauses.push(where('status', '==', status))
   return { clauses, impossible: false }
@@ -78,14 +79,15 @@ export default function useReservationPage({ enabled = true, range, status, serv
     if (!enabled || !businessId || !uid) return undefined
     let active = true
     if (parts.impossible) return undefined
-    const constraints = [...parts.clauses, orderBy('startAt', sort === 'recent' ? 'desc' : 'asc'), ...(cursor ? [startAfter(cursor)] : []), limit(pageSize + 1)]
+    const temporalStatus = closuresOnly || ['pending', 'expired', 'awaiting_closure', 'in_progress'].includes(status)
+    const constraints = [...parts.clauses, orderBy('startAt', sort === 'recent' ? 'desc' : 'asc'), ...(temporalStatus ? [orderBy('endAt', 'asc')] : []), ...(cursor ? [startAfter(cursor)] : []), limit(pageSize + 1)]
     const stop = onSnapshot(query(collection(db, 'reservations'), ...constraints), snapshot => {
       if (!active) return
       const visibleDocs = snapshot.docs.slice(0, pageSize)
       setPageState({ key: pageKey, docs: visibleDocs.map(document => ({ ...document.data(), id: document.id })), nextCursor: snapshot.docs.length > pageSize ? visibleDocs.at(-1) : null, hasNext: snapshot.docs.length > pageSize, error: '' })
     }, () => { if (active) setPageState({ key: pageKey, docs: [], nextCursor: null, hasNext: false, error: 'No se pudo cargar esta página de reservas.' }) })
     return () => { active = false; stop() }
-  }, [enabled, businessId, uid, pageKey, parts, sort, cursor, pageSize])
+  }, [enabled, businessId, uid, pageKey, parts, sort, cursor, pageSize, status, closuresOnly])
 
   const rawItems = pageState.key === pageKey ? pageState.docs : []
   const items = useReservationStates(rawItems)

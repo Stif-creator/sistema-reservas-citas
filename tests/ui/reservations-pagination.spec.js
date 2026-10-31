@@ -38,6 +38,8 @@ test('reservations use cursor pagination, page-scoped search, mobile cards and a
   await expect(page).toHaveURL(/\/dashboard$/)
   await page.goto('/reservas')
   await expect(page.getByText('30 reservas con estos filtros')).toBeVisible()
+  await page.getByLabel('Estado').selectOption('pending')
+  await expect(page.getByText('30 reservas con estos filtros')).toBeVisible()
   await expect(page.getByRole('row').filter({ hasText: 'Cliente 29' })).toBeVisible()
   await expect(page.getByRole('row').filter({ hasText: 'Cliente 04' })).toHaveCount(0)
   await page.getByLabel('Buscar en la página actual').fill('Cliente 00')
