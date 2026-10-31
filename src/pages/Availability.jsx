@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { and, collection, doc, limit, onSnapshot, or, orderBy, query, Timestamp, where } from 'firebase/firestore'
+import { collection, doc, limit, onSnapshot, orderBy, query, Timestamp, where } from 'firebase/firestore'
 import { ArrowLeft, ArrowRight, Ban, BriefcaseBusiness, CalendarDays, ChevronLeft, ChevronRight, Clock3, Globe2, Info, Moon, Sun, UserRound } from 'lucide-react'
 import { db } from '../firebase/config'
 import { useAuth } from '../context/auth-context'
@@ -124,22 +124,33 @@ function AvailabilityView({ membership, ownId }) {
     const reservationQuery = query(collection(db, 'reservations'), ...reservationClauses, orderBy('startAt'), limit(2001))
     const rangeClauses = [where('startAt', '<', Timestamp.fromMillis(queryRange.endMs)), where('endAt', '>', Timestamp.fromMillis(queryRange.startMs))]
     const businessClause = where('businessId', '==', businessId)
-    const professionalBranch = and(businessClause, where('professionalId', '==', queryProfessionalId), ...rangeClauses)
-    const blockBranches = [and(businessClause, where('allProfessionals', '==', true), ...rangeClauses), professionalBranch]
-    const blocksQuery = query(collection(db, 'scheduleBlocks'), or(...blockBranches), limit(2001))
-    let reservationsLoaded = false, blocksLoaded = false, reservations = [], blocks = []
+    const blocksCollection = collection(db, 'scheduleBlocks')
+    const globalBlocksQuery = query(blocksCollection, businessClause, where('allProfessionals', '==', true), ...rangeClauses, limit(2001))
+    const professionalBlocksQuery = query(blocksCollection, businessClause, where('professionalId', '==', queryProfessionalId), ...rangeClauses, limit(2001))
+    let reservationsLoaded = false, globalBlocksLoaded = false, professionalBlocksLoaded = false
+    let reservations = [], globalBlocks = [], professionalBlocks = []
     const publish = () => {
-      if (active) setAvailability({ key: occupancyKey, reservations, blocks, loaded: reservationsLoaded && blocksLoaded, error: '' })
+      const blocksById = new Map([...globalBlocks, ...professionalBlocks].map(block => [block.id, block]))
+      const blocks = [...blocksById.values()]
+      if (blocks.length > 2000) return fail({ code: 'resource-exhausted' })
+      if (active) setAvailability({ key: occupancyKey, reservations, blocks, loaded: reservationsLoaded && globalBlocksLoaded && professionalBlocksLoaded, error: '' })
     }
-    const fail = error => { if (active) setAvailability(previous => previous.key === occupancyKey ? { ...previous, loaded: false, error: errorMessage(error) } : previous) }
+    const fail = error => {
+      console.error('Error al consultar disponibilidad en Firestore:', error?.code || error)
+      if (active) setAvailability(previous => previous.key === occupancyKey ? { ...previous, loaded: false, error: errorMessage(error) } : previous)
+    }
     const stops = [
       onSnapshot(reservationQuery, snapshot => {
         if (snapshot.size > 2000) return fail({ code: 'resource-exhausted' })
         reservations = snapshot.docs.map(item => ({ ...item.data(), id: item.id })); reservationsLoaded = true; publish()
       }, fail),
-      onSnapshot(blocksQuery, snapshot => {
+      onSnapshot(globalBlocksQuery, snapshot => {
         if (snapshot.size > 2000) return fail({ code: 'resource-exhausted' })
-        blocks = snapshot.docs.map(item => ({ ...item.data(), id: item.id })); blocksLoaded = true; publish()
+        globalBlocks = snapshot.docs.map(item => ({ ...item.data(), id: item.id })); globalBlocksLoaded = true; publish()
+      }, fail),
+      onSnapshot(professionalBlocksQuery, snapshot => {
+        if (snapshot.size > 2000) return fail({ code: 'resource-exhausted' })
+        professionalBlocks = snapshot.docs.map(item => ({ ...item.data(), id: item.id })); professionalBlocksLoaded = true; publish()
       }, fail),
     ]
     return () => { active = false; stops.forEach(stop => stop()) }
