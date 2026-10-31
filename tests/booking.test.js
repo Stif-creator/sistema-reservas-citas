@@ -124,6 +124,50 @@ test('waitlist follow-up is scoped, audited, supports legacy entries and rejects
   await rejects(f.call(superadminId, { action: 'waitlistUpdate', id: entry.id, status: 'closed' }), 'permission-denied')
 })
 
+test('business user directory follows scoped memberships across tenants and membership changes cannot grant administrator role', async () => {
+  const f = await fixture()
+  const otherBusiness = `other-${f.businessId}`
+  await db.doc(`businesses/${otherBusiness}`).set({ status: 'active', ownerUserId: f.users.other })
+  await db.doc(`memberships/${otherBusiness}_${f.users.pro}`).set({ businessId: otherBusiness, userId: f.users.pro, role: 'professional', status: 'active' })
+  await db.doc(`users/${f.users.pro}`).update({ businessIds: [otherBusiness, f.businessId] })
+  const listing = await f.call(f.users.admin, { action: 'businessUsers' })
+  assert.deepEqual(new Set(listing.map(item => item.role)), new Set(['admin', 'professional', 'client']))
+  assert(listing.every(item => item.userId !== f.users.other || item.profileAvailable))
+  assert(listing.some(item => item.userId === f.users.pro && item.profileAvailable))
+
+  await db.doc(`users/${f.users.other}`).delete()
+  const incomplete = await f.call(f.users.admin, { action: 'businessUsers' })
+  assert(incomplete.some(item => item.userId === f.users.other && !item.profileAvailable && !item.name && !item.email))
+  await rejects(f.call(f.users.client, { action: 'businessUsers' }), 'permission-denied')
+  await rejects(f.call(f.users.pro, { action: 'businessUsers' }), 'permission-denied')
+  const outsideAdmin = `outside-admin-${f.businessId}`
+  await db.doc(`users/${outsideAdmin}`).set({ firstName: 'Outside', status: 'active', globalRole: 'user' })
+  await db.doc(`memberships/${otherBusiness}_${outsideAdmin}`).set({ businessId: otherBusiness, userId: outsideAdmin, role: 'admin', status: 'active' })
+  await rejects(executeBooking(db, outsideAdmin, { action: 'businessUsers', businessId: f.businessId }), 'permission-denied')
+  const superadmin = `super-${f.businessId}`
+  await db.doc(`users/${superadmin}`).set({ status: 'active', globalRole: 'superadmin' })
+  await rejects(executeBooking(db, superadmin, { action: 'businessUsers', businessId: f.businessId }), 'permission-denied')
+  await rejects(f.call(f.users.admin, { action: 'membershipUpdate', userId: f.users.client, role: 'admin', status: 'active' }), 'permission-denied')
+  await rejects(f.call(f.users.admin, { action: 'membershipUpdate', userId: f.users.admin, role: 'client', status: 'inactive' }), 'permission-denied')
+  await rejects(f.call(f.users.admin, { action: 'membershipUpdate', userId: f.users.other, role: 'client', status: 'inactive' }), 'failed-precondition')
+  await db.doc(`users/no-membership-${f.businessId}`).set({ firstName: 'Unlinked', status: 'active', globalRole: 'user' })
+  await rejects(f.call(f.users.admin, { action: 'membershipUpdate', userId: `no-membership-${f.businessId}`, role: 'client', status: 'inactive' }), 'not-found')
+
+  await f.call(f.users.admin, { action: 'membershipUpdate', userId: f.users.client, role: 'client', status: 'inactive' })
+  assert.equal((await db.doc(`memberships/${f.businessId}_${f.users.client}`).get()).data().status, 'inactive')
+  await f.call(f.users.admin, { action: 'membershipUpdate', userId: f.users.client, role: 'professional', status: 'active' })
+  const assignedProfile = await db.doc(`professionals/${f.businessId}_${f.users.client}`).get()
+  assert.equal(assignedProfile.data().userId, f.users.client)
+  assert.equal(assignedProfile.data().isActive, true)
+  await f.call(f.users.admin, { action: 'membershipUpdate', userId: f.users.client, role: 'client', status: 'active' })
+  assert.equal((await db.doc(`professionals/${f.businessId}_${f.users.client}`).get()).data().isActive, false)
+  assert.equal((await db.doc(`users/${f.users.pro}`).get()).data().businessIds[0], otherBusiness)
+  await db.doc(`users/${f.users.other}`).set({ firstName: 'Other', status: 'active', globalRole: 'user', businessIds: [otherBusiness] })
+  await db.doc(`memberships/${otherBusiness}_${f.users.other}`).set({ businessId: otherBusiness, userId: f.users.other, role: 'admin', status: 'active' })
+  const foreign = await executeBooking(db, f.users.other, { action: 'businessUsers', businessId: otherBusiness })
+  assert.deepEqual(new Set(foreign.map(item => item.userId)), new Set([f.users.other, f.users.pro, outsideAdmin]))
+})
+
 test('waitlist requests notify scoped admins and only the selected professional', async () => {
   const f = await fixture()
   const superadminId = `superadmin-${randomUUID()}`

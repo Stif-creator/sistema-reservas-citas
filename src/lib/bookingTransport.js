@@ -1,4 +1,4 @@
-export const readActions = new Set(['options', 'availability', 'publicOptions', 'publicAvailability', 'hub', 'clients', 'clientHistory'])
+export const readActions = new Set(['options', 'availability', 'publicOptions', 'publicAvailability', 'hub', 'clients', 'clientHistory', 'businessUsers'])
 const transientStatuses = new Set([502, 503, 504])
 const failure = (message, code) => Object.assign(new Error(message), { code: `functions/${code}` })
 

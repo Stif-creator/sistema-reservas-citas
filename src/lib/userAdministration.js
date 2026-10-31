@@ -1,8 +1,7 @@
 import { initializeApp, deleteApp } from 'firebase/app'
 import { getAuth, connectAuthEmulator, setPersistence, inMemoryPersistence, createUserWithEmailAndPassword, deleteUser, signOut } from 'firebase/auth'
-import { collection, doc, writeBatch, runTransaction, serverTimestamp } from 'firebase/firestore'
-import { auth, db, firebaseConfig } from '../firebase/config'
-import { findProfileId } from './profiles'
+import { doc, writeBatch, serverTimestamp } from 'firebase/firestore'
+import { db, firebaseConfig } from '../firebase/config'
 
 // A separate, memory-only Auth instance keeps the administrator signed in.
 export async function createProfessionalAccount(businessId, form) {
@@ -51,51 +50,4 @@ export async function createProfessionalAccount(businessId, form) {
     await signOut(secondaryAuth).catch(() => {})
     await deleteApp(app).catch(() => {})
   }
-}
-
-export async function changeMembership(businessId, userId, role, status) {
-  if (!['admin', 'professional', 'client'].includes(role) || !['active', 'inactive'].includes(status)) {
-    throw new Error('Rol o estado inválido.')
-  }
-  const id = `${businessId}_${userId}`
-  const [professionalId, clientId] = await Promise.all([
-    findProfileId(db, 'professionals', businessId, userId),
-    findProfileId(db, 'clients', businessId, userId),
-  ])
-  await runTransaction(db, async (transaction) => {
-    const userRef = doc(db, 'users', userId)
-    const professionalRef = doc(db, 'professionals', professionalId)
-    const clientRef = doc(db, 'clients', clientId)
-    const memberRef = doc(db, 'memberships', id)
-    const [user, professional, client, member] = await Promise.all([
-      transaction.get(userRef), transaction.get(professionalRef), transaction.get(clientRef), transaction.get(memberRef),
-    ])
-    if (!user.exists() || !member.exists()) throw new Error('Usuario no encontrado.')
-    const data = user.data()
-    const now = serverTimestamp()
-    if (member.data().role !== role || member.data().status !== status) transaction.set(doc(collection(db, 'auditLogs')), {
-      businessId, actorUserId: auth.currentUser.uid, targetUserId: userId, action: 'membershipUpdate',
-      beforeRole: member.data().role, beforeStatus: member.data().status, afterRole: role, afterStatus: status, createdAt: now,
-    })
-    transaction.update(memberRef, {
-      role, status,
-      ...(professional.exists() || role === 'professional' ? { professionalId } : {}),
-    })
-    if (professional.exists()) {
-      transaction.update(professionalRef, { isActive: role === 'professional' && status === 'active', updatedAt: now })
-    } else if (role === 'professional') {
-      transaction.set(professionalRef, {
-        id: professionalId, businessId, userId, displayName: `${data.firstName} ${data.lastName}`,
-        email: data.email || '', phone: data.phone || '', serviceIds: [],
-        isActive: status === 'active', createdAt: now, updatedAt: now,
-      })
-    }
-    if (role === 'client' && !client.exists()) {
-      transaction.set(clientRef, {
-        id: clientId, businessId, userId, firstName: data.firstName, lastName: data.lastName,
-        email: data.email || '', phone: data.phone || '', status: 'active',
-        createdAt: now, updatedAt: now,
-      })
-    }
-  })
 }

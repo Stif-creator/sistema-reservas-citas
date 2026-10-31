@@ -3,11 +3,9 @@ import DataList from '../components/ui/DataList'
 import AdminSummary from '../components/ui/AdminSummary'
 import PersonAvatar from '../components/ui/PersonAvatar'
 import { Users as UsersIcon, UserRound, ShieldCheck, LockKeyhole, Save } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { collection, doc, getDoc, onSnapshot, query, where } from 'firebase/firestore'
-import { db } from '../firebase/config'
+import { useState } from 'react'
 import { useAuth } from '../context/auth-context'
-import { changeMembership } from '../lib/userAdministration'
+import useSprintData from '../hooks/useSprintData'
 import PageHeader from '../components/ui/PageHeader'
 import Card from '../components/ui/Card'
 import Alert from '../components/ui/Alert'
@@ -17,105 +15,82 @@ import { useFeedback } from '../context/feedback-context'
 
 const roles = { admin: 'Administrador', professional: 'Profesional', client: 'Cliente' }
 
-function UserRow({ member, locked, save, busy }) {
+function UserRow({ member, currentUserId, save, busy }) {
   const [draft, setDraft] = useState(null)
   const role = draft?.role ?? member.role
-  const status = draft?.status ?? (member.status === 'pending' ? 'active' : member.status)
+  const status = draft?.status ?? member.status
+  const protectedAccount = member.owner || member.userId === currentUserId
+  const platformManaged = member.role === 'admin'
+  const unavailable = !member.profileAvailable
+  const locked = protectedAccount || platformManaged || unavailable
+  const roleEditable = !locked
+  const changed = role !== member.role || status !== member.status
+  const roleLabel = roles[member.role] || 'Rol no reconocido'
   return (
     <tr data-draft className="border-b border-border">
-      <td className="p-3"><div className="admin-person"><PersonAvatar name={member.name} tone={member.role === 'client' ? 'green' : member.role === 'professional' ? 'blue' : 'purple'} /><div><p className="font-medium">{member.name}</p><p className="text-xs text-muted">{member.email}</p></div></div></td>
-      <td className="p-3"><select aria-label={`Rol de ${member.name}`} value={role} disabled={locked || busy}
-        className={fieldControlClasses(false)} onChange={(e) => setDraft({ role: e.target.value, status })}>
-        {Object.entries(roles).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-      </select></td>
+      <td className="p-3"><div className="admin-person"><PersonAvatar name={member.name || ''} tone={member.role === 'client' ? 'green' : member.role === 'professional' ? 'blue' : 'purple'} /><div><p className="font-medium">{member.name || 'Sin nombre'}</p><p className="text-xs text-muted">{member.email || '—'}</p></div></div></td>
+      <td className="p-3">{roleEditable
+        ? <select aria-label={`Rol de ${member.name || member.userId}`} value={role} disabled={busy}
+          className={fieldControlClasses(false)} onChange={event => setDraft({ role: event.target.value, status })}>
+          {Object.entries(roles).filter(([value]) => value !== 'admin').map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+        </select>
+        : <span>{roleLabel}</span>}</td>
       <td className="p-3">
         {member.status === 'pending' && <p className="mb-1 text-xs text-muted">Pendiente de aprobación</p>}
-        <select aria-label={`Estado de ${member.name}`} value={status} disabled={locked || busy}
-          className={fieldControlClasses(false)} onChange={(e) => setDraft({ role, status: e.target.value })}>
-          <option value="active">Activo</option><option value="inactive">Inactivo</option>
+        <select aria-label={`Estado de ${member.name || member.userId}`} value={status} disabled={locked || busy}
+          className={fieldControlClasses(false)} onChange={event => setDraft({ role, status: event.target.value })}>
+          <option value="active">Activo</option><option value="inactive">Inactivo</option><option value="pending" disabled>Pendiente de aprobación</option>
         </select>
       </td>
-      <td className="p-3">{locked ? <span className="admin-protected"><LockKeyhole size={13} />Cuenta protegida</span> :
-        <Button disabled={busy || (role === member.role && status === member.status)}
-          onClick={async e => { const row = e.currentTarget.closest('tr'); if (await save(member.userId, role, status)) { markFormSaved(row); setDraft(null) } }}><Save size={14} />Guardar</Button>}</td>
+      <td className="p-3">{protectedAccount ? <span className="admin-protected"><LockKeyhole size={13} />Cuenta protegida</span>
+        : platformManaged ? <span className="admin-protected"><LockKeyhole size={13} />Gestionada desde plataforma</span>
+        : unavailable ? <span className="admin-protected"><LockKeyhole size={13} />Perfil no disponible</span>
+        : <Button disabled={busy || !changed}
+          onClick={async event => { const row = event.currentTarget.closest('tr'); if (await save(member.userId, role, status)) { markFormSaved(row); setDraft(null) } }}><Save size={14} />Guardar</Button>}</td>
     </tr>
   )
 }
 
 export default function Users() {
   const { membership, currentUser } = useAuth()
-  const { confirm } = useFeedback()
-  const businessId = membership.businessId
-  const [members, setMembers] = useState([])
-  const [ownerId, setOwnerId] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
+  const { confirm, notify } = useFeedback()
+  const businessId = membership?.businessId
+  const { data, error, refreshing, busy, mutate, reload } = useSprintData('businessUsers')
+  const members = Array.isArray(data) ? data : []
+  const hasData = Array.isArray(data)
+  const loading = !hasData && refreshing
   const [roleFilter, setRoleFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
-  useEffect(() => {
-    let active = true
-    let generation = 0
-    const stop = onSnapshot(query(collection(db, 'memberships'), where('businessId', '==', businessId)), async (snapshot) => {
-      const version = ++generation
-      try {
-        const [business, list] = await Promise.all([
-          getDoc(doc(db, 'businesses', businessId)),
-          Promise.all(snapshot.docs.map(async (item) => {
-            const member = item.data()
-            const profile = await getDoc(doc(db, 'users', member.userId)).catch(error => { if (error.code === 'permission-denied' && member.email) return null; throw error })
-            const data = profile ? profile.data() : member
-            return { ...member, name: data ? `${data.firstName} ${data.lastName}` : 'Perfil incompleto', email: data?.email || '' }
-          })),
-        ])
-        if (!active || version !== generation) return
-        setMembers(list.sort((a, b) => a.name.localeCompare(b.name)))
-        setOwnerId(business.data()?.ownerUserId)
-        setError('')
-      } catch (err) {
-        console.error('Error al cargar perfiles de usuarios', err)
-        if (active && version === generation) setError(err.code === 'permission-denied'
-          ? 'No tienes permisos para consultar los perfiles de este negocio. Contacta al administrador.'
-          : 'No se pudieron cargar los usuarios. Recarga la página.')
-      } finally { if (active && version === generation) setLoading(false) }
-    }, (err) => {
-      console.error('Error al consultar membresías', err)
-      ++generation
-      if (active) { setError('No se pudieron cargar los usuarios.'); setLoading(false) }
-    })
-    return () => { active = false; stop() }
-  }, [businessId])
+
   async function save(userId, role, status) {
-    if (!await confirm({ title: '¿Actualizar el acceso?', description: 'Se aplicarán los cambios de rol y estado para esta cuenta.', confirmLabel: 'Actualizar acceso' })) return false
-    setBusy(true)
-    setError('')
-    setSuccess('')
-    try {
-      await changeMembership(businessId, userId, role, status)
-      setMembers((previous) => previous.map((member) => member.userId === userId ? { ...member, role, status } : member))
-      setSuccess('Rol y estado actualizados. Los permisos se aplican también a las sesiones abiertas.')
-      return true
-    } catch { setError('No se pudieron actualizar los permisos. Recarga la página e intenta de nuevo.'); return false }
-    finally { setBusy(false) }
+    if (!await confirm({ title: '¿Actualizar el acceso?', description: 'Se aplicará el cambio de rol o estado únicamente en este negocio.', confirmLabel: 'Actualizar acceso' })) return false
+    const saved = await mutate({ action: 'membershipUpdate', userId, role, status })
+    notify(saved
+      ? { title: 'Acceso actualizado', message: 'Los cambios se guardaron para esta membresía.', type: 'success' }
+      : { title: 'No se pudo actualizar', message: 'El servidor rechazó el cambio o la cuenta dejó de estar disponible. Revisa los permisos e inténtalo de nuevo.', type: 'error' })
+    return saved
   }
+
   return <div className="space-y-6">
     <PageHeader title="Usuarios" description="Administra los roles y el acceso de las cuentas de tu negocio." />
     <AdminSummary items={[
-      { label: 'Administradores', value: loading ? '—' : members.filter(m => m.role === 'admin').length, icon: ShieldCheck },
-      { label: 'Profesionales', value: loading ? '—' : members.filter(m => m.role === 'professional').length, icon: UserRound, tone: 'blue' },
-      { label: 'Clientes', value: loading ? '—' : members.filter(m => m.role === 'client').length, icon: UsersIcon, tone: 'green' },
+      { label: 'Administradores', value: hasData ? members.filter(member => member.role === 'admin').length : '—', icon: ShieldCheck },
+      { label: 'Profesionales', value: hasData ? members.filter(member => member.role === 'professional').length : '—', icon: UserRound, tone: 'blue' },
+      { label: 'Clientes', value: hasData ? members.filter(member => member.role === 'client').length : '—', icon: UsersIcon, tone: 'green' },
     ]} />
     {error && <Alert tone="error">{error}</Alert>}
-    {success && <Alert tone="success">{success}</Alert>}
     <Card title="Cuentas del negocio">
       <p className="mb-4 text-sm text-muted">Desactivar una cuenta impide su acceso al panel de este negocio. Tu cuenta y la del propietario están protegidas.</p>
-      <div className="admin-filter-row"><label>Filtrar por rol<select value={roleFilter} onChange={e => setRoleFilter(e.target.value)}><option value="">Todos los roles</option>{Object.entries(roles).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label>Filtrar por estado<select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}><option value="">Todos los estados</option><option value="active">Activo</option><option value="inactive">Inactivo</option><option value="pending">Pendiente</option></select></label></div>
-      {loading ? <p role="status">Cargando usuarios…</p> : <DataList items={members.filter(m => (!roleFilter || m.role === roleFilter) && (!statusFilter || m.status === statusFilter))} resetKey={`${roleFilter}:${statusFilter}`} label="Usuarios" searchText={m => `${m.name} ${m.email} ${roles[m.role]} ${m.status === "active" ? "Activo" : m.status === "pending" ? "Pendiente" : "Inactivo"}`}>{rows => <div className="overflow-x-auto"><table className="w-full text-left text-sm">
-        <thead><tr><th className="p-3">Usuario</th><th className="p-3">Rol</th><th className="p-3">Estado</th><th className="p-3">Acción</th></tr></thead>
-        <tbody>{rows.map((member) => <UserRow key={member.userId}
-          member={member} busy={busy} locked={!ownerId || member.userId === ownerId || member.userId === currentUser.uid} save={save} />)}</tbody>
-      </table></div>}</DataList>}
+      <div className="admin-filter-row"><label>Filtrar por rol<select value={roleFilter} onChange={event => setRoleFilter(event.target.value)}><option value="">Todos los roles</option>{Object.entries(roles).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label>Filtrar por estado<select value={statusFilter} onChange={event => setStatusFilter(event.target.value)}><option value="">Todos los estados</option><option value="active">Activo</option><option value="inactive">Inactivo</option><option value="pending">Pendiente</option></select></label></div>
+      {loading ? <p role="status">Cargando usuarios…</p> : error && !hasData ? <div className="flex items-center gap-3"><p role="status">No se pudo completar la consulta.</p><Button variant="secondary" onClick={reload}>Reintentar</Button></div> : hasData ? <>
+        {refreshing && <p role="status" className="mb-2 text-xs text-muted">Actualizando usuarios…</p>}
+        <DataList items={members.filter(member => (!roleFilter || member.role === roleFilter) && (!statusFilter || member.status === statusFilter))} resetKey={`${businessId}:${roleFilter}:${statusFilter}`} label="Usuarios" searchText={member => `${member.name} ${member.email} ${member.userId} ${roles[member.role] || ''} ${member.status}`}>
+          {rows => <div className="overflow-x-auto"><table className="w-full text-left text-sm">
+            <thead><tr><th className="p-3">Usuario</th><th className="p-3">Rol en este negocio</th><th className="p-3">Estado</th><th className="p-3">Acción</th></tr></thead>
+            <tbody>{rows.map(member => <UserRow key={member.userId} member={member} currentUserId={currentUser?.uid} busy={busy} save={save} />)}</tbody>
+          </table></div>}
+        </DataList>
+      </> : null}
     </Card>
     <Card title="Permisos por rol">
       <ul className="admin-role-guide">

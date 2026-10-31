@@ -24,7 +24,7 @@ const clientContact = client => ({
   ...(typeof client.isActive === 'boolean' ? { isActive: client.isActive } : {}),
   ...(client.createdAt ? { createdAt: client.createdAt } : {}),
 })
-export const engagementActions = ['hub', 'waitlist', 'waitlistUpdate', 'favorite', 'wait', 'unwait', 'review', 'clients', 'clientHistory', 'clientUpdate', 'promotionSave', 'promotionServiceStatus', 'reminderSave', 'notificationRead', 'notificationReadAll']
+export const engagementActions = ['hub', 'waitlist', 'waitlistUpdate', 'businessUsers', 'membershipUpdate', 'favorite', 'wait', 'unwait', 'review', 'clients', 'clientHistory', 'clientUpdate', 'promotionSave', 'promotionServiceStatus', 'reminderSave', 'notificationRead', 'notificationReadAll']
 
 function syncPromotionNotices(db, tx, businessId, promotion, service, adminIds, noticeDocs, now, stamp) {
   const promotionId = promotion.id
@@ -79,6 +79,76 @@ export async function executeEngagement(db, uid, input, actor) {
   const client = () => { if (actor.member.role !== 'client') fail('permission-denied', 'Esta acción requiere una cuenta de cliente.') }
   const stamp = Timestamp.now()
   const own = collection => scoped(db, collection, businessId).where('userId', '==', uid)
+  if (action === 'businessUsers') {
+    if (actor.isSuperadmin || actor.member.role !== 'admin') fail('permission-denied', 'Solo un administrador operativo puede consultar las cuentas de su negocio.')
+    const membershipDocs = await scoped(db, 'memberships', businessId).get()
+    const members = rows(membershipDocs).filter(member => id(member.userId) && ['admin', 'professional', 'client'].includes(member.role))
+    const users = new Map()
+    const refs = members.map(member => db.doc(`users/${member.userId}`))
+    for (let offset = 0; offset < refs.length; offset += 250) {
+      const snapshots = await db.getAll(...refs.slice(offset, offset + 250))
+      snapshots.forEach(snapshot => users.set(snapshot.id, record(snapshot)))
+    }
+    return members.map(member => {
+      const profile = users.get(member.userId)
+      const name = fullName(profile || {}) || fullName(member) || ''
+      return {
+        userId: member.userId, role: member.role, status: member.status || 'inactive',
+        name, email: text(profile?.email || member.email, 254),
+        owner: member.userId === actor.business.ownerUserId,
+        profileAvailable: Boolean(profile),
+      }
+    }).sort((a, b) => a.name.localeCompare(b.name) || a.userId.localeCompare(b.userId))
+  }
+  if (action === 'membershipUpdate') {
+    if (actor.isSuperadmin || actor.member.role !== 'admin') fail('permission-denied', 'Solo un administrador operativo puede actualizar accesos del negocio.')
+    if (!id(input.userId) || !['admin', 'professional', 'client'].includes(input.role) || !['active', 'inactive'].includes(input.status))
+      fail('invalid-argument', 'Rol o estado inválido.')
+    if (input.role === 'admin') fail('permission-denied', 'El nombramiento de administradores se gestiona desde la plataforma.')
+    const targetId = input.userId
+    const memberRef = db.doc(`memberships/${businessId}_${targetId}`)
+    const userRef = db.doc(`users/${targetId}`)
+    const auditRef = db.collection('auditLogs').doc()
+    const stamp = Timestamp.now()
+    await db.runTransaction(async tx => {
+      const [memberSnapshot, userSnapshot] = await Promise.all([tx.get(memberRef), tx.get(userRef)])
+      const member = record(memberSnapshot), user = record(userSnapshot)
+      if (!member || member.businessId !== businessId || member.userId !== targetId) fail('not-found', 'La membresía no pertenece a este negocio.')
+      if (targetId === uid || targetId === actor.business.ownerUserId) fail('permission-denied', 'Esta cuenta está protegida y no puede modificarse desde este módulo.')
+      if (!user) fail('failed-precondition', 'No se puede gestionar una membresía cuyo perfil de cuenta no está disponible.')
+      if (user.globalRole === 'superadmin' || member.role === 'admin') fail('permission-denied', 'Las cuentas de administrador se gestionan desde la plataforma.')
+      if (!['professional', 'client'].includes(member.role)) fail('failed-precondition', 'La membresía tiene un rol no compatible.')
+
+      const [professionalQuery, clientQuery] = await Promise.all([
+        tx.get(scoped(db, 'professionals', businessId).where('userId', '==', targetId).limit(2)),
+        tx.get(scoped(db, 'clients', businessId).where('userId', '==', targetId).limit(2)),
+      ])
+      if (professionalQuery.size > 1 || clientQuery.size > 1) fail('failed-precondition', 'Hay perfiles duplicados para esta cuenta; solicita una revisión.')
+      const professional = professionalQuery.docs[0] ? record(professionalQuery.docs[0]) : null
+      const clientProfile = clientQuery.docs[0] ? record(clientQuery.docs[0]) : null
+      const professionalId = professional?.id || member.professionalId || `${businessId}_${targetId}`
+      const clientId = clientProfile?.id || `${businessId}_${targetId}`
+      const changes = member.role !== input.role || member.status !== input.status
+      if (!changes) return
+      tx.update(memberRef, { role: input.role, status: input.status,
+        ...(professional || input.role === 'professional' ? { professionalId } : {}) })
+      tx.create(auditRef, {
+        businessId, actorUserId: uid, targetUserId: targetId, action: 'membershipUpdate',
+        beforeRole: member.role, beforeStatus: member.status, afterRole: input.role, afterStatus: input.status, createdAt: stamp,
+      })
+      if (professional) tx.update(db.doc(`professionals/${professional.id}`), { isActive: input.role === 'professional' && input.status === 'active', updatedAt: stamp })
+      else if (input.role === 'professional') tx.create(db.doc(`professionals/${professionalId}`), {
+        id: professionalId, businessId, userId: targetId, displayName: fullName(user),
+        email: text(user.email, 254), phone: text(user.phone, 30), serviceIds: [],
+        isActive: input.status === 'active', createdAt: stamp, updatedAt: stamp,
+      })
+      if (input.role === 'client' && !clientProfile) tx.create(db.doc(`clients/${clientId}`), {
+        id: clientId, businessId, userId: targetId, firstName: text(user.firstName, 100), lastName: text(user.lastName, 100),
+        email: text(user.email, 254), phone: text(user.phone, 30), status: 'active', createdAt: stamp, updatedAt: stamp,
+      })
+    })
+    return { ok: true }
+  }
   if (action === 'waitlist') {
     if (!['admin', 'professional'].includes(actor.member.role)) fail('permission-denied', 'Esta lista es solo para el equipo del negocio.')
     if (actor.isSuperadmin) fail('permission-denied', 'El acceso de superadministración no permite consultar datos personales de clientes.')

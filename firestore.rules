@@ -78,8 +78,9 @@ service cloud.firestore {
       return signedIn() && admin(get(/databases/$(database)/documents/memberships/$(id)).data.businessId);
     }
     match /users/{uid} {
-      allow read: if superadmin() || self(uid) || (signedIn() && admin(resource.data.businessIds[0])
-        && exists(/databases/$(database)/documents/memberships/$(resource.data.businessIds[0] + '_' + uid)));
+      // Tenant administrators receive scoped account summaries through the authenticated booking API.
+      // Direct profile reads are limited to self and platform superadmins to avoid unsafe tenant inference.
+      allow read: if superadmin() || self(uid);
       allow create: if signedIn() && request.resource.data.businessIds is list
         && request.resource.data.businessIds.size() == 1
         && admin(request.resource.data.businessIds[0])
@@ -169,6 +170,7 @@ service cloud.firestore {
             && getAfter(/databases/$(database)/documents/professionals/$(request.resource.data.professionalId)).data.userId == resource.data.userId
             && getAfter(/databases/$(database)/documents/professionals/$(request.resource.data.professionalId)).data.businessId == resource.data.businessId))
         && request.resource.data.role in ['admin', 'professional', 'client']
+        && resource.data.role != 'admin' && request.resource.data.role != 'admin'
         && request.resource.data.status in ['active', 'inactive']
         && professionalMatches(resource.data.businessId, resource.data.userId, request.resource.data.role, request.resource.data.status);
       allow delete: if self(resource.data.userId) && recent(resource.data) && provisioning();

@@ -36,9 +36,10 @@ test('Sprint 3 collections reject direct forged writes and cross-business reads'
   await assertFails(updateDoc(doc(env.authenticatedContext('client').firestore(),'notifications','private'), { recipientUserId:'outsider' }))
 })
 
-test('production administrator reads own business users including old profiles without embedded IDs', async () => {
+test('production administrators cannot bypass the scoped account API with direct user profile reads', async () => {
   const db = env.authenticatedContext('owner').firestore()
-  for (const uid of ['owner', 'client', 'pro']) await assertSucceeds(getDoc(doc(db, 'users', uid)))
+  await assertSucceeds(getDoc(doc(db, 'users', 'owner')))
+  for (const uid of ['client', 'pro']) await assertFails(getDoc(doc(db, 'users', uid)))
   await assertFails(getDoc(doc(db, 'users', 'outsider')))
   await assertFails(getDoc(doc(db, 'users', 'unrelated')))
 })

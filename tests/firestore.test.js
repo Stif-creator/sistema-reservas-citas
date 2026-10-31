@@ -229,7 +229,7 @@ function provisionProfessional(db, uid, businessId = 'studio') {
 
 test('only administrators can provision complete professional accounts in their business', async () => {
   await assertSucceeds(provisionProfessional(dbFor('owner'), 'managed'))
-  await assertSucceeds(getDoc(doc(dbFor('owner'), 'users', 'managed')))
+  await assertFails(getDoc(doc(dbFor('owner'), 'users', 'managed')))
   await assertFails(provisionProfessional(dbFor('client'), 'forbidden'))
   await assertFails(provisionProfessional(dbFor('owner'), 'cross-tenant', 'private'))
   await assertFails(getDoc(doc(dbFor('outsider'), 'users', 'managed')))
@@ -250,12 +250,11 @@ test('role and account state management requires synchronized profiles and prote
   })
   await assertSucceeds(demote.commit())
   await assertFails(updateDoc(doc(dbFor('managed-role'), 'memberships', 'studio_managed-role'), { status: 'active' }))
-  await assertSucceeds(updateDoc(member, { role: 'admin', status: 'active' }))
-  await assertSucceeds(updateDoc(doc(dbFor('managed-role'), 'businesses', 'studio'), { description: 'Cambio autorizado' }))
+  await assertFails(updateDoc(member, { role: 'admin', status: 'active' }))
+  await assertFails(updateDoc(doc(dbFor('managed-role'), 'businesses', 'studio'), { description: 'Cambio prohibido para una membresía inactiva' }))
   await assertFails(updateDoc(doc(dbFor('managed-role'), 'memberships', 'studio_owner'), { role: 'client' }))
   await assertFails(updateDoc(doc(dbFor('managed-role'), 'memberships', 'studio_managed-role'), { status: 'inactive' }))
   await assertSucceeds(updateDoc(member, { status: 'inactive' }))
-  await assertFails(updateDoc(doc(dbFor('managed-role'), 'businesses', 'studio'), { description: 'Cambio prohibido' }))
   const promote = writeBatch(db)
   promote.update(member, { role: 'professional', status: 'active' })
   promote.update(profile, { isActive: true })
