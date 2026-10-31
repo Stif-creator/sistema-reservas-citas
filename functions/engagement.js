@@ -24,7 +24,7 @@ const clientContact = client => ({
   ...(typeof client.isActive === 'boolean' ? { isActive: client.isActive } : {}),
   ...(client.createdAt ? { createdAt: client.createdAt } : {}),
 })
-export const engagementActions = ['hub', 'waitlist', 'favorite', 'wait', 'unwait', 'review', 'clients', 'clientHistory', 'clientUpdate', 'promotionSave', 'promotionServiceStatus', 'reminderSave', 'notificationRead', 'notificationReadAll']
+export const engagementActions = ['hub', 'waitlist', 'waitlistUpdate', 'favorite', 'wait', 'unwait', 'review', 'clients', 'clientHistory', 'clientUpdate', 'promotionSave', 'promotionServiceStatus', 'reminderSave', 'notificationRead', 'notificationReadAll']
 
 function syncPromotionNotices(db, tx, businessId, promotion, service, adminIds, noticeDocs, now, stamp) {
   const promotionId = promotion.id
@@ -81,6 +81,7 @@ export async function executeEngagement(db, uid, input, actor) {
   const own = collection => scoped(db, collection, businessId).where('userId', '==', uid)
   if (action === 'waitlist') {
     if (!['admin', 'professional'].includes(actor.member.role)) fail('permission-denied', 'Esta lista es solo para el equipo del negocio.')
+    if (actor.isSuperadmin) fail('permission-denied', 'El acceso de superadministración no permite consultar datos personales de clientes.')
     const [entries, professionals, business] = await Promise.all([
       scoped(db, 'waitingList', businessId).get().then(rows),
       actor.member.role === 'professional'
@@ -112,6 +113,44 @@ export async function executeEngagement(db, uid, input, actor) {
         }
       })
       .sort((a, b) => a.date.localeCompare(b.date) || ms(b.createdAt) - ms(a.createdAt)))
+  }
+  if (action === 'waitlistUpdate') {
+    if (actor.isSuperadmin || !['admin', 'professional'].includes(actor.member.role)) fail('permission-denied', 'Solo el equipo autorizado del negocio puede actualizar el seguimiento.')
+    if (!id(input.id) || !['pending', 'contacted', 'resolved', 'closed'].includes(input.status)) fail('invalid-argument', 'Estado de seguimiento inválido.')
+    const ref = db.doc(`waitingList/${input.id}`)
+    const changedAt = Timestamp.now()
+    const reason = text(input.reason, 240)
+    let revision
+    await db.runTransaction(async tx => {
+      const item = record(await tx.get(ref))
+      if (!item || item.businessId !== businessId) fail('not-found', 'Solicitud de espera no disponible.')
+      if (actor.member.role === 'professional') {
+        const profiles = await tx.get(scoped(db, 'professionals', businessId).where('userId', '==', uid))
+        if (!profiles.docs.some(profile => profile.id === item.professionalId)) fail('permission-denied', 'Esta solicitud no pertenece a tus servicios asignados.')
+      }
+      const previousStatus = item.followUpStatus || 'pending'
+      if (previousStatus === input.status) fail('failed-precondition', 'La solicitud ya tiene ese estado.')
+      const allowed = {
+        pending: ['contacted', 'resolved', 'closed'],
+        contacted: ['pending', 'resolved', 'closed'],
+        resolved: ['pending'],
+        closed: ['pending'],
+      }
+      if (!allowed[previousStatus]?.includes(input.status)) fail('failed-precondition', 'No se puede cambiar el estado desde su valor actual.')
+      revision = (Number(item.followUpRevision) || 0) + 1
+      const eventRef = db.doc(`waitlistFollowups/${input.id}_${revision}`)
+      tx.update(ref, {
+        followUpStatus: input.status,
+        followUpUpdatedAt: changedAt,
+        followUpUpdatedBy: uid,
+        followUpUpdatedByName: fullName(actor.user || {}),
+        followUpRevision: revision,
+        ...(input.status === 'closed' && reason ? { followUpCloseReason: reason } : { followUpCloseReason: null }),
+      })
+      tx.create(eventRef, { businessId, waitlistId: input.id, revision, previousStatus, status: input.status,
+        reason: input.status === 'closed' ? reason : '', changedAt, changedBy: uid, changedByName: fullName(actor.user || {}) })
+    })
+    return { ok: true, revision }
   }
   if (action === 'hub') {
     const [favorites, waiting, notifications, promotions, reviews, reminder] = await Promise.all([

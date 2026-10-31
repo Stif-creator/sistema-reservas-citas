@@ -97,6 +97,33 @@ test('Sprint 3 favorites and waiting lists are owned, deduplicated and removable
   assert.equal((await f.call(f.users.client, { action:'hub' })).waiting.length, 0)
 })
 
+test('waitlist follow-up is scoped, audited, supports legacy entries and rejects duplicate or unauthorized changes', async () => {
+  const f = await fixture()
+  const wait = { action: 'wait', serviceId: f.serviceId, professionalId: f.professionalId, date: f.date }
+  await f.call(f.users.client, wait)
+  const entry = (await db.collection('waitingList').where('businessId', '==', f.businessId).get()).docs[0]
+  assert.equal((await f.call(f.users.admin, { action: 'waitlist' }))[0].followUpStatus, undefined)
+
+  await f.call(f.users.admin, { action: 'waitlistUpdate', id: entry.id, status: 'contacted' })
+  const contacted = (await db.doc(`waitingList/${entry.id}`).get()).data()
+  assert.equal(contacted.followUpStatus, 'contacted')
+  assert.equal(contacted.followUpUpdatedBy, f.users.admin)
+  assert.equal(contacted.followUpRevision, 1)
+  await rejects(f.call(f.users.admin, { action: 'waitlistUpdate', id: entry.id, status: 'contacted' }), 'failed-precondition')
+  await f.call(f.users.pro, { action: 'waitlistUpdate', id: entry.id, status: 'resolved' })
+  assert.equal((await db.doc(`waitingList/${entry.id}`).get()).data().followUpStatus, 'resolved')
+  assert.equal((await db.collection('waitlistFollowups').where('waitlistId', '==', entry.id).get()).size, 2)
+  await rejects(f.call(f.users.pro2, { action: 'waitlistUpdate', id: entry.id, status: 'closed' }), 'permission-denied')
+  await rejects(f.call(f.users.admin, { action: 'waitlistUpdate', id: 'missing', status: 'closed' }), 'not-found')
+  await db.doc('waitingList/foreign-request').set({ businessId: 'another-business', userId: 'private-user', date: f.date })
+  await rejects(f.call(f.users.admin, { action: 'waitlistUpdate', id: 'foreign-request', status: 'closed' }), 'not-found')
+
+  const superadminId = `superadmin-${randomUUID()}`
+  await db.doc(`users/${superadminId}`).set({ status: 'active', globalRole: 'superadmin' })
+  await rejects(f.call(superadminId, { action: 'waitlist' }), 'permission-denied')
+  await rejects(f.call(superadminId, { action: 'waitlistUpdate', id: entry.id, status: 'closed' }), 'permission-denied')
+})
+
 test('waitlist requests notify scoped admins and only the selected professional', async () => {
   const f = await fixture()
   const superadminId = `superadmin-${randomUUID()}`

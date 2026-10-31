@@ -11,7 +11,7 @@ test('public HTTP permits only explicit read actions without a token', async t =
   const send = (action, headers = {}) => fetch(`http://127.0.0.1:${server.address().port}/booking`, { method:'POST', headers:{ 'Content-Type':'application/json', ...headers }, body:JSON.stringify({ action }) })
   assert.equal((await send('publicOptions')).status,200)
   assert.equal((await send('publicAvailability')).status,200)
-  for (const action of ['create','options','hub','promotionSave','clientUpdate']) assert.equal((await send(action)).status,401)
+  for (const action of ['create','options','hub','promotionSave','clientUpdate','waitlistUpdate']) assert.equal((await send(action)).status,401)
   assert.equal((await send('publicOptions', { Authorization:'Bearer bad' })).status,401)
   assert.equal((await send('publicOptions', { Origin:'https://evil.example' })).status,403)
   assert.equal(calls.length,2)
