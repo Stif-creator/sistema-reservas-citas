@@ -265,6 +265,7 @@ export async function executeEngagement(db, uid, input, actor) {
     return { ok: true }
   }
   if (action === 'reminderSave') {
+    if (actor.isSuperadmin) fail('permission-denied', 'El superadministrador no puede modificar recordatorios de un negocio.')
     admin()
     if (!Number.isInteger(input.hours) || input.hours < 1 || input.hours > 168) fail('invalid-argument', 'La anticipación debe ser de 1 a 168 horas.')
     // Recalculate existing scheduled reminders as well as new bookings.
@@ -277,6 +278,7 @@ export async function executeEngagement(db, uid, input, actor) {
     return { ok: true }
   }
   if (action === 'promotionSave') {
+    if (actor.isSuperadmin) fail('permission-denied', 'El superadministrador no puede administrar promociones de un negocio.')
     admin()
     if (!id(input.serviceId) || !id(input.id) || !text(input.title, 100) || !Number.isInteger(input.percent) || input.percent < 1 || input.percent > 90 || !Number.isSafeInteger(input.startAt) || !Number.isSafeInteger(input.endAt) || input.endAt <= input.startAt || typeof input.isActive !== 'boolean') fail('invalid-argument', 'Completa la promoción: descuento de 1 a 90 % y fechas válidas.')
     await db.runTransaction(async tx => {

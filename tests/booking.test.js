@@ -38,13 +38,17 @@ async function fixture() {
 }
 const rejects = (promise, code) => assert.rejects(promise, error => error.code === code)
 
-test('discounts select the largest active offer, reject invalid legacy percentages and honor expiry', () => {
+test('discounts use inclusive starts, exclusive ends, the highest valid percentage and no stacking', () => {
   const service = { id:'s', price:100 }
   const offer = { serviceId:'s', isActive:true, percent:10, startAt:100, endAt:300 }
+  assert.equal(discountedService(service, [offer], 99).price,100)
+  assert.equal(discountedService(service, [offer], 100).price,90)
+  assert.equal(discountedService(service, [offer], 299).price,90)
+  assert.equal(discountedService(service, [offer], 300).price,100)
   assert.equal(discountedService(service, [offer, { ...offer, percent:20 }], 200).price,80)
-  assert.equal(discountedService(service, [offer],300).price,100)
   assert.equal(discountedService(service, [{ ...offer, percent:200 }],200).price,100)
   assert.equal(discountedService(service, [{ ...offer, serviceId:'other' }],200).price,100)
+  assert.equal(discountedService(service, [{ ...offer, isActive:false }],200).price,100)
 })
 
 test('Sprint 3 public selections expose only public data and still require identity at confirmation', async () => {
@@ -248,6 +252,10 @@ test('client records and appointment history are restricted by role and global a
   assert.equal(selectedBusinessSummary.clients, undefined)
   await rejects(executeBooking(db, superadminId, { action: 'clientHistory', businessId: f.businessId, clientId: f.users.client }), 'permission-denied')
   await rejects(executeBooking(db, superadminId, { action: 'clientUpdate', businessId: f.businessId, id: f.users.client, firstName: 'Cambio', phone: '70000001' }), 'permission-denied')
+  await rejects(executeBooking(db, superadminId, { action: 'reminderSave', businessId: f.businessId, hours: 48 }), 'permission-denied')
+  await rejects(executeBooking(db, superadminId, { action: 'promotionSave', businessId: f.businessId,
+    id: `promo-${f.businessId}`, serviceId: `service-${f.businessId}`, title: 'Oferta', percent: 15,
+    startAt: Date.now(), endAt: Date.now() + 86400000, isActive: true }), 'permission-denied')
 })
 
 test('simultaneous overlapping reservations serialize; retries are idempotent', async () => {
