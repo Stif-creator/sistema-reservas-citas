@@ -1,12 +1,13 @@
 import { CalendarCheck, MapPin, Phone, Mail, CheckCircle2, Clock3, Image as ImageIcon, Palette, Eye, BookOpen, Target, TrendingUp } from 'lucide-react'
 import { safeImageUrl, brandVariables } from '../lib/brand'
+import BusinessMap from './BusinessMap'
 
 const palette = [
   ['Primario', 'primaryColor'], ['Secundario', 'secondaryColor'],
   ['Acento', 'accentColor'], ['Superficie', 'surfaceColor'],
 ]
 
-export default function SettingsPreview({ tab, name, description, logoUrl, coverUrl, primaryColor, secondaryColor, accentColor, surfaceColor, about = {}, contactPhone, contactWhatsapp, contactEmail, addressLine, city, stateRegion, countryCode, weeklyHours = {}, timeZone, published = false }) {
+export default function SettingsPreview({ tab, name, description, logoUrl, coverUrl, primaryColor, secondaryColor, accentColor, surfaceColor, about = {}, contactPhone, contactWhatsapp, contactEmail, addressLine, city, stateRegion, countryCode, latitude, longitude, weeklyHours = {}, timeZone, published = false }) {
   const variables = brandVariables({ primaryColor, secondaryColor, accentColor, surfaceColor })
   const validCover = safeImageUrl(coverUrl)
   const validLogo = safeImageUrl(logoUrl)
@@ -51,7 +52,7 @@ export default function SettingsPreview({ tab, name, description, logoUrl, cover
       </div>
     </div> : tab === 'contact' ? <div className="settings-contact-layout">
       <section className="settings-preview-section"><h3><Phone size={18} />Información de contacto</h3>{contactRows.map(([Icon, value], index) => <p key={index}><Icon size={17} />{value}</p>)}{!contactRows.length && <p className="settings-preview-empty">Agrega los datos de contacto para previsualizarlos.</p>}</section>
-      <section className="settings-preview-section"><h3><MapPin size={18} />Ubicación</h3>{fullAddress ? <p>{fullAddress}</p> : <p className="settings-preview-empty">Agrega una dirección para previsualizarla.</p>}</section>
+      <section className="settings-preview-section"><h3><MapPin size={18} />Ubicación</h3>{fullAddress ? <p>{fullAddress}</p> : <p className="settings-preview-empty">Agrega una dirección para previsualizarla.</p>}{Number.isFinite(Number(latitude)) && latitude !== '' && Number.isFinite(Number(longitude)) && longitude !== '' && Math.abs(Number(latitude)) <= 85 && Math.abs(Number(longitude)) <= 180 && <div className="settings-contact-map"><BusinessMap business={{ name, location: { latitude: Number(latitude), longitude: Number(longitude), addressLine, city } }} compact /></div>}</section>
     </div> : tab === 'hours' ? <div className="settings-weekly-summary">
       <div className="settings-timezone"><Clock3 size={17} />Zona horaria <strong>{timeZone || 'No configurada'}</strong></div>
       {days.map(([key, label]) => <div className="settings-day-summary" key={key}><strong>{label}</strong>{isOpen(weeklyHours[key]) ? <span>{weeklyHours[key].map((slot, index) => <small key={index}>{slot.start || '—'}–{slot.end || '—'}</small>)}</span> : <em>Cerrado</em>}</div>)}

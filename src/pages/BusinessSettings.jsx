@@ -319,7 +319,7 @@ function BusinessSettingsForm({ businessId, platform }) {
               />
             </Field>
           </div>
-        </Card></div><div className="settings-preview-column"><SettingsPreview {...{ tab, name, description, logoUrl, coverUrl, primaryColor, secondaryColor, accentColor, surfaceColor, about, contactPhone, contactWhatsapp, contactEmail, addressLine, city, stateRegion, countryCode, weeklyHours, timeZone }} published={publicPageEnabled} /></div></div></div>
+        </Card></div><div className="settings-preview-column"><SettingsPreview {...{ tab, name, description, logoUrl, coverUrl, primaryColor, secondaryColor, accentColor, surfaceColor, about, contactPhone, contactWhatsapp, contactEmail, addressLine, city, stateRegion, countryCode, latitude, longitude, weeklyHours, timeZone }} published={publicPageEnabled} /></div></div></div>
 <div id="settings-panel-appearance" role="tabpanel" aria-labelledby="settings-tab-appearance" hidden={tab !== 'appearance'}><div className="settings-columns"><div className="settings-fields"><Card title="Identidad visual">{!isSuperadmin && <p className="text-sm text-muted mb-3">Los colores de tu negocio son administrados por la plataforma.</p>}{isSuperadmin && <label className="settings-publish-control"><input type="checkbox" checked={publicPageEnabled} onChange={e => setPublicPageEnabled(e.target.checked)} /> Publica tu pagina para los clientes <span>{publicPageEnabled ? "Publicada" : "No publicada"}</span></label>}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <HexColorControl key={`${primaryColor}`} id="primaryColor" label="Color primario" value={primaryColor} onChange={setPrimaryColor} disabled={!isSuperadmin} />
@@ -329,14 +329,14 @@ function BusinessSettingsForm({ businessId, platform }) {
           </div>
           {isSuperadmin && <Button type="button" variant="secondary" className="mt-4" onClick={() => { setPrimaryColor('#1672ed'); setSecondaryColor('#eaf3ff'); setAccentColor('#d97706'); setSurfaceColor('#f4f6f8') }}>Restablecer colores predeterminados</Button>}
           <p className="mt-3 text-xs text-muted">El acento destaca detalles y la superficie colorea la vista previa. El texto se ajusta automáticamente para mantener el contraste.</p>
-        </Card></div><div className="settings-preview-column"><SettingsPreview {...{ tab, name, description, logoUrl, coverUrl, primaryColor, secondaryColor, accentColor, surfaceColor, about, contactPhone, contactWhatsapp, contactEmail, addressLine, city, stateRegion, countryCode, weeklyHours, timeZone }} published={publicPageEnabled} /></div></div></div>
+        </Card></div><div className="settings-preview-column"><SettingsPreview {...{ tab, name, description, logoUrl, coverUrl, primaryColor, secondaryColor, accentColor, surfaceColor, about, contactPhone, contactWhatsapp, contactEmail, addressLine, city, stateRegion, countryCode, latitude, longitude, weeklyHours, timeZone }} published={publicPageEnabled} /></div></div></div>
 <div id="settings-panel-images" role="tabpanel" aria-labelledby="settings-tab-images" hidden={tab !== 'images'}><div className="settings-columns"><div className="settings-fields"><Card title="Imágenes">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <ImageUploadField label="Logo" value={logoUrl} onChange={setLogoUrl} businessId={businessId} kind="logo" disabled={saving || imageUploading} onBusyChange={setImageUploading} />
 
             <ImageUploadField label="Portada" value={coverUrl} onChange={setCoverUrl} businessId={businessId} kind="cover" disabled={saving || imageUploading} onBusyChange={setImageUploading} />
           </div>
-        </Card></div><div className="settings-preview-column"><SettingsPreview {...{ tab, name, description, logoUrl, coverUrl, primaryColor, secondaryColor, accentColor, surfaceColor, about, contactPhone, contactWhatsapp, contactEmail, addressLine, city, stateRegion, countryCode, weeklyHours, timeZone }} published={publicPageEnabled} /></div></div></div>
+        </Card></div><div className="settings-preview-column"><SettingsPreview {...{ tab, name, description, logoUrl, coverUrl, primaryColor, secondaryColor, accentColor, surfaceColor, about, contactPhone, contactWhatsapp, contactEmail, addressLine, city, stateRegion, countryCode, latitude, longitude, weeklyHours, timeZone }} published={publicPageEnabled} /></div></div></div>
 <div id="settings-panel-about" role="tabpanel" aria-labelledby="settings-tab-about" hidden={tab !== 'about'}><div className="settings-columns"><div className="settings-fields"><Card title="Página Nosotros">
           <p className="mb-4 text-sm text-muted">El administrador del negocio y el superadministrador pueden personalizar estos textos. Escribe valores propios de tu actividad, uno por línea; no hay textos específicos de un rubro. La visión es opcional y se muestra en Nosotros del cliente cuando tiene contenido.</p>
           <div className="settings-about-fields">
@@ -349,7 +349,7 @@ function BusinessSettingsForm({ businessId, platform }) {
               <textarea id={`about-${key}`} value={about[key]} rows={4} maxLength={max} onChange={event => setAbout(previous => ({ ...previous, [key]: event.target.value }))} className={fieldControlClasses(false)} />
             </Field>)}</div>
           </div>
-        </Card></div><div className="settings-preview-column"><SettingsPreview {...{ tab, name, description, logoUrl, coverUrl, primaryColor, secondaryColor, accentColor, surfaceColor, about, contactPhone, contactWhatsapp, contactEmail, addressLine, city, stateRegion, countryCode, weeklyHours, timeZone }} published={publicPageEnabled} /></div></div></div>
+        </Card></div><div className="settings-preview-column"><SettingsPreview {...{ tab, name, description, logoUrl, coverUrl, primaryColor, secondaryColor, accentColor, surfaceColor, about, contactPhone, contactWhatsapp, contactEmail, addressLine, city, stateRegion, countryCode, latitude, longitude, weeklyHours, timeZone }} published={publicPageEnabled} /></div></div></div>
 <div id="settings-panel-contact" role="tabpanel" aria-labelledby="settings-tab-contact" hidden={tab !== 'contact'}><div className="settings-columns"><div className="settings-fields"><Card title="Contacto">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Teléfono" htmlFor="contactPhone" error={fieldErrors.contactPhone}>
@@ -431,7 +431,7 @@ function BusinessSettingsForm({ businessId, platform }) {
           </div>
           <div className="mt-5"><LocationPickerMap latitude={latitude} longitude={longitude} onChange={(lat, lon) => { setLatitude(String(lat)); setLongitude(String(lon)) }} /></div>
           <div className="mt-5 flex justify-end"><Button type="button" disabled={savingLocation || saving || imageUploading} onClick={handleLocationSave}><MapPin size={16} />{savingLocation ? 'Guardando ubicación…' : 'Guardar ubicación'}</Button></div>
-        </Card></div><div className="settings-preview-column"><SettingsPreview {...{ tab, name, description, logoUrl, coverUrl, primaryColor, secondaryColor, accentColor, surfaceColor, about, contactPhone, contactWhatsapp, contactEmail, addressLine, city, stateRegion, countryCode, weeklyHours, timeZone }} published={publicPageEnabled} /></div></div></div>
+        </Card></div><div className="settings-preview-column"><SettingsPreview {...{ tab, name, description, logoUrl, coverUrl, primaryColor, secondaryColor, accentColor, surfaceColor, about, contactPhone, contactWhatsapp, contactEmail, addressLine, city, stateRegion, countryCode, latitude, longitude, weeklyHours, timeZone }} published={publicPageEnabled} /></div></div></div>
     </fieldset></form>
     <div id="settings-panel-hours" role="tabpanel" aria-labelledby="settings-tab-hours" hidden={tab !== 'hours'}>
       <div className="settings-columns settings-hours-columns"><div>      <form id="settings-hours" onSubmit={handleHoursSubmit}>
