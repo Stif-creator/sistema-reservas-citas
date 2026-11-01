@@ -37,6 +37,20 @@ service cloud.firestore {
             && location.latitude >= -85 && location.latitude <= 85
             && location.longitude >= -180 && location.longitude <= 180)));
     }
+    // Known business settings. Tenant administrators cannot change this map;
+    // the audited platform configuration flow may change only publication.
+    function validBusinessSettings(settings) {
+      return settings is map
+        && settings.keys().hasOnly(['publicPageEnabled', 'timezone', 'currencyCode', 'bookingIntervalMinutes', 'minAdvanceMinutes', 'maxAdvanceDays', 'cancellationLimitHours', 'autoConfirmBookings'])
+        && (!settings.keys().hasAny(['publicPageEnabled']) || settings.publicPageEnabled is bool)
+        && (!settings.keys().hasAny(['timezone']) || settings.timezone is string)
+        && (!settings.keys().hasAny(['currencyCode']) || settings.currencyCode is string)
+        && (!settings.keys().hasAny(['bookingIntervalMinutes']) || settings.bookingIntervalMinutes is int)
+        && (!settings.keys().hasAny(['minAdvanceMinutes']) || settings.minAdvanceMinutes is int)
+        && (!settings.keys().hasAny(['maxAdvanceDays']) || settings.maxAdvanceDays is int)
+        && (!settings.keys().hasAny(['cancellationLimitHours']) || settings.cancellationLimitHours is int)
+        && (!settings.keys().hasAny(['autoConfirmBookings']) || settings.autoConfirmBookings is bool);
+    }
     function publicBusiness(bid) {
       let business = get(/databases/$(database)/documents/businesses/$(bid)).data;
       return business.status == 'active' && business.settings.publicPageEnabled == true;
@@ -136,14 +150,14 @@ service cloud.firestore {
       // Los negocios operativos solo los crea el backend autorizado.
       allow create: if false;
       allow update: if admin(bid)
-        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['name', 'appearance'])
-        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['lastConfigAuditId']) || auditedConfiguration())
+        // Admin-editable top-level configuration fields are explicitly listed.
+        // `settings` is intentionally absent: every nested policy is protected.
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['name', 'appearance', 'settings'])
+        && auditedConfiguration()
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['location'])
           || validLocation(request.resource.data.location))
-        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['settings'])
-          || !request.resource.data.settings.diff(resource.data.settings).affectedKeys().hasAny(['publicPageEnabled']))
         && request.resource.data.diff(resource.data).affectedKeys()
-        .hasOnly(['name', 'description', 'about', 'logo', 'cover', 'appearance', 'contact', 'location', 'weeklyHours', 'settings', 'updatedAt', 'lastConfigAuditId']);
+        .hasOnly(['description', 'about', 'logo', 'cover', 'contact', 'location', 'weeklyHours', 'updatedAt', 'lastConfigAuditId']);
       // Platform configuration is separate from operational membership and status changes.
       allow update: if superadmin() && auditedConfiguration()
         && request.resource.data.diff(resource.data).affectedKeys()
@@ -155,7 +169,8 @@ service cloud.firestore {
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['location'])
           || validLocation(request.resource.data.location))
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['settings'])
-          || (request.resource.data.settings.diff(resource.data.settings).affectedKeys().hasOnly(['publicPageEnabled'])
+          || (validBusinessSettings(request.resource.data.settings)
+            && request.resource.data.settings.diff(resource.data.settings).affectedKeys().hasOnly(['publicPageEnabled'])
             && request.resource.data.settings.publicPageEnabled is bool));
       allow delete: if false;
     }

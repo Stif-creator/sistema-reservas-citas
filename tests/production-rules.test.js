@@ -2,9 +2,24 @@ import { before, after, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { initializeTestEnvironment, assertSucceeds, assertFails } from '@firebase/rules-unit-testing'
-import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore'
+import { doc, setDoc, getDoc, updateDoc, serverTimestamp, writeBatch } from 'firebase/firestore'
 
 let env
+let auditSequence = 0
+async function auditedUpdate(db, businessId, actorUserId, patch) {
+  const ref = doc(db, 'businesses', businessId)
+  const before = (await getDoc(ref)).data()
+  const auditId = `production-config-test-${++auditSequence}`
+  const batch = writeBatch(db)
+  batch.update(ref, { ...patch, lastConfigAuditId: auditId, updatedAt: serverTimestamp() })
+  batch.set(doc(db, 'auditLogs', auditId), {
+    businessId, actorUserId, action: 'businessUpdate',
+    beforeName: before.name || '', afterName: patch.name ?? before.name ?? '',
+    beforeAppearance: before.appearance || {}, afterAppearance: patch.appearance ?? before.appearance ?? {},
+    createdAt: serverTimestamp(),
+  })
+  return batch.commit()
+}
 before(async () => {
   env = await initializeTestEnvironment({ projectId: 'demo-citaspro', firestore: {
     host: '127.0.0.1', port: 8080, rules: await readFile('firestore.rules', 'utf8'),
@@ -62,13 +77,14 @@ test('production administrator edits legacy service fields and they persist', as
 })
 
 test('business location writes are scoped to admins and reject invalid or partial coordinates', async () => {
+  const db = env.authenticatedContext('owner').firestore()
   const location = { latitude: -16.4897, longitude: -68.1193, addressLine: 'Calle de prueba 123', city: 'La Paz', stateRegion: 'La Paz', countryCode: 'BO' }
-  await assertSucceeds(updateDoc(doc(env.authenticatedContext('owner').firestore(), 'businesses', 'studio'), { location }))
+  await assertSucceeds(auditedUpdate(db, 'studio', 'owner', { location }))
   await assertFails(updateDoc(doc(env.authenticatedContext('client').firestore(), 'businesses', 'studio'), { location }))
   await assertFails(updateDoc(doc(env.authenticatedContext('pro').firestore(), 'businesses', 'studio'), { location }))
   await assertFails(updateDoc(doc(env.authenticatedContext('outsider').firestore(), 'businesses', 'studio'), { location }))
-  await assertFails(updateDoc(doc(env.authenticatedContext('owner').firestore(), 'businesses', 'studio'), { location: { ...location, latitude: 86 } }))
-  await assertFails(updateDoc(doc(env.authenticatedContext('owner').firestore(), 'businesses', 'studio'), { location: { ...location, longitude: null } }))
+  await assertFails(auditedUpdate(db, 'studio', 'owner', { location: { ...location, latitude: 86 } }))
+  await assertFails(auditedUpdate(db, 'studio', 'owner', { location: { ...location, longitude: null } }))
 })
 
 test('required-password accounts retain self-profile access but cannot clear the flag or use business data', async () => {

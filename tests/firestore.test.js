@@ -34,6 +34,21 @@ const membership = (uid, role, status = 'active') => ({
   permissions: {},
   createdAt: Timestamp.now(),
 })
+let businessAuditSequence = 0
+async function auditedBusinessUpdate(db, businessId, actorUserId, patch) {
+  const ref = doc(db, 'businesses', businessId)
+  const before = (await getDoc(ref)).data()
+  const auditId = `business-config-test-${++businessAuditSequence}`
+  const batch = writeBatch(db)
+  batch.update(ref, { ...patch, lastConfigAuditId: auditId, updatedAt: serverTimestamp() })
+  batch.set(doc(db, 'auditLogs', auditId), {
+    businessId, actorUserId, action: 'businessUpdate',
+    beforeName: before.name || '', afterName: patch.name ?? before.name ?? '',
+    beforeAppearance: before.appearance || {}, afterAppearance: patch.appearance ?? before.appearance ?? {},
+    createdAt: serverTimestamp(),
+  })
+  return batch.commit()
+}
 before(async () => {
   env = await initializeTestEnvironment({
     projectId: 'demo-citaspro',
@@ -396,7 +411,7 @@ test('clients cannot modify a business, elevate role or reactivate themselves', 
   await assertFails(deleteDoc(doc(db, 'memberships', 'studio_client')))
   await assertFails(deleteDoc(doc(db, 'users', 'client')))
 })
-test('admin reads scoped lists and updates public branding', async () => {
+test('admin reads scoped lists and saves audited business configuration', async () => {
   const db = dbFor('owner')
   await assertSucceeds(
     getDocs(query(collection(db, 'professionals'), where('businessId', '==', 'studio')))
@@ -410,11 +425,7 @@ test('admin reads scoped lists and updates public branding', async () => {
       )
     )
   )
-  await assertSucceeds(
-    updateDoc(doc(db, 'businesses', 'studio'), {
-      appearance: { primaryColor: '#7c3aed', secondaryColor: '#f0e7ff' },
-    })
-  )
+  await assertSucceeds(auditedBusinessUpdate(db, 'studio', 'owner', { description: 'Descripción actualizada' }))
   await assertFails(updateDoc(doc(db, 'businesses', 'private'), { name: 'Cross tenant' }))
 })
 test('pending professionals need atomic administrator approval', async () => {
@@ -529,7 +540,8 @@ test('superadmin supervision does not grant operational writes or unaudited conf
   } }))
   await assertFails(updateDoc(doc(owner, 'businesses', 'studio'), { name: 'Forbidden rename' }))
   await assertFails(updateDoc(doc(owner, 'businesses', 'studio'), { status: 'inactive' }))
-  await assertSucceeds(updateDoc(doc(owner, 'businesses', 'studio'), { description: 'Updated business description' }))
+  await assertFails(updateDoc(doc(owner, 'businesses', 'studio'), { description: 'Unaudited update' }))
+  await assertSucceeds(auditedBusinessUpdate(owner, 'studio', 'owner', { description: 'Updated business description' }))
   await assertFails(updateDoc(doc(owner, 'users', 'owner'), { globalRole: 'superadmin' }))
   await assertFails(updateDoc(doc(dbFor('client'), 'users', 'client'), { globalRole: 'superadmin' }))
   await assertSucceeds(getDocs(collection(platform, 'businesses')))
@@ -555,13 +567,46 @@ test('audit events require an actual atomic change, cannot be forged, modified o
   const log = {businessId:'studio',actorUserId:'owner',action:'businessUpdate',beforeName:before.name || '',afterName:before.name || '',beforeAppearance:before.appearance || {},afterAppearance:before.appearance || {},createdAt:serverTimestamp()}
   await assertFails(setDoc(doc(db,'auditLogs','forged'),log))
   const batch = writeBatch(db)
-  batch.update(doc(db,'businesses','studio'),{description:'Audited update',updatedAt:serverTimestamp()})
+  batch.update(doc(db,'businesses','studio'),{description:'Audited update',lastConfigAuditId:'verified',updatedAt:serverTimestamp()})
   batch.set(doc(db,'auditLogs','verified'),log)
   await assertSucceeds(batch.commit())
   await assertFails(updateDoc(doc(db,'auditLogs','verified'),{actorUserId:'pro'}))
   await assertFails(deleteDoc(doc(db,'auditLogs','verified')))
   await assertFails(getDoc(doc(dbFor('pro'),'auditLogs','verified')))
   await assertFails(getDoc(doc(dbFor('client'),'auditLogs','verified')))
+})
+
+test('business admin can save authorized configuration but cannot change protected settings or another business', async () => {
+  const db = dbFor('owner')
+  await assertSucceeds(auditedBusinessUpdate(db, 'studio', 'owner', {
+    description: 'Descripción actualizada',
+    logo: { url: 'https://example.test/logo.png' },
+    cover: { url: 'https://example.test/cover.png' },
+    about: { title: 'Nuestra historia', story: 'Historia', mission: 'Misión', vision: '', values: 'Respeto' },
+    contact: { phone: '+59176543210', whatsapp: '+59176543210', email: 'hola@example.test' },
+    location: { latitude: -16.5, longitude: -68.15, addressLine: 'Calle 1', city: 'La Paz', stateRegion: 'La Paz', countryCode: 'BO' },
+    weeklyHours: { '1': [{ start: '09:00', end: '12:00' }] },
+  }))
+  const saved = (await getDoc(doc(db, 'businesses', 'studio'))).data()
+  assert.equal(saved.description, 'Descripción actualizada')
+  assert.deepEqual(saved.settings, { publicPageEnabled: true, timezone: 'America/La_Paz', currencyCode: 'BOB' })
+  assert.equal(saved.weeklyHours['1'][0].start, '09:00')
+
+  const deniedPatches = [
+    { 'settings.timezone': 'Pacific/Auckland' },
+    { 'settings.bookingIntervalMinutes': 1 },
+    { 'settings.minAdvanceMinutes': 0 },
+    { 'settings.maxAdvanceDays': 365 },
+    { 'settings.cancellationLimitHours': 0 },
+    { 'settings.autoConfirmBookings': true },
+    { 'settings.publicPageEnabled': false },
+    { settings: { publicPageEnabled: false, timezone: 'Pacific/Auckland' } },
+    { appearance: { primaryColor: '#123456', secondaryColor: '#abcdef' } },
+    { name: 'Nombre no autorizado' },
+  ]
+  for (const patch of deniedPatches) await assertFails(auditedBusinessUpdate(db, 'studio', 'owner', patch))
+  await assertFails(auditedBusinessUpdate(db, 'studio', 'owner', { description: 'Combinado', 'settings.timezone': 'UTC' }))
+  await assertFails(auditedBusinessUpdate(db, 'private', 'owner', { description: 'Otro negocio' }))
 })
 
 test('platform configuration requires a new atomic audit and cannot change ownership, status or booking policy', async () => {
@@ -579,12 +624,13 @@ test('platform configuration requires a new atomic audit and cannot change owner
     return batch.commit()
   }
   await assertSucceeds(change({ name: 'Configurado', description: 'Descripción', 'settings.publicPageEnabled': true, appearance: { primaryColor: '#123456', secondaryColor: '#abcdef', accentColor: '#334455', surfaceColor: '#f8fafc' }, about: { title: 'Nosotros' }, contact: { phone: '+59176543210' }, logo: { url: 'https://example.test/logo.png' }, cover: { url: '' }, location: { latitude: -16.5, longitude: -68.15 }, weeklyHours: { '1': [{ start: '09:00', end: '12:00' }] } }))
+  assert.equal((await getDoc(ref)).data().settings.bookingIntervalMinutes, 15)
   await assertFails(updateDoc(doc(dbFor('owner'), 'businesses', 'config-business'), { 'settings.publicPageEnabled': false, updatedAt: serverTimestamp() }))
   assert.equal((await getDoc(ref)).data().name, 'Configurado')
   await assertFails(change({ name: 'Sin evento' }, { omitLog: true }))
   await assertFails(change({ name: 'Identidad falsa' }, { actor: 'owner' }))
   await assertFails(change({ name: 'Otro negocio' }, { auditBusiness: 'studio' }))
-  for (const patch of [{ ownerUserId: 'config-platform' }, { status: 'active' }, { administratorEmail: 'hijacked@example.test' }, { 'settings.bookingIntervalMinutes': 1 }, { 'settings.publicPageEnabled': 'yes' }, { name: '' }, { appearance: { primaryColor: 'red' } }, { location: { latitude: 100, longitude: 0 } }]) await assertFails(change(patch))
+  for (const patch of [{ ownerUserId: 'config-platform' }, { status: 'active' }, { administratorEmail: 'hijacked@example.test' }, { 'settings.bookingIntervalMinutes': 1 }, { 'settings.publicPageEnabled': 'yes' }, { settings: { publicPageEnabled: false, timezone: 'UTC', bookingIntervalMinutes: 1 } }, { settings: { publicPageEnabled: true, bookingIntervalMinutes: '15' } }, { settings: { publicPageEnabled: true, platformOverride: true } }, { name: '' }, { appearance: { primaryColor: 'red' } }, { location: { latitude: 100, longitude: 0 } }]) await assertFails(change(patch))
   const saved = (await getDoc(ref)).data()
   await assertFails(updateDoc(ref, { description: 'Reuse audit', lastConfigAuditId: saved.lastConfigAuditId, updatedAt: serverTimestamp() }))
   for (const uid of ['owner', 'pro', 'client']) await assertFails(updateDoc(doc(dbFor(uid), 'businesses', 'config-business'), { name: 'Cross tenant', updatedAt: serverTimestamp() }))
