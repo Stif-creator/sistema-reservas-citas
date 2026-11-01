@@ -532,6 +532,28 @@ test('public registration provisions clients and pending professionals but canno
 })
 
 
+test('users can update only valid personal fields on their own account', async () => {
+  const owner = dbFor('owner')
+  await assertSucceeds(updateDoc(doc(owner, 'users', 'owner'), {
+    firstName: 'Nombre actualizado', lastName: 'Apellido actualizado', phone: '+591 70000000', updatedAt: serverTimestamp(),
+  }))
+  await assertSucceeds(updateDoc(doc(owner, 'users', 'owner'), {
+    photoUrl: 'https://res.cloudinary.com/test-cloud/image/upload/citaspro/avatar.png', updatedAt: serverTimestamp(),
+  }))
+  await assertSucceeds(updateDoc(doc(owner, 'users', 'owner'), { photoUrl: null, updatedAt: serverTimestamp() }))
+  await assertFails(updateDoc(doc(owner, 'users', 'owner'), { firstName: '  ' }))
+  await assertFails(updateDoc(doc(owner, 'users', 'owner'), { firstName: 'x'.repeat(101) }))
+  await assertFails(updateDoc(doc(owner, 'users', 'owner'), { phone: 'abc' }))
+  await assertFails(updateDoc(doc(owner, 'users', 'owner'), { phone: '+()------' }))
+  await assertFails(updateDoc(doc(owner, 'users', 'owner'), { photoUrl: 'https://example.com/avatar.png' }))
+  await assertFails(updateDoc(doc(owner, 'users', 'owner'), { globalRole: 'superadmin' }))
+  await assertFails(updateDoc(doc(owner, 'users', 'owner'), { businessIds: ['private'] }))
+  await assertFails(updateDoc(doc(owner, 'users', 'owner'), { status: 'inactive' }))
+  await assertFails(updateDoc(doc(owner, 'users', 'owner'), { mustChangePassword: false }))
+  await assertFails(updateDoc(doc(dbFor('pro'), 'users', 'owner'), { firstName: 'Intruso' }))
+  await assertFails(updateDoc(doc(owner, 'users', 'owner'), { firstName: 'Permitido', globalRole: 'superadmin' }))
+})
+
 test('superadmin supervision does not grant operational writes or unaudited configuration; clients cannot promote themselves', async () => {
   await env.withSecurityRulesDisabled(context => setDoc(doc(context.firestore(), 'users', 'platform'), { status: 'active', globalRole: 'superadmin', businessIds: ['studio'] }))
   const owner = dbFor('owner'), platform = dbFor('platform')

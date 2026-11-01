@@ -57,6 +57,24 @@ service cloud.firestore {
         && (!settings.keys().hasAny(['cancellationLimitHours']) || settings.cancellationLimitHours is int)
         && (!settings.keys().hasAny(['autoConfirmBookings']) || settings.autoConfirmBookings is bool);
     }
+    function validPersonalName(field) {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return !changed.hasAny([field]) || (request.resource.data[field] is string
+        && request.resource.data[field].size() > 0 && request.resource.data[field].size() <= 100
+        && request.resource.data[field].matches('.*[^\\s].*'));
+    }
+    function validPersonalProfileChanges() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return validPersonalName('firstName') && validPersonalName('lastName')
+        && (!changed.hasAny(['phone']) || (request.resource.data.phone is string
+          && request.resource.data.phone.size() <= 30
+          && (request.resource.data.phone == '' || (request.resource.data.phone.matches('^[+0-9 ()().-]{8,30}$')
+            && request.resource.data.phone.matches('.*[0-9].*')))))
+        && (!changed.hasAny(['photoUrl']) || request.resource.data.photoUrl == null
+          || (request.resource.data.photoUrl is string && request.resource.data.photoUrl.size() <= 2048
+            && request.resource.data.photoUrl.matches('^https://res\\.cloudinary\\.com/[A-Za-z0-9_-]+/image/upload/.+')))
+        && (!changed.hasAny(['updatedAt']) || request.resource.data.updatedAt == request.time);
+    }
     function publicBusiness(bid) {
       let business = get(/databases/$(database)/documents/businesses/$(bid)).data;
       return business.status == 'active' && business.settings.publicPageEnabled == true;
@@ -131,9 +149,10 @@ service cloud.firestore {
         && request.resource.data.status == 'active'
         && request.resource.data.businessIds is list && request.resource.data.businessIds.size() == 1
         && request.resource.data.createdAt == request.time;
-      allow update: if self(uid) && !initialPasswordChangeRequired()
+      allow update: if (self(uid) && !initialPasswordChangeRequired()
         && request.resource.data.diff(resource.data).affectedKeys()
         .hasOnly(['firstName', 'lastName', 'phone', 'photoUrl', 'lastLoginAt', 'updatedAt'])
+        && validPersonalProfileChanges())
         || (self(uid) && resource.data.get('onboardingComplete', true) == false
           && request.resource.data.onboardingComplete == true
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['onboardingComplete'])

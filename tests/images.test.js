@@ -75,7 +75,8 @@ test('images: platform can configure inactive business branding but cannot uploa
   for (const status of ['active', 'inactive', 'deleted']) {
     db.records['businesses/b'].status = status
     for (const kind of ['logo', 'cover']) assert.match((await uploadImage(db, 'u', { businessId: 'b', kind, image }, options)).url, /branding.png$/)
-    for (const kind of ['service', 'professional', 'profile']) await assert.rejects(uploadImage(db, 'u', { businessId: 'b', kind, image }, options), { code: 'permission-denied' })
+    for (const kind of ['service', 'professional']) await assert.rejects(uploadImage(db, 'u', { businessId: 'b', kind, image }, options), { code: 'permission-denied' })
+    assert.match((await uploadImage(db, 'u', { kind: 'profile', image }, options)).url, /branding.png$/)
   }
   db.records['users/u'].status = 'inactive'
   await assert.rejects(uploadImage(db, 'u', { businessId: 'b', kind: 'logo', image }, options), { code: 'permission-denied' })

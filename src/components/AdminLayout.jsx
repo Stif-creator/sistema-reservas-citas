@@ -1,6 +1,7 @@
 import { confirmDiscard } from '../lib/unsavedForms'
 import { useFeedback } from '../context/feedback-context'
 import BusinessAccess from './BusinessAccess'
+import { safeImageUrl } from '../lib/brand'
 import SuperadminBusinesses from './SuperadminBusinesses'
 import NotificationLink from './NotificationLink'
 import './admin.css'
@@ -62,7 +63,7 @@ const BUSINESS_LINKS = [
   },
   { to: '/negocio', label: 'Configuración', icon: Settings, roles: ['admin'] },
 ]
-const ACCOUNT_LINKS = [{ to: '/seguridad', label: 'Mi seguridad', icon: Shield, roles: ['admin', 'professional'] }]
+const ACCOUNT_LINKS = [{ to: '/seguridad', label: 'Mi cuenta', icon: Shield, roles: ['admin', 'professional'] }]
 
 const navLinkClasses = ({ isActive }) =>
   `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
@@ -76,6 +77,11 @@ function initialsFor(text) {
     .slice(0, 2)
     .map((word) => word[0]?.toUpperCase())
     .join('')
+}
+
+function accountAvatar(userDoc, fallback) {
+  const photo = safeImageUrl(userDoc?.photoUrl)
+  return photo ? <img className="account-nav-avatar" src={photo} alt="" /> : initialsFor(fallback) || '…'
 }
 
 function AdminLayout() {
@@ -203,7 +209,7 @@ function AdminLayout() {
       <div className="border-t border-border p-4">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-sm font-semibold text-primary">
-            {initialsFor(userName) || '…'}
+            {accountAvatar(userDoc, userName)}
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-ink">{userName || 'Cargando...'}</p>
@@ -280,7 +286,7 @@ function AdminLayout() {
                 className="flex items-center gap-2 rounded-lg py-1.5 pl-1.5 pr-2 text-sm hover:bg-slate-100"
               >
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-primary">
-                  {initialsFor(userName) || '…'}
+                  {accountAvatar(userDoc, userName)}
                 </div>
                 <span className="hidden max-w-[10rem] truncate font-medium text-ink sm:inline">
                   {userName || 'Cargando...'}

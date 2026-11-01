@@ -39,12 +39,22 @@ export async function uploadRequestImage(input, kind, { env = process.env, reque
 export async function uploadImage(db, uid, input, { env = process.env, request = fetch } = {}) {
   if (!uid) fail('unauthenticated', 'Inicia sesión para subir imágenes.')
   const { businessId, kind } = input
-  if (typeof businessId !== 'string' || !/^[^/\s]{1,200}$/.test(businessId) || !['logo', 'cover', 'service', 'professional', 'profile'].includes(kind)) fail('invalid-argument', 'Destino de imagen inválido.')
-  const [user, member, business] = await Promise.all([db.doc(`users/${uid}`).get(), db.doc(`memberships/${businessId}_${uid}`).get(), db.doc(`businesses/${businessId}`).get()])
+  if (!['logo', 'cover', 'service', 'professional', 'profile'].includes(kind)
+    || (kind !== 'profile' && (typeof businessId !== 'string' || !/^[^/\s]{1,200}$/.test(businessId)))) fail('invalid-argument', 'Destino de imagen inválido.')
+  const user = await db.doc(`users/${uid}`).get()
   const superadmin = user.data()?.status === 'active' && user.data()?.globalRole === 'superadmin'
-  if (superadmin && !['logo', 'cover'].includes(kind)) fail('permission-denied', 'La plataforma solo puede subir el logo y la portada del negocio.')
-  if (!business.data() || (!superadmin && business.data()?.status !== 'active')) fail('permission-denied', 'El negocio no está disponible.')
-  if (!superadmin && (user.data()?.status !== 'active' || member.data()?.status !== 'active' || business.data()?.status !== 'active' ||
+  if (kind === 'profile') {
+    if (user.data()?.status !== 'active') fail('permission-denied', 'La cuenta no está activa.')
+    if (!superadmin) {
+      if (typeof businessId !== 'string' || !/^[^/\s]{1,200}$/.test(businessId)) fail('invalid-argument', 'Selecciona un negocio asociado para la fotografía.')
+      const [member, business] = await Promise.all([db.doc(`memberships/${businessId}_${uid}`).get(), db.doc(`businesses/${businessId}`).get()])
+      if (!member.data() || member.data().status !== 'active' || !business.data() || business.data().status !== 'active') fail('permission-denied', 'No tienes permiso para subir esta imagen.')
+    }
+  }
+  const [member, business] = kind === 'profile' ? [null, null] : await Promise.all([db.doc(`memberships/${businessId}_${uid}`).get(), db.doc(`businesses/${businessId}`).get()])
+  if (superadmin && kind !== 'profile' && !['logo', 'cover'].includes(kind)) fail('permission-denied', 'La plataforma solo puede subir el logo y la portada del negocio.')
+  if (kind !== 'profile' && (!business.data() || (!superadmin && business.data()?.status !== 'active'))) fail('permission-denied', 'El negocio no está disponible.')
+  if (kind !== 'profile' && !superadmin && (user.data()?.status !== 'active' || member.data()?.status !== 'active' || business.data()?.status !== 'active' ||
     (kind !== 'profile' && member.data()?.role !== 'admin'))) fail('permission-denied', 'No tienes permiso para subir esta imagen.')
   const { bytes, mime } = decodeImage(input.image)
   const cloud = env.CLOUDINARY_CLOUD_NAME?.trim(), key = env.CLOUDINARY_API_KEY?.trim(), secret = env.CLOUDINARY_API_SECRET?.trim()
@@ -57,7 +67,7 @@ export async function uploadImage(db, uid, input, { env = process.env, request =
     if (count >= 30) fail('resource-exhausted', 'Alcanzaste el límite de 30 imágenes por hora. Inténtalo más tarde.')
     tx.set(ref, { windowStart: recent ? previous.windowStart : now, count: count + 1 })
   })
-  const namespace = createHash('sha256').update(`${businessId}:${uid}`).digest('hex').slice(0, 24)
+  const namespace = createHash('sha256').update(kind === 'profile' ? `user:${uid}` : `${businessId}:${uid}`).digest('hex').slice(0, 24)
   const publicId = `citaspro/${namespace}/${kind}/${randomUUID()}`
   const params = { overwrite: 'false', public_id: publicId, timestamp: String(Math.floor(Date.now() / 1000)) }
   const signature = createHash('sha256').update(Object.entries(params).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => `${k}=${v}`).join('&') + secret).digest('hex')
