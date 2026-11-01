@@ -2,8 +2,9 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { completeRequiredPasswordChange, enforcePasswordChangeGate } from '../functions/requiredPasswordChange.js'
 
-function fakeDb(profile, role = 'admin') {
-  const values = { 'users/new-admin': { defaultBusinessId: 'business-1', ...profile }, 'memberships/business-1_new-admin': { role, status: 'active' } }
+function fakeDb(profile, role = 'admin', uid = 'new-admin', membershipStatus = 'active') {
+  const businessId = profile.defaultBusinessId || 'business-1'
+  const values = { [`users/${uid}`]: { defaultBusinessId: businessId, globalRole: 'user', ...profile }, [`memberships/${businessId}_${uid}`]: { role, status: membershipStatus } }
   let audit = null
   const userRef = path => ({ path, get: async () => ({ exists: Boolean(values[path]), data: () => values[path], get: key => values[path]?.[key] }) })
   const db = {
@@ -26,7 +27,9 @@ test('new administrator is blocked from backend operations until required passwo
   const db = fakeDb({ status: 'active', mustChangePassword: true })
   await assert.rejects(enforcePasswordChangeGate(db, 'new-admin', 'platformActivity'), { code: 'failed-precondition' })
   await enforcePasswordChangeGate(db, 'old-admin', 'platformActivity')
-  await enforcePasswordChangeGate(fakeDb({ status: 'active', mustChangePassword: true }, 'professional'), 'new-admin', 'professionalSchedule')
+  await assert.rejects(enforcePasswordChangeGate(fakeDb({ status: 'active', mustChangePassword: true }, 'professional'), 'new-admin', 'professionalSchedule'), { code: 'failed-precondition' })
+  await enforcePasswordChangeGate(fakeDb({ status: 'active', mustChangePassword: true }, 'professional'), 'new-admin', 'requiredPasswordChange')
+  await enforcePasswordChangeGate(fakeDb({ status: 'active', mustChangePassword: true }, 'professional', 'inactive-pro', 'inactive'), 'inactive-pro', 'professionalSchedule')
 })
 
 test('password change requires recent authentication and enforces length server-side', async () => {
@@ -46,6 +49,27 @@ test('successful required change updates Firebase Auth, clears server-owned flag
   assert.equal(db.audit.action, 'requiredPasswordChanged')
   assert.equal(db.audit.businessId, 'business-1')
   assert.equal(Object.keys(db.audit).some(key => /password/i.test(key)), false)
+})
+
+test('an active professional can complete the required change but an inactive membership cannot', async () => {
+  const db = fakeDb({ status: 'active', mustChangePassword: true }, 'professional', 'new-professional')
+  const identity = { ...recentIdentity, uid: 'new-professional' }
+  let updated = false
+  await completeRequiredPasswordChange(db, 'new-professional', identity, { newPassword: 'a secure password' }, { updateUser: async () => { updated = true } })
+  assert.equal(updated, true)
+  assert.equal(db.values['users/new-professional'].mustChangePassword, false)
+  const inactive = fakeDb({ status: 'active', mustChangePassword: true }, 'professional', 'inactive-pro', 'inactive')
+  await assert.rejects(completeRequiredPasswordChange(inactive, 'inactive-pro', { ...identity, uid: 'inactive-pro' }, { newPassword: 'a secure password' }, { updateUser: async () => assert.fail('no debe actualizarse') }), { code: 'permission-denied' })
+})
+
+test('a professional without the required flag is not blocked', async () => {
+  await enforcePasswordChangeGate(fakeDb({ status: 'active' }, 'professional'), 'new-admin', 'professionalSchedule')
+})
+
+test('superadmins are excluded from the tenant password gate and professional change endpoint', async () => {
+  const db = fakeDb({ status: 'active', globalRole: 'superadmin', mustChangePassword: true }, 'admin')
+  await enforcePasswordChangeGate(db, 'new-admin', 'platformActivity')
+  await assert.rejects(completeRequiredPasswordChange(db, 'new-admin', recentIdentity, { newPassword: 'a secure password' }, { updateUser: async () => assert.fail('no debe cambiarse esta cuenta') }), { code: 'permission-denied' })
 })
 
 test('an interrupted Auth-to-profile completion can be retried after the password changed', async () => {

@@ -271,7 +271,9 @@ export function AuthProvider({ children }) {
     const membershipSnapshot = profile?.mustChangePassword === true && businessId
       ? await getDoc(doc(db, 'memberships', `${businessId}_${credential.user.uid}`))
       : null
-    const mustChangePassword = profile?.mustChangePassword === true && membershipSnapshot?.data()?.role === 'admin'
+    const membership = membershipSnapshot?.data()
+    const mustChangePassword = profile?.mustChangePassword === true && profile?.globalRole !== 'superadmin'
+      && membership?.status === 'active' && ['admin', 'professional'].includes(membership.role)
     if (!mustChangePassword) {
       await updateDoc(doc(db, 'users', credential.user.uid), {
         lastLoginAt: serverTimestamp(),

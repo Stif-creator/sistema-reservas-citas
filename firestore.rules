@@ -3,16 +3,22 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
     function self(uid) { return signedIn() && request.auth.uid == uid; }
-    function adminPasswordChangeRequired() {
+    function initialPasswordChangeRequired() {
+      let profile = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      let businessId = profile.get('defaultBusinessId', '');
+      let membership = get(/databases/$(database)/documents/memberships/$(businessId + '_' + request.auth.uid)).data;
       return signedIn()
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('mustChangePassword', false) == true
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('defaultBusinessId', '') is string
-        && get(/databases/$(database)/documents/memberships/$(get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('defaultBusinessId', '') + '_' + request.auth.uid)).data.get('role', '') == 'admin';
+        && profile.get('mustChangePassword', false) == true
+        && profile.status == 'active'
+        && profile.get('globalRole', 'user') != 'superadmin'
+        && businessId is string && businessId.size() > 0
+        && membership.status == 'active'
+        && membership.get('role', '') in ['admin', 'professional'];
     }
     function userActive() {
       return signedIn()
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'active'
-        && !adminPasswordChangeRequired();
+        && !initialPasswordChangeRequired();
     }
     function superadmin() {
       return userActive() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('globalRole', 'user') == 'superadmin';
@@ -125,7 +131,7 @@ service cloud.firestore {
         && request.resource.data.status == 'active'
         && request.resource.data.businessIds is list && request.resource.data.businessIds.size() == 1
         && request.resource.data.createdAt == request.time;
-      allow update: if self(uid) && !adminPasswordChangeRequired()
+      allow update: if self(uid) && !initialPasswordChangeRequired()
         && request.resource.data.diff(resource.data).affectedKeys()
         .hasOnly(['firstName', 'lastName', 'phone', 'photoUrl', 'lastLoginAt', 'updatedAt'])
         || (self(uid) && resource.data.get('onboardingComplete', true) == false

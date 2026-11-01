@@ -7,7 +7,7 @@ export async function enforcePasswordChangeGate(db, uid, action) {
   const profile = (await db.doc(`users/${uid}`).get()).data()
   const businessId = profile?.defaultBusinessId || profile?.businessIds?.[0]
   const membership = businessId ? (await db.doc(`memberships/${businessId}_${uid}`).get()).data() : null
-  if (profile?.mustChangePassword === true && membership?.role === 'admin' && action !== 'requiredPasswordChange') {
+  if (profile?.mustChangePassword === true && profile.globalRole !== 'superadmin' && membership?.status === 'active' && ['admin', 'professional'].includes(membership?.role) && action !== 'requiredPasswordChange') {
     fail('failed-precondition', 'Debes cambiar tu contraseña inicial antes de continuar.')
   }
 }
@@ -26,7 +26,7 @@ export async function completeRequiredPasswordChange(db, uid, identity, input, a
   if (!profile || profile.status !== 'active') fail('permission-denied', 'La cuenta no está activa.')
   const businessId = profile.defaultBusinessId || profile.businessIds?.[0]
   const membership = businessId ? (await db.doc(`memberships/${businessId}_${uid}`).get()).data() : null
-  if (membership?.role !== 'admin' || membership.status !== 'active') fail('permission-denied', 'El cambio obligatorio solo está disponible para administradores activos.')
+  if (profile.globalRole === 'superadmin' || !['admin', 'professional'].includes(membership?.role) || membership.status !== 'active') fail('permission-denied', 'El cambio obligatorio solo está disponible para administradores y profesionales activos.')
   // Idempotent response handles a lost HTTP response after the profile was cleared.
   if (profile.mustChangePassword !== true) return { ok: true, alreadyCompleted: true }
 
@@ -44,6 +44,10 @@ export async function completeRequiredPasswordChange(db, uid, identity, input, a
     const latest = await tx.get(userRef)
     if (!latest.exists || latest.get('status') !== 'active') fail('permission-denied', 'La cuenta no está activa.')
     if (latest.get('mustChangePassword') !== true) fail('failed-precondition', 'La cuenta ya no requiere cambiar la contraseña.')
+    const membershipRef = db.doc(`memberships/${businessId}_${uid}`)
+    const latestMembership = await tx.get(membershipRef)
+    if (!latestMembership.exists || latestMembership.get('status') !== 'active' || !['admin', 'professional'].includes(latestMembership.get('role')))
+      fail('permission-denied', 'La membresía ya no está activa o no está autorizada.')
     tx.update(userRef, { mustChangePassword: false, updatedAt: new Date() })
     const auditRef = db.collection('auditLogs').doc()
     tx.create(auditRef, {

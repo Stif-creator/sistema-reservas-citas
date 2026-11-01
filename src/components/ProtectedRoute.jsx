@@ -40,7 +40,7 @@ function ProtectedRoute({ children, allowedRoles, superadminOnly = false, exclud
     )
   }
 
-  if (userDoc.mustChangePassword === true && membership?.role === 'admin') {
+  if (userDoc.mustChangePassword === true && !isSuperadmin && ['admin', 'professional'].includes(membership?.role)) {
     return allowPasswordChange ? children : <Navigate to="/primer-acceso" replace />
   }
   if (allowPasswordChange) return <Navigate to="/dashboard" replace />

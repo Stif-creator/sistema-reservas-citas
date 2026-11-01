@@ -255,7 +255,8 @@ function provisionProfessional(db, uid, businessId = 'studio') {
   const batch = writeBatch(db)
   batch.set(doc(db, 'users', uid), {
     id: uid, auth_uid: uid, firstName: 'Nuevo', lastName: 'Profesional', email: `${uid}@example.test`, phone: '70000000',
-    globalRole: 'user', status: 'active', businessIds: [businessId], onboardingComplete: true, createdAt: serverTimestamp(),
+    globalRole: 'user', status: 'active', businessIds: [businessId], defaultBusinessId: businessId,
+    mustChangePassword: true, onboardingComplete: true, createdAt: serverTimestamp(),
   })
   batch.set(doc(db, 'memberships', id), {
     userId: uid, businessId, role: 'professional', status: 'active', permissions: {}, createdAt: serverTimestamp(),

@@ -19,9 +19,11 @@ function getMessage(error) {
 }
 
 export default function RequiredPasswordChange() {
-  const { currentUser, logout, reloadProfile } = useAuth()
+  const { currentUser, userDoc, membership, logout, reloadProfile } = useAuth()
   const { notify } = useFeedback()
   const navigate = useNavigate()
+  const isProfessional = membership?.role === 'professional' && userDoc?.globalRole !== 'superadmin'
+  const roleNextStep = isProfessional ? 'Ya puedes acceder a tu panel profesional.' : 'Ya puedes comenzar a administrar tu negocio.'
   const [values, setValues] = useState({ current: '', password: '', confirm: '' })
   const [visible, setVisible] = useState({})
   const [busy, setBusy] = useState(false)
@@ -44,10 +46,14 @@ export default function RequiredPasswordChange() {
       await reauthenticateWithCredential(currentUser, EmailAuthProvider.credential(currentUser.email, values.current))
       await currentUser.getIdToken(true)
       await completeRequiredPasswordChange(values.password)
+      // The server changes the password through Admin Auth, which revokes the old ID token.
+      // Reauthenticate with the new password before normal API calls resume.
+      await reauthenticateWithCredential(currentUser, EmailAuthProvider.credential(currentUser.email, values.password))
+      await currentUser.getIdToken(true)
       await reloadProfile()
       setValues({ current: '', password: '', confirm: '' })
       setSuccess(true)
-      notify({ title: 'Contraseña actualizada', message: 'Ya puedes comenzar a administrar tu negocio.', type: 'success' })
+      notify({ title: 'Contraseña actualizada', message: roleNextStep, type: 'success' })
     } catch (cause) {
       setError(getMessage(cause))
     } finally {
@@ -68,7 +74,7 @@ export default function RequiredPasswordChange() {
         <div className="mb-4 inline-flex rounded-xl bg-blue-100 p-3 text-blue-700"><ShieldCheck size={26} /></div>
         <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-blue-700">Protección de tu cuenta</p>
         <h1 className="text-2xl font-bold sm:text-3xl">Por seguridad, cambia tu contraseña</h1>
-        <p className="mt-3 max-w-2xl leading-6 text-slate-600">Tu cuenta fue creada con una contraseña inicial. Antes de comenzar a administrar tu negocio, debes establecer una contraseña personal.</p>
+        <p className="mt-3 max-w-2xl leading-6 text-slate-600">{isProfessional ? 'Por seguridad, debes cambiar la contraseña inicial antes de acceder a tu panel profesional.' : 'Tu cuenta fue creada con una contraseña inicial. Antes de comenzar a administrar tu negocio, debes establecer una contraseña personal.'}</p>
       </header>
       <form onSubmit={submit} className="grid gap-5 px-6 py-7 sm:px-10" data-sensitive-form>
         <div role="status" className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">Debes completar este cambio para acceder al Dashboard y a los módulos de tu negocio.</div>
@@ -91,6 +97,6 @@ export default function RequiredPasswordChange() {
         </div>
       </form>
     </section>
-    {success && <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/50 p-4" role="presentation"><section role="dialog" aria-modal="true" aria-labelledby="password-change-success-title" className="w-full max-w-md rounded-2xl bg-white p-7 text-center shadow-xl"><div className="mx-auto mb-4 grid size-14 place-items-center rounded-full bg-emerald-100 text-emerald-700"><ShieldCheck size={30} /></div><h2 id="password-change-success-title" className="text-xl font-bold">Contraseña actualizada</h2><p className="my-3 text-slate-600">Ya puedes comenzar a administrar tu negocio.</p><Button onClick={() => navigate('/dashboard', { replace: true })}>Ir al Dashboard</Button></section></div>}
+    {success && <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/50 p-4" role="presentation"><section role="dialog" aria-modal="true" aria-labelledby="password-change-success-title" className="w-full max-w-md rounded-2xl bg-white p-7 text-center shadow-xl"><div className="mx-auto mb-4 grid size-14 place-items-center rounded-full bg-emerald-100 text-emerald-700"><ShieldCheck size={30} /></div><h2 id="password-change-success-title" className="text-xl font-bold">Contraseña actualizada</h2><p className="my-3 text-slate-600">{roleNextStep}</p><Button onClick={() => navigate('/dashboard', { replace: true })}>Ir al Dashboard</Button></section></div>}
   </main>
 }

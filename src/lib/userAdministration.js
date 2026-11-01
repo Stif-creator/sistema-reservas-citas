@@ -5,6 +5,9 @@ import { db, firebaseConfig } from '../firebase/config'
 
 // A separate, memory-only Auth instance keeps the administrator signed in.
 export async function createProfessionalAccount(businessId, form) {
+  if (typeof form.password !== 'string' || form.password.length < 12 || form.password.length > 128) {
+    throw new Error('La contraseña inicial debe tener entre 12 y 128 caracteres.')
+  }
   const app = initializeApp(firebaseConfig, `professional-${crypto.randomUUID()}`)
   const secondaryAuth = getAuth(app)
   let account
@@ -26,6 +29,7 @@ export async function createProfessionalAccount(businessId, form) {
     batch.set(doc(db, 'users', uid), {
       id: uid, auth_uid: uid, firstName, lastName, email, phone,
       status: 'active', globalRole: 'user', businessIds: [businessId],
+      defaultBusinessId: businessId, mustChangePassword: true,
       onboardingComplete: true, emailVerified: false, photoUrl: null,
       createdAt: now, updatedAt: now,
     })

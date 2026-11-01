@@ -31,9 +31,11 @@ before(async () => {
     await setDoc(doc(db, 'businesses', 'other'), { ownerUserId: 'outsider', status: 'active', settings: { publicPageEnabled: false } })
     await setDoc(doc(db, 'categories', 'legacy-category'), { businessId: 'studio', name: 'Categoría antigua' })
     for (const [uid, businessId, role] of [['owner', 'studio', 'admin'], ['client', 'studio', 'client'], ['pro', 'studio', 'professional'], ['outsider', 'other', 'admin'], ['unrelated', 'studio', null]]) {
-      await setDoc(doc(db, 'users', uid), { firstName: uid, status: 'active', businessIds: [businessId] })
+      await setDoc(doc(db, 'users', uid), { firstName: uid, status: 'active', globalRole: 'user', businessIds: [businessId], defaultBusinessId: businessId })
       if (role) await setDoc(doc(db, 'memberships', `${businessId}_${uid}`), { userId: uid, businessId, role, status: 'active' })
     }
+    await setDoc(doc(db, 'users', 'new-pro'), { firstName: 'new-pro', status: 'active', globalRole: 'user', businessIds: ['studio'], defaultBusinessId: 'studio', mustChangePassword: true })
+    await setDoc(doc(db, 'memberships', 'studio_new-pro'), { userId: 'new-pro', businessId: 'studio', role: 'professional', status: 'active' })
     await setDoc(doc(db, 'services', 'demo-document'), { name: 'Servicio demo 01', businessId: 'studio', categoryId: 'legacy-category', price: 10, durationMinutes: 30, isActive: true, isPublic: true })
   })
 })
@@ -87,15 +89,23 @@ test('business location writes are scoped to admins and reject invalid or partia
   await assertFails(auditedUpdate(db, 'studio', 'owner', { location: { ...location, longitude: null } }))
 })
 
-test('required-password accounts retain self-profile access but cannot clear the flag or use business data', async () => {
+test('required-password admins and professionals retain identity access but cannot clear the flag or use business data', async () => {
   await env.withSecurityRulesDisabled(async context => {
     await updateDoc(doc(context.firestore(), 'users', 'owner'), { mustChangePassword: true, defaultBusinessId: 'studio' })
+    await setDoc(doc(context.firestore(), 'services', 'locked-service'), { businessId: 'studio', name: 'Locked', isActive: true, isPublic: false })
     await setDoc(doc(context.firestore(), 'reservations', 'locked-reservation'), { businessId: 'studio', status: 'confirmed' })
   })
   const db = env.authenticatedContext('owner').firestore()
   await assertSucceeds(getDoc(doc(db, 'users', 'owner')))
   await assertFails(updateDoc(doc(db, 'users', 'owner'), { mustChangePassword: false }))
   await assertFails(getDoc(doc(db, 'reservations', 'locked-reservation')))
+  const professional = env.authenticatedContext('new-pro').firestore()
+  await assertSucceeds(getDoc(doc(professional, 'users', 'new-pro')))
+  await assertSucceeds(getDoc(doc(professional, 'memberships', 'studio_new-pro')))
+  await assertFails(updateDoc(doc(professional, 'users', 'new-pro'), { mustChangePassword: false }))
+  await assertFails(getDoc(doc(professional, 'services', 'locked-service')))
+  await env.withSecurityRulesDisabled(context => updateDoc(doc(context.firestore(), 'users', 'new-pro'), { mustChangePassword: false }))
+  await assertSucceeds(getDoc(doc(professional, 'services', 'locked-service')))
 })
 
 test('business requests cannot be read or written directly from any client', async () => {
