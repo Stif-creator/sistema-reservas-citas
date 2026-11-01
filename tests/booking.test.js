@@ -125,6 +125,21 @@ test('waitlist follow-up is scoped, audited, supports legacy entries and rejects
   await rejects(f.call(superadminId, { action: 'waitlistUpdate', id: entry.id, status: 'closed' }), 'permission-denied')
 })
 
+test('professional waitlist lookup queries assigned profiles and discards colliding IDs from other businesses', async () => {
+  const f = await fixture()
+  const wait = { action: 'wait', serviceId: f.serviceId, professionalId: f.professionalId, date: f.date }
+  await f.call(f.users.client, wait)
+  await db.doc('waitingList/foreign-profile-collision').set({
+    id: 'foreign-profile-collision', businessId: 'another-business', professionalId: f.professionalId,
+    userId: 'foreign-client', date: f.date, serviceName: 'Privado',
+  })
+
+  const entries = await f.call(f.users.pro, { action: 'waitlist' })
+  assert.equal(entries.length, 1)
+  assert.equal(entries[0].businessId, f.businessId)
+  assert.equal(entries[0].serviceName, 'Consulta')
+})
+
 test('business user directory follows scoped memberships across tenants and membership changes cannot grant administrator role', async () => {
   const f = await fixture()
   const otherBusiness = `other-${f.businessId}`

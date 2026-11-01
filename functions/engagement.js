@@ -152,16 +152,22 @@ export async function executeEngagement(db, uid, input, actor) {
   if (action === 'waitlist') {
     if (!['admin', 'professional'].includes(actor.member.role)) fail('permission-denied', 'Esta lista es solo para el equipo del negocio.')
     if (actor.isSuperadmin) fail('permission-denied', 'El acceso de superadministración no permite consultar datos personales de clientes.')
-    const [entries, professionals, business] = await Promise.all([
-      scoped(db, 'waitingList', businessId).get().then(rows),
-      actor.member.role === 'professional'
-        ? scoped(db, 'professionals', businessId).where('userId', '==', uid).get().then(rows)
-        : Promise.resolve([]),
+    const [business, visibleEntries] = await Promise.all([
       db.doc(`businesses/${businessId}`).get().then(record),
+      actor.member.role === 'admin'
+        ? scoped(db, 'waitingList', businessId).get().then(rows)
+        : (async () => {
+            const profiles = await scoped(db, 'professionals', businessId).where('userId', '==', uid).get().then(rows)
+            const profileIds = [...new Set(profiles.map(profile => profile.id))]
+            if (!profileIds.length) return []
+            // Query each assigned profile directly so professionals do not need
+            // to read other professionals' entries from the business waitlist.
+            const snapshots = await Promise.all(profileIds.map(profileId =>
+              db.collection('waitingList').where('businessId', '==', businessId)
+                .where('professionalId', '==', profileId).limit(2001).get()))
+            return snapshots.flatMap(rows)
+          })(),
     ])
-    const visibleEntries = actor.member.role === 'admin'
-      ? entries
-      : entries.filter(entry => professionals.some(profile => profile.id === entry.professionalId))
     let businessTimeZone = business?.settings?.timezone || 'America/La_Paz'
     try { new Intl.DateTimeFormat('es-BO', { timeZone: businessTimeZone }) }
     catch { businessTimeZone = 'America/La_Paz' }
