@@ -30,10 +30,21 @@ before(async () => {
     await setDoc(doc(db, 'businesses', 'studio'), { ownerUserId: 'owner', status: 'active', settings: { publicPageEnabled: true } })
     await setDoc(doc(db, 'businesses', 'other'), { ownerUserId: 'outsider', status: 'active', settings: { publicPageEnabled: false } })
     await setDoc(doc(db, 'categories', 'legacy-category'), { businessId: 'studio', name: 'Categoría antigua' })
-    for (const [uid, businessId, role] of [['owner', 'studio', 'admin'], ['client', 'studio', 'client'], ['pro', 'studio', 'professional'], ['outsider', 'other', 'admin'], ['unrelated', 'studio', null]]) {
+    for (const [uid, businessId, role] of [['owner', 'studio', 'admin'], ['client', 'studio', 'client'], ['another-client', 'studio', 'client'], ['pro', 'studio', 'professional'], ['another-pro', 'studio', 'professional'], ['outsider', 'other', 'admin'], ['unrelated', 'studio', null]]) {
       await setDoc(doc(db, 'users', uid), { firstName: uid, status: 'active', globalRole: 'user', businessIds: [businessId], defaultBusinessId: businessId })
       if (role) await setDoc(doc(db, 'memberships', `${businessId}_${uid}`), { userId: uid, businessId, role, status: 'active' })
     }
+    await setDoc(doc(db, 'users', 'platform'), { firstName: 'platform', status: 'active', globalRole: 'superadmin', businessIds: [] })
+    await setDoc(doc(db, 'memberships', 'studio_platform'), { userId: 'platform', businessId: 'studio', role: 'admin', status: 'active' })
+    await setDoc(doc(db, 'reservations', 'private-reservation'), {
+      businessId: 'studio', clientUserId: 'client', professionalUserId: 'pro', status: 'confirmed',
+    })
+    await setDoc(doc(db, 'reservations', 'another-client-reservation'), {
+      businessId: 'studio', clientUserId: 'another-client', professionalUserId: 'pro', status: 'confirmed',
+    })
+    await setDoc(doc(db, 'reservations', 'another-professional-reservation'), {
+      businessId: 'studio', clientUserId: 'client', professionalUserId: 'another-pro', status: 'confirmed',
+    })
     await setDoc(doc(db, 'users', 'new-pro'), { firstName: 'new-pro', status: 'active', globalRole: 'user', businessIds: ['studio'], defaultBusinessId: 'studio', mustChangePassword: true })
     await setDoc(doc(db, 'memberships', 'studio_new-pro'), { userId: 'new-pro', businessId: 'studio', role: 'professional', status: 'active' })
     await setDoc(doc(db, 'services', 'demo-document'), { name: 'Servicio demo 01', businessId: 'studio', categoryId: 'legacy-category', price: 10, durationMinutes: 30, isActive: true, isPublic: true })
@@ -68,6 +79,21 @@ test('production clients, professionals and visitors cannot read other user prof
     await assertSucceeds(getDoc(doc(db, 'users', uid)))
   }
   await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), 'users', 'owner')))
+})
+
+test('production reservation reads require an active membership and an authorized client or professional identity', async () => {
+  const reservation = 'private-reservation'
+  await assertSucceeds(getDoc(doc(env.authenticatedContext('owner').firestore(), 'reservations', reservation)))
+  await assertSucceeds(getDoc(doc(env.authenticatedContext('pro').firestore(), 'reservations', reservation)))
+  await assertSucceeds(getDoc(doc(env.authenticatedContext('client').firestore(), 'reservations', reservation)))
+  await assertSucceeds(getDoc(doc(env.authenticatedContext('another-client').firestore(), 'reservations', 'another-client-reservation')))
+  await assertSucceeds(getDoc(doc(env.authenticatedContext('another-pro').firestore(), 'reservations', 'another-professional-reservation')))
+  await assertFails(getDoc(doc(env.authenticatedContext('client').firestore(), 'reservations', 'another-client-reservation')))
+  await assertFails(getDoc(doc(env.authenticatedContext('pro').firestore(), 'reservations', 'another-professional-reservation')))
+  await assertFails(getDoc(doc(env.authenticatedContext('outsider').firestore(), 'reservations', reservation)))
+  await assertFails(getDoc(doc(env.authenticatedContext('unrelated').firestore(), 'reservations', reservation)))
+  await assertFails(getDoc(doc(env.authenticatedContext('platform').firestore(), 'reservations', reservation)))
+  await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), 'reservations', reservation)))
 })
 
 test('production administrator edits legacy service fields and they persist', async () => {

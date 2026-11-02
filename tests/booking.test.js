@@ -500,13 +500,65 @@ test('server rejects stale quotes, other businesses, disabled accounts and forge
 })
 
 
-test('superadmin server access is verified from protected profile, without a tenant membership', async () => {
-  const f = await fixture(), uid = `platform-${randomUUID()}`
+test('superadmin cannot use tenant booking operations while scoped roles and platform summaries remain available', async () => {
+  const f = await fixture(), other = await fixture(), uid = `platform-${randomUUID()}`
   await db.doc(`users/${uid}`).set({ status: 'active', globalRole: 'superadmin' })
-  const result = await f.call(uid, { action: 'options' })
-  assert.equal(result.services.length, 1)
-  await db.doc(`users/${uid}`).update({ globalRole: 'user' })
+  await db.doc(`memberships/${f.businessId}_${uid}`).set({ businessId: f.businessId, userId: uid, role: 'admin', status: 'active' })
+
+  const clientReservation = await f.call(f.users.client, f.create())
+  const privateAvailability = { action: 'availability', serviceId: f.serviceId, professionalId: f.professionalId, date: f.date }
   await rejects(f.call(uid, { action: 'options' }), 'permission-denied')
+  await rejects(f.call(uid, privateAvailability), 'permission-denied')
+  await rejects(f.call(uid, f.create()), 'permission-denied')
+  await rejects(f.call(uid, { action: 'reschedule', reservationId: clientReservation.id, revision: 1,
+    serviceId: f.serviceId, professionalId: f.professionalId, date: f.date, startAt: f.time('11:00'),
+    expectedPrice: 100, expectedDuration: 30, requestId: 'platform-reschedule-001' }), 'permission-denied')
+  await rejects(f.call(uid, { action: 'status', reservationId: clientReservation.id, revision: 1,
+    status: 'cancelled', requestId: 'platform-cancel-00001' }), 'permission-denied')
+  await rejects(f.call(uid, { action: 'status', reservationId: clientReservation.id, revision: 1,
+    status: 'confirmed', requestId: 'platform-confirm-0001' }), 'permission-denied')
+  await rejects(f.call(uid, { ...privateAvailability, businessId: other.businessId }), 'permission-denied')
+  await rejects(f.call(uid, other.create()), 'permission-denied')
+  await rejects(f.call(uid, { action: 'blockCreate', title: 'Bloqueo no autorizado', reason: 'meeting',
+    mode: 'specificHours', date: f.date, startTime: '12:00', endTime: '13:00', professionalId: f.professionalId,
+    requestId: 'platform-block-create-1' }), 'permission-denied')
+  assert.equal((await db.doc(`reservations/${clientReservation.id}`).get()).data().status, 'pending')
+
+  assert.equal((await f.call(f.users.admin, { action: 'options' })).services.length, 1)
+  assert((await f.call(f.users.pro, privateAvailability)).slots.length > 0)
+  await rejects(f.call(f.users.admin, other.create()), 'permission-denied')
+  await db.doc(`businesses/${f.businessId}`).update({ 'settings.publicPageEnabled': true })
+  const publicOptions = await f.call(f.users.client, { action: 'publicOptions' })
+  assert.deepEqual(publicOptions.clients, [])
+
+  const globalSummary = await f.call(uid, { action: 'clients' })
+  assert.equal(globalSummary.summaryOnly, true)
+  assert.equal(globalSummary.clients, undefined)
+  const selectedBusinessSummary = await f.call(uid, { action: 'clients', businessId: f.businessId })
+  assert.equal(selectedBusinessSummary.summaryOnly, true)
+  assert.equal(selectedBusinessSummary.clients, undefined)
+  assert.equal((await f.call(uid, { action: 'platformAnalytics', businessId: f.businessId })).business.id, f.businessId)
+  assert.equal((await f.call(uid, { action: 'platformActivity', businessId: f.businessId, days: 7 })).days, 7)
+
+  const server = createBookingServer({ allowedOrigins: ['https://app.example'],
+    verifyToken: async token => token === 'verified-platform-token' ? { uid } : null,
+    execute: (verifiedUid, input) => executeBooking(db, verifiedUid, input),
+  })
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
+  try {
+    const base = `http://127.0.0.1:${server.address().port}/booking`
+    const direct = input => fetch(base, { method: 'POST', headers: {
+      Authorization: 'Bearer verified-platform-token', 'Content-Type': 'application/json',
+    }, body: JSON.stringify({ businessId: f.businessId, ...input }) })
+    assert.equal((await direct({ action: 'options' })).status, 403)
+    assert.equal((await direct({ action: 'status', reservationId: clientReservation.id, revision: 1,
+      status: 'cancelled', requestId: 'platform-http-status-1' })).status, 403)
+    const supervised = await direct({ action: 'platformAnalytics', businessId: f.businessId })
+    assert.equal(supervised.status, 200)
+    assert.equal((await supervised.json()).data.business.id, f.businessId)
+  } finally {
+    await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()))
+  }
 })
 
 

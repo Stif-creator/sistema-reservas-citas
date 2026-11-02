@@ -83,7 +83,9 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/memberships/$(bid + '_' + request.auth.uid)).data;
     }
     function activeMember(bid) {
-      return userActive() && member(bid).status == 'active'
+      return userActive()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('globalRole', 'user') != 'superadmin'
+        && member(bid).status == 'active'
         && get(/databases/$(database)/documents/businesses/$(bid)).data.status == 'active';
     }
     // Superadmin supervises the platform but is not an implicit business admin.
@@ -313,10 +315,10 @@ service cloud.firestore {
     function sameBusiness() { return request.resource.data.businessId == resource.data.businessId; }
     function changedOnly(fields) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields); }
     match /reservations/{id} {
-      allow read: if superadmin() || (activeMember(resource.data.businessId) && (
+      allow read: if activeMember(resource.data.businessId) && (
         member(resource.data.businessId).role == 'admin'
         || (member(resource.data.businessId).role == 'professional' && resource.data.professionalUserId == request.auth.uid)
-        || (member(resource.data.businessId).role == 'client' && resource.data.clientUserId == request.auth.uid)));
+        || (member(resource.data.businessId).role == 'client' && resource.data.clientUserId == request.auth.uid));
       // Solo el servidor autenticado puede validar y escribir una reserva y su bloqueo
       // de concurrencia en la misma transacción.
       allow write: if false;

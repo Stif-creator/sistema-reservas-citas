@@ -199,6 +199,7 @@ test('reservations are read by active scoped actors but all direct mutations and
   await env.withSecurityRulesDisabled(async context => {
     await setDoc(doc(context.firestore(), 'reservations', 'protected-reservation'), { businessId: 'studio', clientUserId: 'client', professionalUserId: 'pro', status: 'pending' })
     await setDoc(doc(context.firestore(), 'bookingLocks', 'studio'), { revision: 1 })
+    await setDoc(doc(context.firestore(), 'users', 'platform-reader'), { status: 'active', globalRole: 'superadmin', businessIds: [] })
   })
   for (const uid of ['owner', 'client', 'pro']) {
     const db = dbFor(uid)
@@ -210,6 +211,9 @@ test('reservations are read by active scoped actors but all direct mutations and
   }
   await assertFails(getDoc(doc(dbFor('outsider'), 'reservations', 'protected-reservation')))
   await assertFails(getDoc(doc(dbFor('pending'), 'reservations', 'protected-reservation')))
+  const platform = dbFor('platform-reader')
+  await assertFails(getDoc(doc(platform, 'reservations', 'protected-reservation')))
+  await assertFails(getDocs(query(collection(platform, 'reservations'), where('businessId', '==', 'studio'))))
 })
 
 test('client catalog stays scoped and read-only even when the public website is disabled', async () => {
@@ -555,7 +559,11 @@ test('users can update only valid personal fields on their own account', async (
 })
 
 test('superadmin supervision does not grant operational writes or unaudited configuration; clients cannot promote themselves', async () => {
-  await env.withSecurityRulesDisabled(context => setDoc(doc(context.firestore(), 'users', 'platform'), { status: 'active', globalRole: 'superadmin', businessIds: ['studio'] }))
+  await env.withSecurityRulesDisabled(async context => {
+    const db = context.firestore()
+    await setDoc(doc(db, 'users', 'platform'), { status: 'active', globalRole: 'superadmin', businessIds: ['studio'] })
+    await setDoc(doc(db, 'memberships', 'studio_platform'), { userId: 'platform', businessId: 'studio', role: 'admin', status: 'active' })
+  })
   const owner = dbFor('owner'), platform = dbFor('platform')
   await assertFails(updateDoc(doc(owner, 'businesses', 'studio'), { 'appearance.primaryColor': '#123456' }))
   await assertFails(updateDoc(doc(owner, 'businesses', 'studio'), { appearance: {
@@ -578,7 +586,8 @@ test('superadmin supervision does not grant operational writes or unaudited conf
     primaryColor: '#123456', secondaryColor: '#abcdef', accentColor: '#be123c', surfaceColor: '#f8fafc',
   } }))
   await assertFails(updateDoc(doc(platform, 'businesses', 'private'), { status: 'inactive' }))
-  await assertSucceeds(getDocs(query(collection(platform, 'reservations'), where('businessId', '==', 'studio'))))
+  await assertFails(getDoc(doc(platform, 'reservations', 'protected-reservation')))
+  await assertFails(getDocs(query(collection(platform, 'reservations'), where('businessId', '==', 'studio'))))
   await env.withSecurityRulesDisabled(context => updateDoc(doc(context.firestore(), 'users', 'platform'), { status: 'inactive' }))
   await assertFails(updateDoc(doc(platform, 'businesses', 'private'), { name: 'Denied' }))
 })
