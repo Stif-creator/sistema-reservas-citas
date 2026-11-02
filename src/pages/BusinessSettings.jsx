@@ -161,6 +161,7 @@ function BusinessSettingsForm({ businessId, platform }) {
 
   async function handleSubmit(e) {
     e.preventDefault()
+    const form = e.currentTarget
     if (imageUploading || saving || savingLocation || hoursSaving) return
     setError('')
     setSuccess('')
@@ -207,7 +208,7 @@ function BusinessSettingsForm({ businessId, platform }) {
         },
         updatedAt: serverTimestamp(),
       })
-      markFormSaved(e.target, false); setSuccess('Cambios guardados.')
+      markFormSaved(form, true); setSuccess('Cambios guardados.')
     } catch (err) {
       console.error('Error al guardar el negocio', err)
       setError('No se pudieron guardar los cambios. Intenta de nuevo.')
@@ -218,6 +219,7 @@ function BusinessSettingsForm({ businessId, platform }) {
 
   async function handleHoursSubmit(e) {
     e.preventDefault()
+    const form = e.currentTarget
     if (saving || savingLocation || hoursSaving || imageUploading) return
     setHoursError('')
     setHoursSuccess('')
@@ -235,7 +237,7 @@ function BusinessSettingsForm({ businessId, platform }) {
         weeklyHours,
         updatedAt: serverTimestamp(),
       })
-      markFormSaved(e.target, false); setHoursSuccess('Horario guardado.')
+      markFormSaved(form, true); setHoursSuccess('Horario guardado.')
     } catch (err) {
       console.error('Error al guardar el horario del negocio', err)
       setHoursError('No se pudo guardar el horario. Intenta de nuevo.')

@@ -45,7 +45,7 @@ test('platform links a business, administrator selects it, suspension and archiv
     await admin.getByRole('link', { name: 'Configuración', exact: true }).click()
     await expect(admin.getByLabel('Nombre', { exact: true })).toHaveValue('Consultorio nuevo')
     await expect(admin.getByLabel('Nombre', { exact: true })).toBeDisabled()
-    await expect(admin.getByLabel('Color primario')).toBeDisabled()
+    await expect(admin.getByLabel('Color primario', { exact: true })).toBeDisabled()
     await admin.getByLabel('Descripción', { exact: true }).fill('Atención con cita previa')
     await admin.getByRole('link', { name:'Dashboard', exact:true }).click()
     await expect(admin.getByRole('alertdialog')).toBeVisible()

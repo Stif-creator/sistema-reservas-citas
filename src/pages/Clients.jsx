@@ -230,7 +230,7 @@ export default function Clients() {
         </div>
         <div className="clients-tabs" role="tablist" aria-label="Secciones de datos del cliente">
           <button type="button" role="tab" id="client-tab-general" aria-selected={tab === 'general'} aria-controls="client-panel-general" onClick={() => setTab('general')}><UserRound size={16} />Datos generales</button>
-          <button type="button" role="tab" id="client-tab-history" aria-selected={tab === 'history'} aria-controls="client-panel-history" onClick={showHistory}><CalendarClock size={16} />Historial de citas</button>
+          <button type="button" role="tab" id="client-tab-history" aria-selected={tab === 'history'} aria-controls="client-panel-history" onClick={() => showHistory()}><CalendarClock size={16} />Historial de citas</button>
         </div>
         {tab === 'general' ? <div className="clients-detail-content" role="tabpanel" id="client-panel-general" aria-labelledby="client-tab-general">
           <DetailRow label="Nombre completo" value={fullName(selectedClient)} />

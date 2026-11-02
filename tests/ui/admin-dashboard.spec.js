@@ -5,6 +5,10 @@ import { readFile } from 'node:fs/promises'
 
 test('administrator dashboard shows scoped live metrics, pending work and responsive quick actions', async ({ page }) => {
   const id = `admin-dashboard-${Date.now()}`, email = `${id}@example.test`, password = 'Dashboard-test-123!'
+  const dateParts = new Intl.DateTimeFormat('en-US', { timeZone:'America/La_Paz', year:'numeric', month:'2-digit', day:'2-digit' }).formatToParts(new Date())
+  const part = type => dateParts.find(value => value.type === type).value
+  const businessDate = `${part('year')}-${part('month')}-${part('day')}`
+  const fixtureNow = Date.parse(`${businessDate}T12:00:00-04:00`)
   const signup = await fetch('http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=demo-key', {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password, returnSecureToken: true }),
   })
@@ -15,7 +19,7 @@ test('administrator dashboard shows scoped live metrics, pending work and respon
   page.on('pageerror', error => errors.push(error.message))
   try {
     await env.withSecurityRulesDisabled(async context => {
-      const db = context.firestore(), now = Date.now()
+      const db = context.firestore(), now = fixtureNow
       await setDoc(doc(db, 'users', uid), { id: uid, auth_uid: uid, firstName: 'Alex', lastName: 'Admin', email, status: 'active', globalRole: 'user', businessIds: [id], defaultBusinessId: id, onboardingComplete: true })
       await setDoc(doc(db, 'memberships', `${id}_${uid}`), { userId: uid, businessId: id, role: 'admin', status: 'active' })
       await setDoc(doc(db, 'businesses', id), { id, name: 'Consultorio de prueba', description: 'Atención odontológica', status: 'active', settings: { timezone: 'America/La_Paz' } })
@@ -31,6 +35,7 @@ test('administrator dashboard shows scoped live metrics, pending work and respon
       }
       await setDoc(doc(db, 'scheduleBlocks', `${id}-block`), { businessId: id, status: 'pending' })
     })
+    await page.clock.install({ time: fixtureNow })
     await page.goto('/login')
     await page.getByLabel('Correo electrónico').fill(email)
     await page.getByLabel('Contraseña', { exact: true }).fill(password)

@@ -27,7 +27,7 @@ test('admin creates and inspects a business block for a specific time range', as
     await page.getByRole('button', { name: 'Iniciar sesión', exact: true }).click()
     await expect(page).toHaveURL(/dashboard$/)
     await page.goto('/bloqueos')
-    await expect(page.getByRole('heading', { name: 'Bloqueos' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Bloqueos', exact: true })).toBeVisible()
     await expect(page.locator('.blocks-stats')).toContainText('0')
     await page.setViewportSize({ width: 390, height: 844 })
     await page.getByRole('button', { name: 'Nuevo bloqueo' }).click()

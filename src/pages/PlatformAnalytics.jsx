@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { collection, endAt, getCountFromServer, getDocs, limit, orderBy, query, startAt, Timestamp, where } from 'firebase/firestore'
+import { collection, endAt, getDocs, limit, orderBy, query, startAt } from 'firebase/firestore'
 import { BarChart3, Building2, CalendarCheck, Clock3, Users, Search, RotateCcw, UserRound, BriefcaseBusiness, RefreshCw } from 'lucide-react'
 import { db } from '../firebase/config'
 import { bookingRequest } from '../lib/bookingApi'
@@ -9,7 +9,6 @@ import '../components/superadmin.css'
 
 const rangeOptions = { 30: 'Últimos 30 días', 90: 'Últimos 90 días', 180: 'Últimos 6 meses', 365: 'Últimos 12 meses' }
 const statusInfo = { pending: ['Pendientes', '#f6b844'], confirmed: ['Confirmadas', '#24b879'], completed: ['Finalizadas', '#8b5cf6'], cancelled: ['Canceladas', '#ef5361'], no_show: ['No asistidas', '#94a3b8'] }
-const dateRange = days => new Date(Date.now() - days * 86400000)
 
 export default function PlatformAnalytics() {
   const [range, setRange] = useState(90)
@@ -46,27 +45,8 @@ export default function PlatformAnalytics() {
           if (live) setState({ loading: false, error: '', stats: { ...stats, scope: 'business' } })
           return
         }
-        const now = new Date(), rangeStart = dateRange(range), start = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), 1)
-        const buckets = Array.from({ length: (now.getFullYear() - start.getFullYear()) * 12 + now.getMonth() - start.getMonth() + 1 }, (_, i) => {
-          const from = new Date(start.getFullYear(), start.getMonth() + i, 1), to = new Date(from.getFullYear(), from.getMonth() + 1, 1)
-          return { from: from < rangeStart ? rangeStart : from, to: to > now ? now : to, label: new Intl.DateTimeFormat('es-BO', { month: 'short', year: '2-digit' }).format(from).replace('.', '') }
-        })
-        const reservations = collection(db, 'reservations'), businessesRef = collection(db, 'businesses'), memberships = collection(db, 'memberships')
-        const startStamp = Timestamp.fromDate(rangeStart)
-        const statuses = Object.keys(statusInfo)
-        const results = await Promise.all([
-          getCountFromServer(query(businessesRef, where('status', '!=', 'deleted'))),
-          getCountFromServer(query(businessesRef, where('status', '==', 'active'))),
-          getCountFromServer(query(memberships, where('role', '==', 'admin'))),
-          getCountFromServer(query(reservations, where('createdAt', '>=', startStamp))),
-          ...statuses.map(status => getCountFromServer(query(reservations, where('createdAt', '>=', startStamp), where('status', '==', status)))),
-          ...buckets.map(bucket => getCountFromServer(query(reservations, where('createdAt', '>=', Timestamp.fromDate(bucket.from)), where('createdAt', '<', Timestamp.fromDate(bucket.to))))),
-          getDocs(query(businessesRef, limit(10))),
-        ])
-        if (!live) return
-        const count = index => results[index].data().count, sample = results.at(-1).docs.map(doc => ({ ...doc.data(), id: doc.id })).filter(item => item.status !== 'deleted')
-        setState({ loading: false, error: '', stats: { scope: 'global', range, totalBusinesses: count(0), activeBusinesses: count(1), administrators: count(2), reservations: count(3),
-          statuses: statuses.map((status, i) => ({ status, value: count(4 + i) })), months: buckets.map((bucket, i) => ({ label: bucket.label, value: count(4 + statuses.length + i) })), businesses: sample } })
+        const stats = await bookingRequest({ action: 'platformAnalytics', range })
+        if (live) setState({ loading: false, error: '', stats })
       } catch (error) { if (live) setState({ loading: false, error: error.code === 'permission-denied' ? 'No hay permisos para consultar estas métricas.' : 'No se pudieron calcular las estadísticas. Comprueba las reglas e índices de Firestore.', stats: null }) }
     }
     load()
@@ -86,15 +66,15 @@ export default function PlatformAnalytics() {
     </div>
     {state.error && <p role="alert" className="platform-alert">{state.error}</p>}{state.loading && <p role="status" className="platform-loading">Calculando indicadores agregados…</p>}
     {!state.loading && stats && <>
-      {stats.scope === 'business' ? <BusinessReport stats={stats} range={range} /> : <GlobalReport stats={stats} range={range} />}
+      {stats.scope === 'business' ? <BusinessReport stats={stats} range={range} /> : <GlobalReport stats={stats} range={range} businesses={businesses} />}
     </>}
   </div>
 }
 
-function GlobalReport({ stats, range }) {
+function GlobalReport({ stats, range, businesses }) {
   return <><section className="platform-stat-grid platform-stat-grid-three"><Stat icon={Building2} label="Negocios registrados" value={stats.totalBusinesses} note={`${stats.activeBusinesses} activos`} /><Stat icon={CalendarCheck} label="Reservas del período" value={stats.reservations} note={rangeOptions[range]} /><Stat icon={Users} label="Membresías administradoras" value={stats.administrators} note="Asignaciones de rol administrador" /></section>
     <Charts stats={stats} />
-    <Card className="platform-panel mt-4"><div className="platform-panel-head"><div><h2>Actividad de negocios</h2><p>Muestra de hasta diez negocios cargados para orientación.</p></div></div>{stats.businesses.length ? <div className="platform-table-wrap"><table className="platform-table"><thead><tr><th>Negocio</th><th>Estado</th><th>Tipo</th></tr></thead><tbody>{stats.businesses.map(item => <tr key={item.id}><td><strong>{item.name || item.id}</strong></td><td>{item.status || 'Sin estado'}</td><td>{item.activityType || item.category || 'No configurado'}</td></tr>)}</tbody></table></div> : <p className="platform-empty">No hay negocios disponibles.</p>}</Card>
+    <Card className="platform-panel mt-4"><div className="platform-panel-head"><div><h2>Actividad de negocios</h2><p>Muestra de hasta diez negocios cargados para orientación.</p></div></div>{businesses.length ? <div className="platform-table-wrap"><table className="platform-table"><thead><tr><th>Negocio</th><th>Estado</th><th>Tipo</th></tr></thead><tbody>{businesses.slice(0, 10).map(item => <tr key={item.id}><td><strong>{item.name || item.id}</strong></td><td>{item.status || 'Sin estado'}</td><td>{item.activityType || item.category || 'No configurado'}</td></tr>)}</tbody></table></div> : <p className="platform-empty">No hay negocios disponibles.</p>}</Card>
     <p className="platform-note mt-4">No se calculan ingresos: el precio de una reserva no confirma que se haya pagado. Las métricas son agregadas y se consultan al actualizar.</p></>
 }
 

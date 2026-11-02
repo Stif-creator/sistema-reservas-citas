@@ -53,6 +53,18 @@ test('platform analytics returns only scoped aggregate counts and monthly/status
   assert.deepEqual(queries.find(query => query.name === 'promotions').orders, [['startAt', 'asc'], ['endAt', 'asc']])
 })
 
+test('platform analytics returns global aggregates through the privileged endpoint without exposing records', async () => {
+  const { db, queries } = fixture()
+  const result = await executePlatformAnalytics(db, 'superadmin', { action: 'platformAnalytics', range: 90 })
+  assert.equal(result.scope, 'global')
+  assert.equal(result.range, 90)
+  assert.equal(result.reservations, 100)
+  assert.equal(result.statuses.find(item => item.status === 'cancelled').value, 5)
+  assert(result.months.length > 0)
+  assert.equal(Object.hasOwn(result, 'businesses'), false)
+  assert(queries.some(query => query.name === 'reservations' && query.filters.some(([field]) => field === 'createdAt')))
+})
+
 test('platform analytics refuses unauthenticated, non-superadmin and missing business requests', async () => {
   const { db } = fixture()
   await assert.rejects(executePlatformAnalytics(db, null, { businessId: 'tenant-1' }), error => error instanceof BookingError && error.code === 'unauthenticated')

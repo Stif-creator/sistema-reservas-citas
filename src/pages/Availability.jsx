@@ -285,7 +285,7 @@ function SlotGroups({ slots }) {
   const morning = slots.filter(slot => Number(slot.label.slice(0, 2)) < 12)
   const afternoon = slots.filter(slot => Number(slot.label.slice(0, 2)) >= 12 && Number(slot.label.slice(0, 2)) < 18)
   const evening = slots.filter(slot => Number(slot.label.slice(0, 2)) >= 18)
-  return <div className="availability-slots" aria-label="Horarios disponibles">
+  return <div className="availability-slots" role="group" aria-label="Horarios disponibles">
     {morning.length > 0 && <SlotGroup title="Mañana" icon={<Sun size={16} />} slots={morning} />}
     {afternoon.length > 0 && <SlotGroup title="Tarde" icon={<Sun size={16} />} slots={afternoon} />}
     {evening.length > 0 && <SlotGroup title="Noche" icon={<Moon size={16} />} slots={evening} />}

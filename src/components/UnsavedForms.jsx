@@ -8,7 +8,11 @@ export default function UnsavedForms({ children }) {
   const location = useLocation()
   const shown = useRef(false)
   const { confirm } = useFeedback()
-  const blocker = useBlocker(({ currentLocation, nextLocation }) => currentLocation.pathname !== nextLocation.pathname && [...forms.keys()].some(dirty))
+  const blocker = useBlocker(({ currentLocation, nextLocation }) => {
+    if (currentLocation.pathname === nextLocation.pathname) return false
+    const affected = [...forms.keys()].filter(dirty)
+    return affected.length > 0
+  })
   useEffect(() => { forms.clear() }, [location.pathname])
   useEffect(() => {
     if (blocker.state !== 'blocked' || shown.current) return

@@ -29,13 +29,20 @@ test('institutional pages are public, connected and use only public directory da
     await expect(page.getByRole('navigation', { name: 'Navegación principal' }).getByRole('link', { name: 'Negocios' })).toHaveAttribute('href', '/negocios')
     await page.getByRole('navigation', { name: 'Navegación principal' }).getByRole('link', { name: 'Negocios' }).click()
     await expect(page.getByRole('heading', { name: 'Encuentra tu próximo servicio' })).toBeVisible()
-    await expect(page.getByRole('article').filter({ hasText: 'Taller Horizonte' })).toBeVisible()
+    const publicBusinessCard = page.getByRole('article').filter({ has: page.locator('a[href="/b/' + publicId + '"]') })
+    const directoryPages = page.getByRole('navigation', { name:'Paginación de negocios' })
+    while (!(await publicBusinessCard.count())) {
+      const nextPage = directoryPages.getByRole('button', { name:'Siguiente' })
+      if (await nextPage.isDisabled()) break
+      await nextPage.click()
+    }
+    await expect(publicBusinessCard).toBeVisible()
     await expect(page.getByText('Negocio privado')).toHaveCount(0)
     await expect(page.getByText('private@example.test')).toHaveCount(0)
     await page.getByLabel('Filtrar por actividad').selectOption('Taller')
     await page.getByLabel('Filtrar por ubicación').selectOption('La Paz')
-    await expect(page.getByRole('article').filter({ hasText: 'Taller Horizonte' })).toBeVisible()
-    await page.getByRole('article').filter({ hasText: 'Taller Horizonte' }).getByRole('link', { name: 'Ver negocio' }).click()
+    await expect(publicBusinessCard).toBeVisible()
+    await publicBusinessCard.getByRole('link', { name: 'Ver negocio' }).click()
     await expect(page).toHaveURL(new RegExp(`/b/${publicId}$`))
     await expect(page.getByRole('banner').getByRole('link', { name: /Taller Horizonte/ })).toBeVisible()
 

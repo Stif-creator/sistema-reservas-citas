@@ -20,14 +20,36 @@ async function countAssignedAdmins(db, memberships) {
 
 export async function executePlatformAnalytics(db, uid, input) {
   if (!uid) fail('unauthenticated', 'Inicia sesión para continuar.')
-  if (!validId(input.businessId)) fail('invalid-argument', 'Selecciona un negocio válido.')
   const actor = (await db.doc(`users/${uid}`).get()).data()
   if (actor?.status !== 'active' || actor.globalRole !== 'superadmin') fail('permission-denied', 'Solo el superadministrador puede consultar estas métricas.')
+  const range = [30, 90, 180, 365].includes(input.range) ? input.range : 90
+  if (!input.businessId) {
+    const now = new Date(), rangeStart = new Date(now.getTime() - range * 86400000)
+    const start = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), 1)
+    const buckets = Array.from({ length: (now.getFullYear() - start.getFullYear()) * 12 + now.getMonth() - start.getMonth() + 1 }, (_, i) => {
+      const from = new Date(start.getFullYear(), start.getMonth() + i, 1), to = new Date(from.getFullYear(), from.getMonth() + 1, 1)
+      return { from: from < rangeStart ? rangeStart : from, to: to > now ? now : to,
+        label: new Intl.DateTimeFormat('es-BO', { month: 'short', year: '2-digit' }).format(from).replace('.', '') }
+    })
+    const businesses = db.collection('businesses'), reservations = db.collection('reservations')
+    const statuses = ['pending', 'confirmed', 'completed', 'cancelled', 'no_show']
+    const [totalBusinesses, activeBusinesses, administrators, reservationCount, statusCounts, months] = await Promise.all([
+      count(businesses.where('status', '!=', 'deleted')),
+      count(businesses.where('status', '==', 'active')),
+      countAssignedAdmins(db, db.collection('memberships')),
+      count(reservations.where('createdAt', '>=', Timestamp.fromDate(rangeStart))),
+      Promise.all(statuses.map(status => count(reservations.where('createdAt', '>=', Timestamp.fromDate(rangeStart)).where('status', '==', status)))),
+      Promise.all(buckets.map(bucket => count(reservations.where('createdAt', '>=', Timestamp.fromDate(bucket.from)).where('createdAt', '<', Timestamp.fromDate(bucket.to)))))
+    ])
+    return { scope: 'global', range, totalBusinesses, activeBusinesses, administrators, reservations: reservationCount,
+      statuses: statuses.map((status, i) => ({ status, value: statusCounts[i] })),
+      months: buckets.map((bucket, i) => ({ label: bucket.label, value: months[i] })) }
+  }
+  if (!validId(input.businessId)) fail('invalid-argument', 'Selecciona un negocio válido.')
   const businessRef = db.doc(`businesses/${input.businessId}`)
   const businessSnapshot = await businessRef.get()
   if (!businessSnapshot.exists || businessSnapshot.data().status === 'deleted') fail('not-found', 'El negocio no está disponible.')
   const business = businessSnapshot.data()
-  const range = [30, 90, 180, 365].includes(input.range) ? input.range : 90
   const now = new Date()
   const rangeStart = new Date(now.getTime() - range * 86400000)
   const start = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), 1)

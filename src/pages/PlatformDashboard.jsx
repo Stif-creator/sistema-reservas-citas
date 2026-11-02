@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { safeImageUrl } from '../lib/brand'
 import { Link } from 'react-router-dom'
-import { collection, getCountFromServer, getDocs, limit, query, Timestamp, where } from 'firebase/firestore'
+import { collection, getDocs, limit, query } from 'firebase/firestore'
 import { Activity, AlertTriangle, ArrowRight, Building2, CalendarDays, Headset, Users } from 'lucide-react'
 import { db } from '../firebase/config'
+import { bookingRequest } from '../lib/bookingApi'
 import PageHeader from '../components/ui/PageHeader'
 import Card from '../components/ui/Card'
 import '../components/superadmin.css'
@@ -20,29 +21,13 @@ export default function PlatformDashboard() {
     async function load() {
       try {
         const businessesRef = collection(db, 'businesses')
-        const reservationsRef = collection(db, 'reservations')
-        const membershipsRef = collection(db, 'memberships')
-        const now = new Date()
-        const rangeStart = new Date(now.getTime() - period * 86400000)
-        const firstMonth = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), 1)
-        const months = (now.getFullYear() - firstMonth.getFullYear()) * 12 + now.getMonth() - firstMonth.getMonth() + 1
-        const reservationCounts = Array.from({ length: months }, (_, index) => {
-          const monthStart = new Date(firstMonth.getFullYear(), firstMonth.getMonth() + index, 1)
-          const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 1)
-          const from = monthStart < rangeStart ? rangeStart : monthStart
-          const to = monthEnd > now ? now : monthEnd
-          return { label: new Intl.DateTimeFormat('es-BO', { month: 'short' }).format(monthStart).replace('.', ''), from, to }
-        })
-        const [businessTotal, activeTotal, adminTotal, businessPage, ...reservationTotals] = await Promise.all([
-          getCountFromServer(query(businessesRef)),
-          getCountFromServer(query(businessesRef, where('status', '==', 'active'))),
-          getCountFromServer(query(membershipsRef, where('role', '==', 'admin'))),
+        const [stats, businessPage] = await Promise.all([
+          bookingRequest({ action: 'platformAnalytics', range: period }),
           getDocs(query(businessesRef, limit(8))),
-          ...reservationCounts.map(bucket => getCountFromServer(query(reservationsRef, where('createdAt', '>=', Timestamp.fromDate(bucket.from)), where('createdAt', '<', Timestamp.fromDate(bucket.to)))))
         ])
         if (!live) return
-        const chart = reservationCounts.map((bucket, index) => ({ label: bucket.label, value: reservationTotals[index].data().count }))
-        setState({ loading: false, error: '', businesses: businessPage.docs.map(doc => ({ ...doc.data(), id: doc.id })).filter(item => item.status !== 'deleted').sort((a, b) => (a.name || '').localeCompare(b.name || '')).slice(0, 5), stats: { businesses: businessTotal.data().count, active: activeTotal.data().count, administrators: adminTotal.data().count, reservations: chart.reduce((sum, item) => sum + item.value, 0) }, chart })
+        const chart = stats.months
+        setState({ loading: false, error: '', businesses: businessPage.docs.map(doc => ({ ...doc.data(), id: doc.id })).filter(item => item.status !== 'deleted').sort((a, b) => (a.name || '').localeCompare(b.name || '')).slice(0, 5), stats: { businesses: stats.totalBusinesses, active: stats.activeBusinesses, administrators: stats.administrators, reservations: stats.reservations }, chart })
       } catch (error) {
         if (live) setState({ loading: false, error: `No se pudo cargar el resumen global. ${error.code === 'permission-denied' ? 'Revisa el acceso global del superadministrador en Firestore.' : 'Comprueba la conexión y vuelve a intentarlo.'}`, businesses: [], stats: null, chart: [] })
       }

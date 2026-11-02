@@ -17,6 +17,7 @@ test('client layouts use real scoped data and live branding on desktop and mobil
     await env.withSecurityRulesDisabled(async context => {
       const db = context.firestore()
       await setDoc(doc(db, 'businesses', businessId), { name: 'Estudio Violeta', ownerUserId: 'test-owner', status: 'active',
+        about: { title: 'Sobre el estudio', story: 'Una historia previa.' },
         description: 'Un espacio para cuidarte y disfrutar de tu tiempo.', appearance: { primaryColor: '#7c3aed', secondaryColor: '#f0e7ff', accentColor: '#c2410c', surfaceColor: '#fff7ed' },
         contact: { phone: '+59170000000', whatsapp: '+59171234567', email: 'hola@example.test' },
         location: { addressLine: 'Calle de Prueba 123', city: 'La Paz', stateRegion: 'La Paz', countryCode: 'BO', latitude: -16.5, longitude: -68.15 },

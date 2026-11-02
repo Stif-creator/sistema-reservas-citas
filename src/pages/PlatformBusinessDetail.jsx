@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { collection, doc, getCountFromServer, getDoc, query, where } from 'firebase/firestore'
+import { doc, getDoc } from 'firebase/firestore'
 import { ArrowLeft, ArrowRight, Building2, CalendarDays, ExternalLink, Globe2, ShieldCheck } from 'lucide-react'
 import { db } from '../firebase/config'
 import { safeImageUrl } from '../lib/brand'
@@ -19,12 +19,12 @@ export default function PlatformBusinessDetail() {
   const [busy, setBusy] = useState(false)
   const load = useCallback(async () => {
     try {
-      const [businessSnap, reservationCount] = await Promise.all([
+      const [businessSnap, analytics] = await Promise.all([
         getDoc(doc(db, 'businesses', businessId)),
-        getCountFromServer(query(collection(db, 'reservations'), where('businessId', '==', businessId)))
+        bookingRequest({ action: 'platformAnalytics', businessId, range: 90 })
       ])
       if (!businessSnap.exists()) throw new Error('No encontramos este negocio.')
-      setState({ loading: false, error: '', business: { ...businessSnap.data(), id: businessSnap.id }, reservations: reservationCount.data().count })
+      setState({ loading: false, error: '', business: { ...businessSnap.data(), id: businessSnap.id }, reservations: analytics.reservations })
     } catch (error) { setState({ loading: false, error: error.message || 'No se pudo cargar la supervisión.', business: null, reservations: 0 }) }
   }, [businessId])
   useEffect(() => { const timer = window.setTimeout(() => load(), 0); return () => window.clearTimeout(timer) }, [load])

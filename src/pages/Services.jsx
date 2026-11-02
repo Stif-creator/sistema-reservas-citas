@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { collection, doc, getDoc, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore'
 import { BriefcaseBusiness, Check, ChevronLeft, ChevronRight, CircleDollarSign, Clock3, Eye, Info, Pencil, Plus, Scissors, Search, Users } from 'lucide-react'
 import { db } from '../firebase/config'
 import { useAuth } from '../context/auth-context'
+import { ListSearchContext } from '../context/list-search-context'
 import { useFeedback } from '../context/feedback-context'
 import { confirmDiscard, markFormSaved } from '../lib/unsavedForms'
 import { safeImageUrl } from '../lib/brand'
@@ -26,6 +27,7 @@ export default function Services() {
 
 function ServicesContent() {
   const { membership, currentUser, isSuperadmin } = useAuth()
+  const globalSearch = useContext(ListSearchContext)
   const { confirm, notify } = useFeedback()
   const businessId = membership?.businessId
   const isProfessional = membership?.role === 'professional'
@@ -88,7 +90,7 @@ function ServicesContent() {
   }, [businessId, isProfessional, professionalId])
 
   const visible = useMemo(() => {
-    const needle = queryText.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    const needle = `${queryText} ${globalSearch}`.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
     return services.filter(service => {
       const category = categories.find(item => item.id === service.categoryId)?.name || ''
       const matchesText = !needle || `${service.name || ''} ${service.description || ''} ${category}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(needle)
@@ -98,7 +100,7 @@ function ServicesContent() {
       if (sort === 'duration') return (a.durationMinutes || 0) - (b.durationMinutes || 0)
       return (a.name || '').localeCompare(b.name || '', 'es')
     })
-  }, [services, categories, queryText, categoryFilter, statusFilter, sort])
+  }, [services, categories, queryText, globalSearch, categoryFilter, statusFilter, sort])
   const pageCount = Math.max(1, Math.ceil(visible.length / PAGE_SIZE))
   const currentPage = Math.min(page, pageCount)
   const rows = visible.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
@@ -157,7 +159,7 @@ function ServicesContent() {
 
   const pageHeader = <PageHeader title={isProfessional ? 'Mis servicios' : 'Servicios'} description={isProfessional ? 'Consulta los servicios asignados a tu perfil.' : 'Administra los servicios que ofrece tu negocio.'} actions={isProfessional ? <span className="service-readonly"><Info size={17} />Solo lectura</span> : <Button onClick={openCreate} disabled={loading || !categories.some(category => category.isActive)}><Plus size={17} />Nuevo servicio</Button>} />
 
-  return <section className={`services-page${isProfessional ? ' services-professional' : ''}`}>
+  return <section aria-label="Servicios del negocio" className={`services-page${isProfessional ? ' services-professional' : ''}`}>
     {pageHeader}
     {isSuperadmin && <p className="services-scope"><BriefcaseBusiness size={16} />Administrando: <strong>{businessName || 'Selecciona un negocio en el menú lateral'}</strong></p>}
     {isProfessional && <div className="service-readonly-note"><Info size={20} /><div><strong>Solo lectura</strong><span>Solo puedes consultar los servicios asignados a tu perfil.</span></div></div>}
@@ -173,7 +175,7 @@ function ServicesContent() {
       </div>
       {loading ? <p className="services-empty" role="status">Cargando servicios…</p> : rows.length === 0 ? <p className="services-empty">{isProfessional ? 'Aún no tienes servicios asignados.' : 'No hay servicios que coincidan con estos filtros.'}</p> : isProfessional ? <div className="service-cards-grid">{rows.map(service => <article className="service-card" key={service.id}>
         <ServiceImage service={service} large /><div className="service-card-copy"><div className="service-card-title"><h3>{service.name}</h3><Badge tone={service.isActive ? 'success' : 'neutral'}>{service.isActive ? 'Activo' : 'Inactivo'}</Badge></div><p className="service-card-category">{categories.find(item => item.id === service.categoryId)?.name || 'Categoría no disponible'}</p><div className="service-card-facts"><span><Clock3 size={15} />{service.durationMinutes} min</span><span>{service.price} {service.currencyCode || currencyCode}</span></div><p className="service-card-description">{service.description || 'Sin descripción.'}</p><button type="button" onClick={() => openDetails(service)}>Ver detalles <ChevronRight size={16} /></button></div>
-      </article>)}</div> : <div className="services-table-wrap"><table className="services-table"><thead><tr><th>Servicio</th><th>Descripción</th><th>Categoría</th><th>Precio</th><th>Duración</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>{rows.map(service => <tr key={service.id}>
+      </article>)}</div> : <div className="services-table-wrap"><table className="services-table" aria-label="Servicios del negocio"><thead><tr><th>Servicio</th><th>Descripción</th><th>Categoría</th><th>Precio</th><th>Duración</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>{rows.map(service => <tr key={service.id}>
         <td><div className="service-name-cell"><ServiceImage service={service} /><strong>{service.name}</strong></div></td>
         <td className="service-description-cell" title={service.description}>{service.description || 'Sin descripción'}</td>
         <td>{categories.find(item => item.id === service.categoryId)?.name || '—'}</td><td>{service.price} {service.currencyCode || currencyCode}</td><td>{service.durationMinutes} min</td>

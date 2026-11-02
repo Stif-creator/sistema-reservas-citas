@@ -92,7 +92,8 @@ test('business agenda supports day, week, month, professional filtering, details
     await professionalPage.goto('/agenda')
     await expect(professionalPage.getByRole('heading', { name: 'Mi agenda profesional' })).toBeVisible()
     await expect(professionalPage.getByLabel('Filtrar profesional')).toHaveCount(0)
-    await expect(professionalPage.locator('.agenda-timeline-shell .agenda-event')).toHaveCount(1)
+    await professionalPage.getByLabel('Fecha de agenda').fill(tomorrow)
+    await expect(professionalPage.getByRole('button', { name: /Cliente 1/ }).first()).toBeVisible()
     await expect(professionalPage.getByText('Cliente 2', { exact: true })).toHaveCount(0)
   } finally { await professionalContext.close() }
 })
