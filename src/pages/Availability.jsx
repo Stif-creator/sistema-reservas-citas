@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { collection, doc, limit, onSnapshot, orderBy, query, Timestamp, where } from 'firebase/firestore'
+import { collection, doc, getDocs, limit, onSnapshot, orderBy, query, startAfter, Timestamp, where } from 'firebase/firestore'
 import { ArrowLeft, ArrowRight, Ban, BriefcaseBusiness, CalendarDays, ChevronLeft, ChevronRight, Clock3, Globe2, Info, Moon, Sun, UserRound } from 'lucide-react'
 import { db } from '../firebase/config'
 import { useAuth } from '../context/auth-context'
@@ -13,6 +13,7 @@ import useProfessionalProfile from '../hooks/useProfessionalProfile'
 import './availability.css'
 
 const DAY_MS = 86400000
+const PAGE_SIZE = 500
 const dayLabels = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
 const monthLabel = (date, zone) => new Intl.DateTimeFormat('es-BO', { month: 'long', year: 'numeric', timeZone: zone }).format(new Date(`${date}T12:00:00Z`))
 const fullDate = (date, zone) => new Intl.DateTimeFormat('es-BO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: zone }).format(new Date(`${date}T12:00:00Z`))
@@ -21,6 +22,17 @@ const dateValid = value => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return false
   const date = new Date(`${value}T12:00:00Z`)
   return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value
+}
+
+async function readPages(source) {
+  const values = []
+  let cursor = null
+  while (true) {
+    const page = await getDocs(query(source, ...(cursor ? [startAfter(cursor)] : []), limit(PAGE_SIZE)))
+    values.push(...page.docs.map(item => ({ ...item.data(), id: item.id })))
+    if (page.size < PAGE_SIZE) return values
+    cursor = page.docs.at(-1)
+  }
 }
 
 function errorMessage(error) {
@@ -117,43 +129,28 @@ function AvailabilityView({ membership, ownId }) {
     setAvailability(empty)
     const lower = Timestamp.fromMillis(queryRange.startMs - DAY_MS)
     const upper = Timestamp.fromMillis(queryRange.endMs + DAY_MS)
-    // Valid reservations fit inside a business operating-day interval, including their stored buffers.
+    // Calendar bookings fit their business-day hours, including their saved buffers.
     const reservationClauses = [where('businessId', '==', businessId),
       ...(isAdmin ? [where('professionalId', '==', queryProfessionalId)] : [where('professionalUserId', '==', membership.userId)]),
-      where('startAt', '>=', lower), where('startAt', '<', upper)]
-    const reservationQuery = query(collection(db, 'reservations'), ...reservationClauses, orderBy('startAt'), limit(2001))
-    const rangeClauses = [where('startAt', '<', Timestamp.fromMillis(queryRange.endMs)), where('endAt', '>', Timestamp.fromMillis(queryRange.startMs))]
+      where('endAt', '>', lower), where('startAt', '<', upper)]
+    const reservationQuery = query(collection(db, 'reservations'), ...reservationClauses, orderBy('endAt'))
+    const rangeClauses = [where('startAt', '<', upper), where('endAt', '>', lower)]
     const businessClause = where('businessId', '==', businessId)
     const blocksCollection = collection(db, 'scheduleBlocks')
-    const globalBlocksQuery = query(blocksCollection, businessClause, where('allProfessionals', '==', true), ...rangeClauses, limit(2001))
-    const professionalBlocksQuery = query(blocksCollection, businessClause, where('professionalId', '==', queryProfessionalId), ...rangeClauses, limit(2001))
-    let reservationsLoaded = false, globalBlocksLoaded = false, professionalBlocksLoaded = false
-    let reservations = [], globalBlocks = [], professionalBlocks = []
-    const publish = () => {
-      const blocksById = new Map([...globalBlocks, ...professionalBlocks].map(block => [block.id, block]))
-      const blocks = [...blocksById.values()]
-      if (blocks.length > 2000) return fail('bloqueos', { code: 'resource-exhausted' })
-      if (active) setAvailability({ key: occupancyKey, reservations, blocks, loaded: reservationsLoaded && globalBlocksLoaded && professionalBlocksLoaded, error: '' })
-    }
+    const globalBlocksQuery = query(blocksCollection, businessClause, where('allProfessionals', '==', true), ...rangeClauses, orderBy('endAt'))
+    const professionalBlocksQuery = query(blocksCollection, businessClause, where('professionalId', '==', queryProfessionalId), ...rangeClauses, orderBy('endAt'))
     const fail = (source, error) => {
       console.error(`Error al consultar disponibilidad en Firestore (${source}):`, error)
       if (active) setAvailability(previous => previous.key === occupancyKey ? { ...previous, loaded: false, error: errorMessage(error) } : previous)
     }
-    const stops = [
-      onSnapshot(reservationQuery, snapshot => {
-        if (snapshot.size > 2000) return fail('reservas', { code: 'resource-exhausted' })
-        reservations = snapshot.docs.map(item => ({ ...item.data(), id: item.id })); reservationsLoaded = true; publish()
-      }, error => fail('reservas', error)),
-      onSnapshot(globalBlocksQuery, snapshot => {
-        if (snapshot.size > 2000) return fail('bloqueos globales', { code: 'resource-exhausted' })
-        globalBlocks = snapshot.docs.map(item => ({ ...item.data(), id: item.id })); globalBlocksLoaded = true; publish()
-      }, error => fail('bloqueos globales', error)),
-      onSnapshot(professionalBlocksQuery, snapshot => {
-        if (snapshot.size > 2000) return fail('bloqueos del profesional', { code: 'resource-exhausted' })
-        professionalBlocks = snapshot.docs.map(item => ({ ...item.data(), id: item.id })); professionalBlocksLoaded = true; publish()
-      }, error => fail('bloqueos del profesional', error)),
-    ]
-    return () => { active = false; stops.forEach(stop => stop()) }
+    Promise.all([readPages(reservationQuery), readPages(globalBlocksQuery), readPages(professionalBlocksQuery)])
+      .then(([reservations, globalBlocks, professionalBlocks]) => {
+        if (!active) return
+        const blocks = [...new Map([...globalBlocks, ...professionalBlocks].map(block => [block.id, block])).values()]
+        setAvailability({ key: occupancyKey, reservations, blocks, loaded: true, error: '' })
+      })
+      .catch(error => fail('agenda', error))
+    return () => { active = false }
   }, [occupancyKey, businessId, isAdmin, membership.role, membership.userId, queryProfessionalId, queryRange, baseLoaded])
 
   const occupancy = availability.key === occupancyKey ? availability : null

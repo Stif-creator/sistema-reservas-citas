@@ -6,7 +6,7 @@ import { db } from '../firebase/config'
 import { useAuth } from '../context/auth-context'
 import useSprintData from '../hooks/useSprintData'
 
-export default function PendingWork({ items }) {
+export default function PendingWork({ items, reservationCounts }) {
   const { membership } = useAuth()
   const { data: waiting, error: waitingError, refreshing: waitingLoading } = useSprintData('waitlist')
   const [blocks, setBlocks] = useState([]), [blocksReady, setBlocksReady] = useState(false), [error, setError] = useState('')
@@ -18,8 +18,8 @@ export default function PendingWork({ items }) {
     }, () => { setBlocksReady(true); setError('No se pudieron consultar las solicitudes de bloqueo.') })
   }, [admin, membership.businessId])
   const entries = [
-    { label: 'Por confirmar', count: items.filter(item => (item.displayStatus || item.status) === 'pending').length, ready: true, to: '/reservas?estado=pending', icon: CalendarCheck },
-    { label: 'Pendientes de cierre', count: items.filter(item => ['expired', 'awaiting_closure'].includes(item.displayStatus)).length, ready: true, to: '/reservas?cierre=1', icon: Clock3 },
+    { label: 'Por confirmar', count: reservationCounts?.pendingActive ?? items.filter(item => (item.displayStatus || item.status) === 'pending').length, ready: Boolean(reservationCounts), to: '/reservas?estado=pending', icon: CalendarCheck },
+    { label: 'Pendientes de cierre', count: reservationCounts ? reservationCounts.expired + reservationCounts.awaitingClosure : items.filter(item => ['expired', 'awaiting_closure'].includes(item.displayStatus)).length, ready: Boolean(reservationCounts), to: '/reservas?cierre=1', icon: Clock3 },
     { label: 'Lista de espera', count: Array.isArray(waiting) ? waiting.length : 0, ready: !waitingLoading && !waitingError, to: '/lista-espera', icon: CalendarCheck },
     ...(admin ? [{ label: 'Solicitudes de bloqueo', count: blocks.filter(block => block.status === 'pending').length, ready: blocksReady && !error, to: '/bloqueos?pendientes=1', icon: CalendarX }] : []),
   ]

@@ -166,6 +166,34 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "businessId", "order": "ASCENDING" },
+        { "fieldPath": "clientId", "order": "ASCENDING" },
+        { "fieldPath": "startAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "reservations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "businessId", "order": "ASCENDING" },
+        { "fieldPath": "clientId", "order": "ASCENDING" },
+        { "fieldPath": "professionalUserId", "order": "ASCENDING" },
+        { "fieldPath": "startAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "reservations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "businessId", "order": "ASCENDING" },
+        { "fieldPath": "endAt", "order": "ASCENDING" },
+        { "fieldPath": "startAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "reservations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "businessId", "order": "ASCENDING" },
         { "fieldPath": "professionalId", "order": "ASCENDING" },
         { "fieldPath": "startAt", "order": "ASCENDING" }
       ]
@@ -177,6 +205,26 @@
         { "fieldPath": "businessId", "order": "ASCENDING" },
         { "fieldPath": "professionalId", "order": "ASCENDING" },
         { "fieldPath": "startAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "reservations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "businessId", "order": "ASCENDING" },
+        { "fieldPath": "professionalId", "order": "ASCENDING" },
+        { "fieldPath": "endAt", "order": "ASCENDING" },
+        { "fieldPath": "startAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "reservations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "businessId", "order": "ASCENDING" },
+        { "fieldPath": "professionalUserId", "order": "ASCENDING" },
+        { "fieldPath": "endAt", "order": "ASCENDING" },
+        { "fieldPath": "startAt", "order": "ASCENDING" }
       ]
     },
     {
@@ -307,6 +355,15 @@
         { "fieldPath": "professionalId", "order": "ASCENDING" },
         { "fieldPath": "startAt", "order": "ASCENDING" },
         { "fieldPath": "endAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "scheduleBlocks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "businessId", "order": "ASCENDING" },
+        { "fieldPath": "endAt", "order": "ASCENDING" },
+        { "fieldPath": "startAt", "order": "ASCENDING" }
       ]
     },
     {

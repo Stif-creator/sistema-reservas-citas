@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { CalendarDays, Clock, CalendarCheck, ArrowRight, UserRound } from 'lucide-react'
 import useBusinessReservations from '../hooks/useBusinessReservations'
+import { useReservationCounts } from '../hooks/useReservationPage'
 import { dateMillis, formatAppointmentDate, reservationStatuses } from '../lib/clientPresentation'
 import { dayKey } from '../lib/calendarDates'
 import { countdown } from '../lib/countdown'
@@ -14,6 +15,7 @@ import Badge from './ui/Badge'
 
 export default function ProfessionalDashboard() {
   const { items, business, loading, error } = useBusinessReservations()
+  const { values: reservationTotals } = useReservationCounts()
   const [now, setNow] = useState(Date.now)
   const [selected, setSelected] = useState(null)
   useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 30000); return () => clearInterval(timer) }, [])
@@ -24,11 +26,12 @@ export default function ProfessionalDashboard() {
   const upcoming = active.filter(r => dateMillis(r.endAt || r.startAt) > now).sort((a,b) => dateMillis(a.startAt)-dateMillis(b.startAt))
   const next = upcoming[0]
   const detail = upcoming.find(r => r.id === selected) || next
-  return <section className="space-y-6 mt-6"><PendingWork items={items} />
+  const upcomingCount = (reservationTotals?.pendingActive || 0) + Math.max(0, (reservationTotals?.confirmed || 0) - (reservationTotals?.inProgress || 0) - (reservationTotals?.awaitingClosure || 0))
+  return <section className="space-y-6 mt-6"><PendingWork items={items} reservationCounts={reservationTotals} />
     <AdminSummary items={[
       {label:'Mis citas de hoy',value:active.filter(r => dayKey(dateMillis(r.startAt), zone) === dayKey(now, zone)).length,icon:CalendarDays},
-      {label:'Próximas citas',value:upcoming.length,icon:CalendarCheck,tone:'blue'},
-      {label:'Pendientes de confirmar',value:upcoming.filter(r => r.status === 'pending').length,icon:Clock,tone:'green'},
+      {label:'Próximas citas',value:reservationTotals ? upcomingCount : upcoming.length,icon:CalendarCheck,tone:'blue'},
+      {label:'Pendientes de confirmar',value:reservationTotals?.pendingActive ?? upcoming.filter(r => r.status === 'pending').length,icon:Clock,tone:'green'},
     ]} />
     {next && <div className="rounded-2xl border border-indigo-100 bg-gradient-to-r from-indigo-50 to-white p-6 flex flex-wrap items-center justify-between gap-5"><div><p className="text-sm font-semibold text-primary mb-2">Tu próxima cita</p><strong className="text-3xl">{formatAppointmentDate(next.startAt,zone,true)}</strong><p className="text-sm text-muted mt-2">{formatAppointmentDate(next.startAt,zone)} · {countdown(dateMillis(next.startAt),now)}</p></div><div><p className="font-semibold">{next.clientName}</p><p className="text-sm text-muted">{next.serviceName}</p></div><Link className="inline-flex items-center gap-2 bg-primary rounded-lg text-white px-5 py-3 text-sm" to={`/reservas/${encodeURIComponent(next.id)}`}>Ver reserva<ArrowRight size={18} /></Link></div>}
     <div className="flex flex-wrap gap-3">{[['/agenda','Mi agenda',CalendarDays],['/reservas','Todas mis reservas',CalendarCheck],['/disponibilidad','Mis horarios',Clock]].map(([to,label,Icon]) => <Link key={to} className="inline-flex items-center gap-2 rounded-lg border bg-white px-4 py-2 text-sm text-primary" to={to}><Icon size={17} />{label}</Link>)}</div>

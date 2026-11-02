@@ -1,6 +1,7 @@
 import { Timestamp } from 'firebase-admin/firestore'
 import { createHash } from 'node:crypto'
 import { BookingError } from './bookingError.js'
+import { readQueryPages } from './shared/firestorePages.js'
 
 const fail = (code, message) => { throw new BookingError(code, message) }
 const id = value => typeof value === 'string' && /^[^/\s]{1,200}$/.test(value)
@@ -14,6 +15,8 @@ const rows = snap => {
 const ms = value => value?.toMillis?.() ?? value
 const serial = value => value instanceof Timestamp ? value.toMillis() : Array.isArray(value) ? value.map(serial) : value && typeof value === 'object' ? Object.fromEntries(Object.entries(value).map(([k, v]) => [k, serial(v)])) : value
 const scoped = (db, collection, businessId) => db.collection(collection).where('businessId', '==', businessId).limit(2001)
+const CLIENT_HISTORY_PAGE_SIZE = 20
+const PROFESSIONAL_CLIENT_PAGE_SIZE = 500
 const clientContact = client => ({
   id: client.id,
   firstName: text(client.firstName, 100),
@@ -374,16 +377,29 @@ export async function executeEngagement(db, uid, input, actor) {
       return serial({ clients: clients.map(clientContact), summaryOnly: false })
     }
     if (actor.member.role !== 'professional') fail('permission-denied', 'Esta consulta requiere una cuenta del equipo del negocio.')
-    const appointments = await scoped(db, 'reservations', businessId).where('professionalUserId', '==', uid).get().then(rows)
-    const clientIds = [...new Set(appointments.map(appointment => appointment.clientId).filter(id))]
+    let appointmentsQuery = db.collection('reservations').where('businessId', '==', businessId)
+      .where('professionalUserId', '==', uid).orderBy('startAt', 'desc')
+    if (input.cursor) {
+      if (!id(input.cursor)) fail('invalid-argument', 'Cursor de clientes inválido.')
+      const cursorSnapshot = await db.doc(`reservations/${input.cursor}`).get()
+      const cursor = record(cursorSnapshot)
+      if (cursor?.businessId !== businessId || cursor.professionalUserId !== uid)
+        fail('invalid-argument', 'Cursor de clientes inválido.')
+      appointmentsQuery = appointmentsQuery.startAfter(cursorSnapshot)
+    }
+    const appointmentsSnapshot = await appointmentsQuery.limit(PROFESSIONAL_CLIENT_PAGE_SIZE + 1).get()
+    const appointmentPage = appointmentsSnapshot.docs.slice(0, PROFESSIONAL_CLIENT_PAGE_SIZE).map(record)
+    const clientIds = [...new Set(appointmentPage.map(appointment => appointment.clientId).filter(id))]
     const clients = await Promise.all(clientIds.map(async clientId => {
       const client = record(await db.doc(`clients/${clientId}`).get())
-      const appointment = appointments.find(item => item.clientId === clientId)
+      const appointment = appointmentPage.find(item => item.clientId === clientId)
       return client?.businessId === businessId
         ? clientContact(client)
         : clientContact({ id: clientId, firstName: appointment?.clientName, email: appointment?.clientEmail, phone: appointment?.clientPhone })
     }))
-    return serial({ clients, summaryOnly: false })
+    return serial({ clients, summaryOnly: false,
+      nextCursor: appointmentsSnapshot.size > PROFESSIONAL_CLIENT_PAGE_SIZE
+        ? appointmentsSnapshot.docs[PROFESSIONAL_CLIENT_PAGE_SIZE - 1].id : null })
   }
   if (action === 'clientHistory') {
     if (!id(input.clientId)) fail('invalid-argument', 'Selecciona un cliente válido.')
@@ -391,13 +407,21 @@ export async function executeEngagement(db, uid, input, actor) {
     if (!['admin', 'professional'].includes(actor.member.role)) fail('permission-denied', 'Esta consulta requiere una cuenta del equipo del negocio.')
     const client = record(await db.doc(`clients/${input.clientId}`).get())
     if (!client || client.businessId !== businessId) fail('permission-denied', 'El cliente no pertenece a este negocio.')
-    let query = scoped(db, 'reservations', businessId).where('clientId', '==', input.clientId)
+    let query = db.collection('reservations').where('businessId', '==', businessId).where('clientId', '==', input.clientId)
     if (actor.member.role === 'professional') query = query.where('professionalUserId', '==', uid)
-    const appointments = await query.get().then(rows)
-    if (actor.member.role === 'professional' && appointments.length === 0) fail('permission-denied', 'Este cliente no tiene citas asignadas contigo.')
-    const history = appointments
-      .sort((a, b) => ms(b.startAt) - ms(a.startAt))
-      .map(appointment => ({
+    query = query.orderBy('startAt', 'desc')
+    if (input.cursor) {
+      if (!id(input.cursor)) fail('invalid-argument', 'Cursor de historial invÃ¡lido.')
+      const cursorSnapshot = await db.doc(`reservations/${input.cursor}`).get()
+      const cursor = record(cursorSnapshot)
+      if (cursor?.businessId !== businessId || cursor.clientId !== input.clientId ||
+        (actor.member.role === 'professional' && cursor.professionalUserId !== uid)) fail('invalid-argument', 'Cursor de historial invÃ¡lido.')
+      query = query.startAfter(cursorSnapshot)
+    }
+    const snapshot = await query.limit(CLIENT_HISTORY_PAGE_SIZE + 1).get()
+    const page = snapshot.docs.slice(0, CLIENT_HISTORY_PAGE_SIZE).map(record)
+    if (actor.member.role === 'professional' && page.length === 0 && !input.cursor) fail('permission-denied', 'Este cliente no tiene citas asignadas contigo.')
+    const history = page.map(appointment => ({
         id: appointment.id,
         clientId: appointment.clientId,
         serviceName: text(appointment.serviceName, 200),
@@ -407,7 +431,7 @@ export async function executeEngagement(db, uid, input, actor) {
         timeZone: text(appointment.timeZone, 100),
         status: text(appointment.status, 40),
       }))
-    return serial({ history })
+    return serial({ history, nextCursor: snapshot.size > CLIENT_HISTORY_PAGE_SIZE ? page.at(-1)?.id || null : null })
   }
   if (action === 'clientUpdate') {
     if (actor.isSuperadmin) fail('permission-denied', 'El resumen global no permite editar datos personales de clientes.')
@@ -425,7 +449,9 @@ export async function executeEngagement(db, uid, input, actor) {
     admin()
     if (!Number.isInteger(input.hours) || input.hours < 1 || input.hours > 168) fail('invalid-argument', 'La anticipación debe ser de 1 a 168 horas.')
     // Recalculate existing scheduled reminders as well as new bookings.
-    const reservations = rows(await scoped(db, 'reservations', businessId).get())
+    const reservationsQuery = db.collection('reservations').where('businessId', '==', businessId)
+      .where('status', 'in', ['pending', 'confirmed']).where('startAt', '>', Timestamp.fromMillis(Date.now())).orderBy('startAt')
+    const reservations = (await readQueryPages({ get: query => query.get() }, reservationsQuery)).map(record)
     await db.doc(`reminderSettings/${businessId}`).set({ businessId, hours: input.hours, updatedAt: stamp })
     for (const r of reservations) if (r.clientUserId && ['pending', 'confirmed'].includes(r.status) && ms(r.startAt) > Date.now()) await db.runTransaction(async tx => {
       const [fresh, settings] = await Promise.all([tx.get(db.doc(`reservations/${r.id}`)).then(record), tx.get(db.doc(`reminderSettings/${businessId}`)).then(record)])

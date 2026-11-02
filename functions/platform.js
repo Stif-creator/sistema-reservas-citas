@@ -69,8 +69,8 @@ export async function executePlatform(db, uid, input) {
         if (business.status === 'active') fail('failed-precondition', 'Desactiva el negocio antes de eliminarlo.')
         if (input.confirmName !== business.name) fail('invalid-argument', 'Escribe el nombre exacto del negocio para confirmar.')
         // Logical deletion preserves reservations, identities and audit history.
-        const pending = await tx.get(db.collection('reservations').where('businessId', '==', ref.id).limit(2001))
-        if (pending.size > 2000) fail('failed-precondition', 'Este negocio requiere una revisión de su historial antes de archivarlo. Puedes mantenerlo desactivado.')
+        const pending = await tx.get(db.collection('reservations').where('businessId', '==', ref.id)
+          .where('status', 'in', ['pending', 'confirmed']).limit(1))
         if (pending.docs.some(d => ['pending', 'confirmed'].includes(d.data().status))) fail('failed-precondition', 'Resuelve las reservas pendientes o confirmadas antes de eliminar el negocio.')
       }
       tx.update(ref, { status: input.status, updatedAt: stamp, archivedAt: input.status === 'deleted' ? stamp : null })

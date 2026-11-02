@@ -42,11 +42,18 @@ export function useReservationCounts({ enabled = true } = {}) {
     let active = true
     const base = [where('businessId', '==', businessId), ...(role === 'professional' ? [where('professionalUserId', '==', uid)] : [])]
     const count = clauses => getCountFromServer(query(collection(db, 'reservations'), ...clauses)).then(result => result.data().count)
+    const now = Timestamp.now()
     Promise.all([
       count(base), count([...base, where('status', '==', 'confirmed')]), count([...base, where('status', '==', 'completed')]),
       count([...base, where('status', '==', 'cancelled')]), count([...base, where('status', '==', 'no_show')]),
-    ]).then(([total, confirmed, completed, cancelled, noShow]) => {
-      if (active) setState({ key, values: { total, confirmed, completed, cancelled, noShow }, error: '' })
+      count([...base, where('status', '==', 'pending')]),
+      count([...base, where('status', '==', 'pending'), where('endAt', '<=', now)]),
+      count([...base, where('status', '==', 'pending'), where('endAt', '>', now)]),
+      count([...base, where('status', '==', 'confirmed'), where('startAt', '>', now)]),
+      count([...base, where('status', '==', 'confirmed'), where('startAt', '<=', now), where('endAt', '>', now)]),
+      count([...base, where('status', '==', 'confirmed'), where('endAt', '<=', now)]),
+    ]).then(([total, confirmed, completed, cancelled, noShow, pending, expired, pendingActive, confirmedFuture, inProgress, awaitingClosure]) => {
+      if (active) setState({ key, values: { total, confirmed, completed, cancelled, noShow, pending, expired, pendingActive, confirmedFuture, inProgress, awaitingClosure }, error: '' })
     }).catch(() => { if (active) setState({ key, values: null, error: 'No se pudieron consultar los totales de reservas.' }) })
     return () => { active = false }
   }, [enabled, businessId, role, uid, key])

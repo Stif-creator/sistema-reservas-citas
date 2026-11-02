@@ -440,6 +440,83 @@ test('availability respects blocks, buffers, assignments and private projections
   await rejects(f.call(f.users.client, f.create({ startAt: f.time('15:00') })), 'failed-precondition')
 })
 
+test('calendar queries ignore more than 2,000 old reservations and still find multi-day conflicts', async () => {
+  const f = await fixture()
+  for (let offset = 0; offset < 2100; offset += 400) {
+    const batch = db.batch()
+    for (let index = offset; index < Math.min(offset + 400, 2100); index++) {
+      const startAt = Date.now() - (index + 4000) * 86400000
+      const ref = db.doc(`reservations/history-${f.businessId}-${index}`)
+      batch.set(ref, { businessId: f.businessId, professionalId: f.professionalId, professionalUserId: f.users.pro,
+        startAt: Timestamp.fromMillis(startAt), endAt: Timestamp.fromMillis(startAt + 30 * 60000), status: 'completed' })
+    }
+    await batch.commit()
+  }
+  const crossingId = `crossing-${f.businessId}`
+  await db.doc(`reservations/${crossingId}`).set({ businessId: f.businessId, professionalId: f.professionalId,
+    professionalUserId: f.users.pro, startAt: Timestamp.fromMillis(f.time('10:00') - 3 * 86400000),
+    endAt: Timestamp.fromMillis(f.time('10:15')), status: 'confirmed', bufferBeforeMinutes: 0, bufferAfterMinutes: 0 })
+
+  const availability = await f.call(f.users.client, { action: 'availability', serviceId: f.serviceId,
+    professionalId: f.professionalId, date: f.date })
+  assert(!availability.slots.some(slot => slot.start === f.time('10:00')))
+  await rejects(f.call(f.users.client, f.create()), 'already-exists')
+
+  await db.doc(`reservations/${crossingId}`).delete()
+  const available = await f.call(f.users.client, { action: 'availability', serviceId: f.serviceId,
+    professionalId: f.professionalId, date: f.date })
+  assert(available.slots.some(slot => slot.start === f.time('10:00')))
+  const created = await f.call(f.users.client, f.create())
+  assert.equal((await db.doc(`reservations/${created.id}`).get()).data().status, 'pending')
+})
+
+test('client appointment history is paginated in descending appointment time', async () => {
+  const f = await fixture()
+  const base = Date.now()
+  const batch = db.batch()
+  for (let index = 0; index < 23; index++) {
+    const ref = db.doc(`reservations/history-page-${f.businessId}-${index}`)
+    const startAt = Timestamp.fromMillis(base - index * 3600000)
+    batch.set(ref, { businessId: f.businessId, clientId: f.users.client, professionalUserId: f.users.pro,
+      startAt, endAt: Timestamp.fromMillis(startAt.toMillis() + 1800000), status: 'completed' })
+  }
+  await batch.commit()
+  const first = await f.call(f.users.admin, { action: 'clientHistory', clientId: f.users.client })
+  assert.equal(first.history.length, 20)
+  assert(first.nextCursor)
+  assert(first.history[0].startAt > first.history[19].startAt)
+  const second = await f.call(f.users.admin, { action: 'clientHistory', clientId: f.users.client, cursor: first.nextCursor })
+  assert.equal(second.history.length, 3)
+  assert.equal(second.nextCursor, null)
+  assert.equal(new Set([...first.history, ...second.history].map(item => item.id)).size, 23)
+})
+
+test('professional client directory paginates reservation-backed clients beyond one query page', async () => {
+  const f = await fixture()
+  const start = Date.now() + 86400000
+  let batch = db.batch()
+  for (let index = 0; index < 501; index++) {
+    const ref = db.doc(`reservations/directory-${f.businessId}-${index}`)
+    const startAt = Timestamp.fromMillis(start - index * 60000)
+    batch.set(ref, {
+      id: ref.id, businessId: f.businessId, clientId: `directory-client-${index}`,
+      professionalUserId: f.users.pro, startAt,
+      endAt: Timestamp.fromMillis(startAt.toMillis() + 1800000),
+      clientName: `Cliente ${index}`, status: 'completed',
+    })
+    if ((index + 1) % 500 === 0) { await batch.commit(); batch = db.batch() }
+  }
+  await batch.commit()
+
+  const firstPage = await f.call(f.users.pro, { action: 'clients' })
+  assert.equal(firstPage.clients.length, 500)
+  assert.ok(firstPage.nextCursor)
+  const secondPage = await f.call(f.users.pro, { action: 'clients', cursor: firstPage.nextCursor })
+  assert.equal(secondPage.clients.length, 1)
+  assert.equal(secondPage.nextCursor, null)
+  assert.equal(secondPage.clients[0].id, 'directory-client-500')
+})
+
 test('rescheduling is atomic, preserves original on conflict and cancellation releases occupancy', async () => {
   const f = await fixture()
   const one = await f.call(f.users.client, f.create())

@@ -2,6 +2,7 @@ import { FieldValue, Timestamp } from 'firebase-admin/firestore'
 import { createHash } from 'node:crypto'
 import { BookingError } from './bookingError.js'
 import { businessDate } from './shared/hours.js'
+import { readQueryPages } from './shared/firestorePages.js'
 
 const fail = (code, message) => { throw new BookingError(code, message) }
 const record = s => s.exists ? { ...s.data(), id: s.id } : null
@@ -16,10 +17,8 @@ const nextCalendarDate = value => {
   date.setUTCDate(date.getUTCDate() + 1)
   return date.toISOString().slice(0, 10)
 }
-const rows = s => {
-  if (s.size > 2000) fail('resource-exhausted', 'Demasiados registros para validar el bloqueo.')
-  return s.docs.map(record)
-}
+const rows = s => s.docs.map(record)
+const readRows = async (reader, source) => (await readQueryPages(reader, source)).map(record)
 export async function executeBlocks(db, uid, input, context) {
   const { action, businessId, requestId } = input
   if (typeof requestId !== 'string' || !/^[\w-]{16,80}$/.test(requestId)) fail('invalid-argument', 'Solicitud inválida.')
@@ -94,10 +93,17 @@ export async function executeBlocks(db, uid, input, context) {
       }
     }
     if (['blockCreate', 'blockApprove'].includes(action)) {
-      const reservations = rows(await tx.get(scoped('reservations')))
+      const margin = 86400000
+      const blockStart = ms(block.startAt), blockEnd = ms(block.endAt)
+      const start = Timestamp.fromMillis(blockStart - margin), end = Timestamp.fromMillis(blockEnd + margin)
+      let reservationQuery = db.collection('reservations').where('businessId', '==', businessId)
+        .where('endAt', '>', start).where('startAt', '<', end).orderBy('endAt')
+      if (!block.allProfessionals) reservationQuery = reservationQuery.where('professionalId', '==', block.professionalId)
+      const reservations = await readRows(tx, reservationQuery)
       const overlaps = (start, end) => start < ms(block.endAt) && end > ms(block.startAt)
       if (reservations.some(r => ['pending', 'confirmed'].includes(r.status) && (block.allProfessionals || r.professionalId === block.professionalId) && overlaps(ms(r.startAt) - (r.bufferBeforeMinutes || 0) * 60000, ms(r.endAt) + (r.bufferAfterMinutes || 0) * 60000))) fail('failed-precondition', 'Hay citas pendientes o confirmadas en estas fechas. Reprograma o cancela esas citas antes de bloquear.')
-      const blocks = rows(await tx.get(scoped('scheduleBlocks')))
+      const blocks = await readRows(tx, db.collection('scheduleBlocks').where('businessId', '==', businessId)
+        .where('endAt', '>', block.startAt).where('startAt', '<', block.endAt).orderBy('endAt'))
       if (blocks.some(b => b.id !== block.id && (!b.status || b.status === 'approved') && (b.allProfessionals || block.allProfessionals || b.professionalId === block.professionalId) && overlaps(ms(b.startAt), ms(b.endAt)))) fail('already-exists', 'Ya existe un bloqueo aprobado que coincide con estas fechas.')
     }
     const members = rows(await tx.get(scoped('memberships')))

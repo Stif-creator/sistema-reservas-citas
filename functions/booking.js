@@ -4,9 +4,11 @@ import { createHash } from 'node:crypto'
 import { FieldValue, Timestamp } from 'firebase-admin/firestore'
 import { BookingError } from './bookingError.js'
 import { availableSlots } from './shared/availability.js'
+import { businessDate } from './shared/hours.js'
 import { executeEngagement, engagementActions, discountedService, bookingNotices } from './engagement.js'
 import { executePlatformAnalytics } from './analytics.js'
 import { executePlatformActivity } from './activity.js'
+import { readQueryPages } from './shared/firestorePages.js'
 
 const fail = (code, message) => { throw new BookingError(code, message) }
 const record = snapshot => snapshot.exists ? { ...snapshot.data(), id: snapshot.id } : null
@@ -20,6 +22,27 @@ const fullName = user => `${user.firstName || ''} ${user.lastName || ''}`.trim()
 const text = (value, max) => typeof value === 'string' ? value.trim().slice(0, max) : ''
 const activeStates = ['pending', 'confirmed']
 const scoped = (db, name, businessId) => db.collection(name).where('businessId', '==', businessId).limit(2001)
+const CALENDAR_PAGE_SIZE = 500
+const CALENDAR_MARGIN_MS = 24 * 60 * 60 * 1000
+
+function dateAfter(date, days) {
+  const value = new Date(`${date}T12:00:00Z`)
+  value.setUTCDate(value.getUTCDate() + days)
+  return value.toISOString().slice(0, 10)
+}
+
+function localDayStart(date, zone) {
+  for (let minute = 0; minute < 240; minute++) {
+    const hour = String(Math.floor(minute / 60)).padStart(2, '0')
+    const value = `${date}T${hour}:${String(minute % 60).padStart(2, '0')}`
+    try { return businessDate(value, zone).getTime() } catch {}
+  }
+  return null
+}
+
+async function readPages(reader, source, pageSize = CALENDAR_PAGE_SIZE) {
+  return (await readQueryPages(reader, source, pageSize)).map(record)
+}
 
 async function context(db, reader, uid, businessId) {
   if (!uid) fail('unauthenticated', 'Inicia sesión para continuar.')
@@ -77,12 +100,22 @@ async function selection(db, reader, actor, serviceId, professionalId) {
   return { service: discountedService(service, promotions), professional }
 }
 
-async function calendar(db, reader, businessId, professionalId) {
-  const [blocks, reservations] = await Promise.all([
-    reader.get(scoped(db, 'scheduleBlocks', businessId)).then(list),
-    reader.get(scoped(db, 'reservations', businessId).where('professionalId', '==', professionalId)).then(list),
+async function calendar(db, reader, businessId, professionalId, date, timeZone = 'America/La_Paz') {
+  const dayStart = localDayStart(date, timeZone)
+  const dayEnd = localDayStart(dateAfter(date, 1), timeZone)
+  if (!Number.isFinite(dayStart) || !Number.isFinite(dayEnd) || dayEnd <= dayStart) return { blocks: [], reservations: [] }
+  const from = Timestamp.fromMillis(dayStart - CALENDAR_MARGIN_MS)
+  const to = Timestamp.fromMillis(dayEnd + CALENDAR_MARGIN_MS)
+  const overlaps = query => query.where('endAt', '>', from).where('startAt', '<', to).orderBy('endAt')
+  const [globalBlocks, professionalBlocks, reservations] = await Promise.all([
+    readPages(reader, overlaps(db.collection('scheduleBlocks').where('businessId', '==', businessId)
+      .where('allProfessionals', '==', true))),
+    readPages(reader, overlaps(db.collection('scheduleBlocks').where('businessId', '==', businessId)
+      .where('professionalId', '==', professionalId))),
+    readPages(reader, overlaps(db.collection('reservations').where('businessId', '==', businessId)
+      .where('professionalId', '==', professionalId))),
   ])
-  return { blocks, reservations }
+  return { blocks: [...new Map([...globalBlocks, ...professionalBlocks].map(block => [block.id, block])).values()], reservations }
 }
 
 async function bookingClient(db, reader, actor, input, reservationId) {
@@ -165,7 +198,7 @@ export async function executeBooking(db, uid, input) {
     if (action === 'publicAvailability' && input.reservationId) fail('permission-denied', 'La consulta pública no permite acceder a reservas.')
     if (typeof input.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(input.date)) fail('invalid-argument', 'Selecciona una fecha válida.')
     const selected = await selection(db, reader, actor, input.serviceId, input.professionalId)
-    const agenda = await calendar(db, reader, businessId, selected.professional.id)
+    const agenda = await calendar(db, reader, businessId, selected.professional.id, input.date, actor.business.settings?.timezone || 'America/La_Paz')
     if (input.reservationId) {
       if (!identifier(input.reservationId)) fail('invalid-argument', 'Reserva inválida.')
       const original = record(await reader.get(db.doc(`reservations/${input.reservationId}`)))
@@ -231,7 +264,7 @@ export async function executeBooking(db, uid, input) {
         fail('failed-precondition', 'El precio o la duración cambiaron. Consulta de nuevo la disponibilidad.')
       if (typeof input.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(input.date) || !Number.isSafeInteger(input.startAt))
         fail('invalid-argument', 'Selecciona una fecha y una hora válidas.')
-      const agenda = await calendar(db, transaction, businessId, professionalId)
+      const agenda = await calendar(db, transaction, businessId, professionalId, input.date, actor.business.settings?.timezone || 'America/La_Paz')
       const slots = availableSlots({ business: actor.business, ...selected, ...agenda,
         reservations: agenda.reservations.filter(r => r.id !== original?.id), date: input.date, now })
       const slot = slots.find(s => s.start === input.startAt)

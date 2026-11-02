@@ -35,6 +35,10 @@ export default function Clients() {
   const [selected, setSelected] = useState(undefined)
   const [tab, setTab] = useState('general')
   const [history, setHistory] = useState([])
+  const [historyCursor, setHistoryCursor] = useState('')
+  const [clientCursor, setClientCursor] = useState('')
+  const [moreClients, setMoreClients] = useState([])
+  const [loadingMoreClients, setLoadingMoreClients] = useState(false)
   const [historyFor, setHistoryFor] = useState('')
   const [historyLoadingFor, setHistoryLoadingFor] = useState('')
   const [historyError, setHistoryError] = useState('')
@@ -45,7 +49,14 @@ export default function Clients() {
   const historyRequestRef = useRef(0)
   const [formError, setFormError] = useState('')
   const [overrides, setOverrides] = useState({})
-  const clients = useMemo(() => (data?.clients || []).map(client => overrides[`${scopeKey}:${client.id}`] || client), [data?.clients, overrides, scopeKey])
+  useEffect(() => {
+    setClientCursor(data?.nextCursor || '')
+    setMoreClients([])
+  }, [data])
+  const clients = useMemo(() => {
+    const unique = new Map([...(data?.clients || []), ...moreClients].map(client => [client.id, client]))
+    return [...unique.values()].map(client => overrides[`${scopeKey}:${client.id}`] || client)
+  }, [data?.clients, moreClients, overrides, scopeKey])
   const hasStatus = clients.some(client => typeof client.status === 'string' || typeof client.isActive === 'boolean')
   const hasCreatedAt = clients.some(client => client.createdAt != null)
 
@@ -81,6 +92,7 @@ export default function Clients() {
     setSelected(undefined)
     setTab('general')
     setHistory([])
+    setHistoryCursor('')
     setHistoryFor('')
     setHistoryLoadingFor('')
     setHistoryError('')
@@ -100,22 +112,23 @@ export default function Clients() {
     setEditing(false)
   }
 
-  async function showHistory() {
+  async function showHistory(cursor = '', append = false) {
     setTab('history')
-    if (!selectedClient || isSuperadmin || historyLoadingFor === selectedHistoryKey || (historyFor === selectedHistoryKey && !historyError)) return
+    if (!selectedClient || isSuperadmin || historyLoadingFor === selectedHistoryKey || (!cursor && historyFor === selectedHistoryKey && !historyError)) return
     const requestId = ++historyRequestRef.current
     const clientId = selectedClient.id
     const businessId = membership?.businessId
     const requestScope = selectionKey
-    setHistory([])
+    if (!append) setHistory([])
     setHistoryFor('')
     setHistoryLoadingFor(selectedHistoryKey)
     setHistoryError('')
     setHistoryErrorFor('')
     try {
-      const result = await bookingRequest({ action: 'clientHistory', businessId, clientId })
+      const result = await bookingRequest({ action: 'clientHistory', businessId, clientId, ...(cursor ? { cursor } : {}) })
       if (requestId !== historyRequestRef.current || selectionRef.current.selectionKey !== requestScope || selectionRef.current.clientId !== clientId) return
-      setHistory(result.history || [])
+      setHistory(current => append ? [...current, ...(result.history || [])] : result.history || [])
+      setHistoryCursor(result.nextCursor || '')
       setHistoryFor(selectedHistoryKey)
     } catch (loadError) {
       if (requestId === historyRequestRef.current && selectionRef.current.selectionKey === requestScope && selectionRef.current.clientId === clientId) {
@@ -154,6 +167,20 @@ export default function Clients() {
     }
   }
 
+  async function loadMoreClients() {
+    if (!clientCursor || loadingMoreClients) return
+    setLoadingMoreClients(true)
+    try {
+      const result = await bookingRequest({ action: 'clients', businessId: membership?.businessId, cursor: clientCursor })
+      setMoreClients(current => [...current, ...(result.clients || [])])
+      setClientCursor(result.nextCursor || '')
+    } catch (loadError) {
+      notify({ title: 'No se pudieron cargar más clientes', message: loadError.message, type: 'error' })
+    } finally {
+      setLoadingMoreClients(false)
+    }
+  }
+
   if (isSuperadmin) return <SuperadminClientSummary data={data} error={error} refreshing={refreshing} reload={reload} />
 
   return <section className="clients-page">
@@ -188,6 +215,7 @@ export default function Clients() {
           </article>)}
         </div>
         {data && <footer className="clients-pagination"><span>{filtered.length ? `${(currentPage - 1) * pageSize + 1}–${Math.min(currentPage * pageSize, filtered.length)} de ${filtered.length} registros` : '0 registros'}</span><div><button type="button" aria-label="Página anterior" disabled={currentPage <= 1} onClick={() => { resetResultSelection(); setPage(currentPage - 1) }}><ChevronLeft size={17} /></button><span>Página {currentPage} de {pageCount}</span><button type="button" aria-label="Página siguiente" disabled={currentPage >= pageCount} onClick={() => { resetResultSelection(); setPage(currentPage + 1) }}><ChevronRight size={17} /></button></div></footer>}
+        {membership?.role === 'professional' && clientCursor && <Button variant="secondary" disabled={loadingMoreClients} onClick={loadMoreClients}>{loadingMoreClients ? 'Cargando…' : 'Cargar más clientes'}</Button>}
       </section>
 
       {selectedClient ? <aside className="clients-detail-panel" aria-label={`Detalles de ${fullName(selectedClient)}`}>
@@ -220,6 +248,7 @@ export default function Clients() {
               <Link to={`/reservas/${encodeURIComponent(appointment.id)}`} className="clients-reservation-link">Ver reserva</Link>
             </article>)}</div>}
           </DataList>}
+          {historyCursor && <Button variant="secondary" disabled={historyLoadingFor === selectedHistoryKey} onClick={() => showHistory(historyCursor, true)}>Cargar citas más antiguas</Button>}
         </div>}
       </aside> : <aside className="clients-detail-placeholder"><ClipboardList size={28} /><h2>Selecciona un cliente</h2><p>Elige un registro para consultar sus datos y citas autorizadas.</p></aside>}
     </div>
