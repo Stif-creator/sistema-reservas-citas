@@ -7,7 +7,7 @@ import './business-settings.css'
 import { Link, useParams } from 'react-router-dom'
 import PlatformBusinessAdministration from '../components/PlatformBusinessAdministration'
 import ImageUploadField from '../components/ImageUploadField'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { doc, getDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useAuth } from '../context/auth-context'
@@ -27,39 +27,11 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 function HexColorControl({ id, label, value, onChange, disabled }) {
   const [draft, setDraft] = useState(value)
-  const picker = useRef(null)
-  const lastPublished = useRef(value)
-  const [initialPickerValue] = useState(() => /^#[\da-f]{6}$/i.test(value) ? value : '#ffffff')
   const valid = /^#[\da-f]{6}$/i.test(draft)
-
-  useEffect(() => {
-    if (value === lastPublished.current) return
-    lastPublished.current = value
-    setDraft(value)
-    if (picker.current && /^#[\da-f]{6}$/i.test(value)) picker.current.value = value
-  }, [value])
-
-  function publishColor(next) {
-    if (next === lastPublished.current) return
-    lastPublished.current = next
-    setDraft(next)
-    onChange(next)
-  }
-
-  function editHex(next) {
-    setDraft(next)
-    if (/^#[\da-f]{6}$/i.test(next)) {
-      lastPublished.current = next
-      if (picker.current) picker.current.value = next
-      onChange(next)
-    }
-  }
-
   return <Field label={label} htmlFor={id} error={!valid ? 'Usa un color hexadecimal como #6A44FF.' : undefined}>
-    <div className="settings-color-input"><input ref={picker} id={id} type="color" defaultValue={initialPickerValue} disabled={disabled} onInput={event => publishColor(event.target.value)} onChange={event => publishColor(event.target.value)} aria-label={`Selector ${label}`} /><input type="text" value={draft} disabled={disabled} maxLength={7} pattern="#[0-9a-fA-F]{6}" onChange={event => editHex(event.target.value)} aria-label={label} aria-invalid={!valid} /></div>
+    <div className="settings-color-input"><input id={id} type="color" value={valid ? draft : '#ffffff'} disabled={disabled} onChange={event => { setDraft(event.target.value); onChange(event.target.value) }} aria-label={`Selector ${label}`} /><input type="text" value={draft} disabled={disabled} maxLength={7} pattern="#[0-9a-fA-F]{6}" onChange={event => { setDraft(event.target.value); if (/^#[\da-f]{6}$/i.test(event.target.value)) onChange(event.target.value) }} aria-label={label} aria-invalid={!valid} /></div>
   </Field>
 }
-
 function BusinessSettings({ platform = false }) {
   const { businessId: routeBusinessId } = useParams()
   const { membership } = useAuth()
