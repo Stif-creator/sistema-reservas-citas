@@ -28,9 +28,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 function HexColorControl({ id, label, value, onChange, disabled }) {
   const [draft, setDraft] = useState(value)
   const valid = /^#[\da-f]{6}$/i.test(draft)
-  return <Field label={label} htmlFor={id} error={!valid ? 'Usa un color hexadecimal como #6A44FF.' : undefined}>
-    <div className="settings-color-input"><input id={id} type="color" value={valid ? draft : '#ffffff'} disabled={disabled} onChange={event => { setDraft(event.target.value); onChange(event.target.value) }} aria-label={`Selector ${label}`} /><input type="text" value={draft} disabled={disabled} maxLength={7} pattern="#[0-9a-fA-F]{6}" onChange={event => { setDraft(event.target.value); if (/^#[\da-f]{6}$/i.test(event.target.value)) onChange(event.target.value) }} aria-label={label} aria-invalid={!valid} /></div>
-  </Field>
+  return <label className="mb-1.5 block text-sm font-medium text-ink">{label}<span className="settings-color-input"><input id={id} type="color" value={valid ? draft : '#ffffff'} disabled={disabled} onInput={event => { setDraft(event.target.value); onChange(event.target.value) }} onChange={event => { setDraft(event.target.value); onChange(event.target.value) }} aria-label={`Selector ${label}`} /><input type="text" value={draft} disabled={disabled} maxLength={7} pattern="#[0-9a-fA-F]{6}" aria-label={`${label} en hexadecimal`} aria-invalid={!valid} onChange={event => { setDraft(event.target.value); if (/^#[\da-f]{6}$/i.test(event.target.value)) onChange(event.target.value) }} /></span>{!valid && <small className="mt-1 block text-error">Usa un color hexadecimal como #6A44FF.</small>}</label>
 }
 function BusinessSettings({ platform = false }) {
   const { businessId: routeBusinessId } = useParams()
