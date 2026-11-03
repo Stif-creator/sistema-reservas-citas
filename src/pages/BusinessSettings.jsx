@@ -321,10 +321,10 @@ function BusinessSettingsForm({ businessId, platform }) {
         </Card></div><div className="settings-preview-column"><SettingsPreview {...{ tab, name, description, logoUrl, coverUrl, primaryColor, secondaryColor, accentColor, surfaceColor, about, contactPhone, contactWhatsapp, contactEmail, addressLine, city, stateRegion, countryCode, latitude, longitude, weeklyHours, timeZone }} published={publicPageEnabled} /></div></div></div>
 <div id="settings-panel-appearance" role="tabpanel" aria-labelledby="settings-tab-appearance" hidden={tab !== 'appearance'}><div className="settings-columns"><div className="settings-fields"><Card title="Identidad visual">{!isSuperadmin && <p className="text-sm text-muted mb-3">Los colores de tu negocio son administrados por la plataforma.</p>}{isSuperadmin && <label className="settings-publish-control"><input type="checkbox" checked={publicPageEnabled} onChange={e => setPublicPageEnabled(e.target.checked)} /> Publica tu pagina para los clientes <span>{publicPageEnabled ? "Publicada" : "No publicada"}</span></label>}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <HexColorControl key={`${primaryColor}`} id="primaryColor" label="Color primario" value={primaryColor} onChange={setPrimaryColor} disabled={!isSuperadmin} />
-            <HexColorControl key={`${secondaryColor}`} id="secondaryColor" label="Color secundario" value={secondaryColor} onChange={setSecondaryColor} disabled={!isSuperadmin} />
-            <HexColorControl key={`${accentColor}`} id="accentColor" label="Color de acento" value={accentColor} onChange={setAccentColor} disabled={!isSuperadmin} />
-            <HexColorControl key={`${surfaceColor}`} id="surfaceColor" label="Color de superficie" value={surfaceColor} onChange={setSurfaceColor} disabled={!isSuperadmin} />
+            <HexColorControl key="primaryColor" id="primaryColor" label="Color primario" value={primaryColor} onChange={setPrimaryColor} disabled={!isSuperadmin} />
+            <HexColorControl key="secondaryColor" id="secondaryColor" label="Color secundario" value={secondaryColor} onChange={setSecondaryColor} disabled={!isSuperadmin} />
+            <HexColorControl key="accentColor" id="accentColor" label="Color de acento" value={accentColor} onChange={setAccentColor} disabled={!isSuperadmin} />
+            <HexColorControl key="surfaceColor" id="surfaceColor" label="Color de superficie" value={surfaceColor} onChange={setSurfaceColor} disabled={!isSuperadmin} />
           </div>
           {isSuperadmin && <Button type="button" variant="secondary" className="mt-4" onClick={() => { setPrimaryColor('#1672ed'); setSecondaryColor('#eaf3ff'); setAccentColor('#d97706'); setSurfaceColor('#f4f6f8') }}>Restablecer colores predeterminados</Button>}
           <p className="mt-3 text-xs text-muted">El acento destaca detalles y la superficie colorea la vista previa. El texto se ajusta automáticamente para mantener el contraste.</p>
