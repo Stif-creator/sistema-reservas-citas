@@ -22,6 +22,12 @@ test('client booking, admin agenda, manual booking and assigned professional sta
     accounts[role] = { email, uid: (await response.json()).localId }
   }
   const date = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10)
+  const monthLabel = new Intl.DateTimeFormat('es-BO', {
+    timeZone: 'America/La_Paz',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date(`${date}T12:00:00-04:00`))
   const hours = Object.fromEntries(Array.from({ length: 7 }, (_, index) => [String(index + 1), [{ start: '09:00', end: '17:00' }]]))
   const env = await initializeTestEnvironment({ projectId: 'demo-citaspro', firestore: { host: '127.0.0.1', port: 8080, rules: await readFile('firestore.rules', 'utf8') } })
   await env.withSecurityRulesDisabled(async context => {
@@ -95,9 +101,16 @@ test('client booking, admin agenda, manual booking and assigned professional sta
 
     await login(staff, 'admin')
     await staff.getByRole('link', { name: 'Reservas', exact: true }).click()
+    await staff.getByLabel('Fecha desde').fill(date)
+    await staff.getByLabel('Fecha hasta').fill(date)
+    await staff.getByRole('button', { name: 'Aplicar filtros' }).click()
     await staff.getByRole('row').filter({ hasText: 'María Prueba' }).getByRole('link', { name: 'Ver detalle' }).click()
     await staff.getByRole('button', { name: 'Confirmar', exact: true }).click()
     await staff.getByRole('button', { name: 'Aplicar cambio', exact: true }).click()
+    await expect(staff).toHaveURL(/\/reservas$/)
+    await expect(staff.getByLabel('Fecha desde')).toHaveValue(date)
+    await expect(staff.getByLabel('Fecha hasta')).toHaveValue(date)
+    await expect(staff.getByRole('row').filter({ hasText: 'María Prueba' }).getByText('Confirmada', { exact: true })).toBeVisible()
     await expect(page.getByText('Confirmada', { exact: true })).toBeVisible()
 
     await page.getByRole('button', { name: 'Reprogramar', exact: true }).click()
@@ -177,6 +190,7 @@ test('client booking, admin agenda, manual booking and assigned professional sta
     await pro.getByRole('row').filter({ hasText: 'Manuel Teléfono' }).getByRole('link', { name: 'Ver detalle' }).click()
     await pro.getByRole('button', { name: 'Confirmar', exact: true }).click()
     await pro.getByRole('button', { name: 'Aplicar cambio', exact: true }).click()
+    await expect(pro).toHaveURL(/\/reservas$/)
     await staff.getByRole('link', { name: 'Reservas', exact: true }).click()
     await expect(staff.getByRole('row').filter({ hasText: 'Manuel Teléfono' }).getByText('Confirmada', { exact: true })).toBeVisible()
 
@@ -187,7 +201,7 @@ test('client booking, admin agenda, manual booking and assigned professional sta
       const daySummary = staff.getByRole('complementary', { name: 'Detalles de cita' })
       await expect(daySummary.getByText('Manuel Teléfono', { exact: true })).toHaveCount(1)
       await expect(daySummary.getByText('María Prueba', { exact: true })).toHaveCount(0)
-      if (label === 'Mes') await expect(staff.getByRole('button', { name: /16 de noviembre de 2026: 1 cita/ })).toHaveCount(1)
+      if (label === 'Mes') await expect(staff.getByRole('button', { name: new RegExp(`${monthLabel}: 1 cita`) })).toHaveCount(1)
       else await expect(staff.getByRole('button', { name: /11:00.*11:30/ })).toHaveCount(1)
     }
     await staff.screenshot({ path: 'test-results/sprint2-agenda.png', fullPage: true })

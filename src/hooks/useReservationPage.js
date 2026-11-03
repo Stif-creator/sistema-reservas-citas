@@ -3,6 +3,7 @@ import { collection, getCountFromServer, limit, onSnapshot, orderBy, query, star
 import { db } from '../firebase/config'
 import { useAuth } from '../context/auth-context'
 import useReservationStates from './useReservationStates'
+import { readReservationCounts } from '../lib/reservationCounts'
 
 const PAGE_SIZE = 20
 const derivedStatuses = new Set(['pending', 'confirmed', 'expired', 'awaiting_closure', 'in_progress'])
@@ -31,6 +32,12 @@ function queryParts({ businessId, role, uid, range, status, serviceId, professio
 }
 
 const valueKey = value => value?.toMillis?.() ?? ''
+function queryFailureMessage(error, operation) {
+  const code = String(error?.code || 'unknown').replace(/^firestore\//, '')
+  if (code === 'permission-denied') return `${operation}: Firestore denegó el acceso (permission-denied). Verifica el rol y la membresía activa.`
+  if (code === 'failed-precondition') return `${operation}: Firestore requiere un índice (failed-precondition).`
+  return `${operation} (${code}).`
+}
 
 export function useReservationCounts({ enabled = true } = {}) {
   const { membership, currentUser } = useAuth()
@@ -43,18 +50,24 @@ export function useReservationCounts({ enabled = true } = {}) {
     const base = [where('businessId', '==', businessId), ...(role === 'professional' ? [where('professionalUserId', '==', uid)] : [])]
     const count = clauses => getCountFromServer(query(collection(db, 'reservations'), ...clauses)).then(result => result.data().count)
     const now = Timestamp.now()
-    Promise.all([
-      count(base), count([...base, where('status', '==', 'confirmed')]), count([...base, where('status', '==', 'completed')]),
-      count([...base, where('status', '==', 'cancelled')]), count([...base, where('status', '==', 'no_show')]),
-      count([...base, where('status', '==', 'pending')]),
-      count([...base, where('status', '==', 'pending'), where('endAt', '<=', now)]),
-      count([...base, where('status', '==', 'pending'), where('endAt', '>', now)]),
-      count([...base, where('status', '==', 'confirmed'), where('startAt', '>', now)]),
-      count([...base, where('status', '==', 'confirmed'), where('startAt', '<=', now), where('endAt', '>', now)]),
-      count([...base, where('status', '==', 'confirmed'), where('endAt', '<=', now)]),
-    ]).then(([total, confirmed, completed, cancelled, noShow, pending, expired, pendingActive, confirmedFuture, inProgress, awaitingClosure]) => {
-      if (active) setState({ key, values: { total, confirmed, completed, cancelled, noShow, pending, expired, pendingActive, confirmedFuture, inProgress, awaitingClosure }, error: '' })
-    }).catch(() => { if (active) setState({ key, values: null, error: 'No se pudieron consultar los totales de reservas.' }) })
+    const specs = [
+      { key: 'total', clauses: base },
+      { key: 'confirmed', clauses: [...base, where('status', '==', 'confirmed')] },
+      { key: 'completed', clauses: [...base, where('status', '==', 'completed')] },
+      { key: 'cancelled', clauses: [...base, where('status', '==', 'cancelled')] },
+      { key: 'noShow', clauses: [...base, where('status', '==', 'no_show')] },
+      { key: 'pending', clauses: [...base, where('status', '==', 'pending')] },
+      { key: 'expired', clauses: [...base, where('status', '==', 'pending'), where('endAt', '<=', now)] },
+      { key: 'pendingActive', clauses: [...base, where('status', '==', 'pending'), where('endAt', '>', now)] },
+      { key: 'confirmedFuture', clauses: [...base, where('status', '==', 'confirmed'), where('startAt', '>', now)] },
+      { key: 'inProgress', clauses: [...base, where('status', '==', 'confirmed'), where('startAt', '<=', now), where('endAt', '>', now)] },
+      { key: 'awaitingClosure', clauses: [...base, where('status', '==', 'confirmed'), where('endAt', '<=', now)] },
+    ]
+    readReservationCounts(specs, count, (metric, error) => console.error('Firestore reservation count failed', {
+      metric, role, code: error?.code || 'unknown', message: error?.message || String(error),
+    })).then(({ values, errors }) => {
+      if (active) setState({ key, values, error: errors.length ? `No se pudieron consultar algunos totales de reservas: ${errors.join(', ')}.` : '' })
+    })
     return () => { active = false }
   }, [enabled, businessId, role, uid, key])
   return { ...state, values: state.key === key ? state.values : null, loading: enabled && state.key !== key }
@@ -78,9 +91,12 @@ export default function useReservationPage({ enabled = true, range, status, serv
     if (parts.impossible) return undefined
     getCountFromServer(query(collection(db, 'reservations'), ...parts.clauses)).then(result => {
       if (active) setCountState({ key: countKey, value: result.data().count, error: '' })
-    }).catch(() => { if (active) setCountState({ key: countKey, value: null, error: 'No se pudo calcular el total para estos filtros.' }) })
+    }).catch(error => {
+      console.error('Firestore filtered reservation count failed', { role, code: error?.code || 'unknown', message: error?.message || String(error) })
+      if (active) setCountState({ key: countKey, value: null, error: queryFailureMessage(error, 'No se pudo calcular el total para estos filtros') })
+    })
     return () => { active = false }
-  }, [enabled, businessId, uid, countKey, parts])
+  }, [enabled, businessId, role, uid, countKey, parts])
 
   useEffect(() => {
     if (!enabled || !businessId || !uid) return undefined
@@ -92,9 +108,12 @@ export default function useReservationPage({ enabled = true, range, status, serv
       if (!active) return
       const visibleDocs = snapshot.docs.slice(0, pageSize)
       setPageState({ key: pageKey, docs: visibleDocs.map(document => ({ ...document.data(), id: document.id })), nextCursor: snapshot.docs.length > pageSize ? visibleDocs.at(-1) : null, hasNext: snapshot.docs.length > pageSize, error: '' })
-    }, () => { if (active) setPageState({ key: pageKey, docs: [], nextCursor: null, hasNext: false, error: 'No se pudo cargar esta página de reservas.' }) })
+    }, error => {
+      console.error('Firestore reservation page query failed', { role, code: error?.code || 'unknown', message: error?.message || String(error) })
+      if (active) setPageState({ key: pageKey, docs: [], nextCursor: null, hasNext: false, error: queryFailureMessage(error, 'No se pudo cargar esta página de reservas') })
+    })
     return () => { active = false; stop() }
-  }, [enabled, businessId, uid, pageKey, parts, sort, cursor, pageSize, status, closuresOnly])
+  }, [enabled, businessId, role, uid, pageKey, parts, sort, cursor, pageSize, status, closuresOnly])
 
   const rawItems = pageState.key === pageKey ? pageState.docs : []
   const items = useReservationStates(rawItems)

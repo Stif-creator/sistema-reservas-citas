@@ -29,7 +29,7 @@ function HexColorControl({ id, label, value, onChange, disabled }) {
   const [draft, setDraft] = useState(value)
   const valid = /^#[\da-f]{6}$/i.test(draft)
   return <Field label={label} htmlFor={id} error={!valid ? 'Usa un color hexadecimal como #6A44FF.' : undefined}>
-    <div className="settings-color-input"><input id={id} type="color" value={valid ? draft : '#ffffff'} disabled={disabled} onChange={event => { setDraft(event.target.value); onChange(event.target.value) }} aria-label={`Selector ${label}`} /><input type="text" value={draft} disabled={disabled} maxLength={7} pattern="#[0-9a-fA-F]{6}" onChange={event => { setDraft(event.target.value); if (/^#[\da-f]{6}$/i.test(event.target.value)) onChange(event.target.value) }} aria-label={label} aria-invalid={!valid} /></div>
+    <div className="settings-color-input"><input id={id} type="color" value={valid ? draft : '#ffffff'} disabled={disabled} onInput={event => { setDraft(event.target.value); onChange(event.target.value) }} onChange={event => { setDraft(event.target.value); onChange(event.target.value) }} aria-label={`Selector ${label}`} /><input type="text" value={draft} disabled={disabled} maxLength={7} pattern="#[0-9a-fA-F]{6}" onChange={event => { setDraft(event.target.value); if (/^#[\da-f]{6}$/i.test(event.target.value)) onChange(event.target.value) }} aria-label={label} aria-invalid={!valid} /></div>
   </Field>
 }
 

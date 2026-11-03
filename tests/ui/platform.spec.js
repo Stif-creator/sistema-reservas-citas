@@ -36,7 +36,7 @@ test('superadmin without a selected business sees the global dashboard safely', 
 })
 
 test('superadmin uses supervision routes and cannot open business operations', async ({ page }) => {
-  const id = `platform-${Date.now()}`, email = `${id}@example.test`, password = 'Demo-secret-123!'
+  const id = `platform-${Date.now()}`, businessName = `Negocio de supervisión ${id}`, email = `${id}@example.test`, password = 'Demo-secret-123!'
   const uid = await createAccount(email, password)
   const env = await initializeTestEnvironment({ projectId: 'demo-citaspro', firestore: { host: '127.0.0.1', port: 8080, rules: await readFile('firestore.rules', 'utf8') } })
   const errors = []
@@ -45,7 +45,7 @@ test('superadmin uses supervision routes and cannot open business operations', a
     await env.withSecurityRulesDisabled(async context => {
       const db = context.firestore()
       await setDoc(doc(db, 'users', uid), { id: uid, auth_uid: uid, firstName: 'Platform', lastName: 'Test', email, status: 'active', globalRole: 'superadmin', businessIds: [id], onboardingComplete: true })
-      await setDoc(doc(db, 'businesses', id), { id, ownerUserId: 'someone-else', name: 'Negocio de supervisión', status: 'active', administratorName: 'Responsable de prueba', administratorEmail: 'admin@example.test', settings: { publicPageEnabled: true } })
+      await setDoc(doc(db, 'businesses', id), { id, ownerUserId: 'someone-else', name: businessName, status: 'active', administratorName: 'Responsable de prueba', administratorEmail: 'admin@example.test', settings: { publicPageEnabled: true } })
     })
     await openSession(page, email, password)
     for (const label of ['Dashboard global', 'Negocios', 'Administradores', 'Estadísticas y reportes', 'Actividad de negocios', 'Seguridad y auditoría', 'Avisos de plataforma', 'Soporte técnico', 'Mi cuenta'])
@@ -55,11 +55,11 @@ test('superadmin uses supervision routes and cannot open business operations', a
     await expect(page.getByLabel('Superadministrador · Negocio')).toHaveCount(0)
     await page.goto('/negocio')
     await expect(page).toHaveURL(/dashboard$/)
-    await page.getByRole('link', { name: 'Negocios', exact: true }).click()
+    await page.goto('/plataforma/negocios')
     await expect(page.getByRole('heading', { name: 'Negocios registrados' })).toBeVisible()
-    await page.getByLabel('Buscar negocios por nombre').fill('Negocio de supervisión')
-    await page.locator('article').filter({ hasText: 'Negocio de supervisión' }).getByRole('link', { name: 'Ver detalles' }).click()
-    await expect(page.getByRole('heading', { name: 'Negocio de supervisión' })).toBeVisible()
+    await page.getByLabel('Buscar negocios por nombre').fill(businessName)
+    await page.locator('article').filter({ has: page.getByRole('heading', { name: businessName, exact: true }) }).getByRole('link', { name: 'Ver detalles' }).click()
+    await expect(page.getByRole('heading', { name: businessName, exact: true })).toBeVisible()
     await expect(page.getByText(/Vista de supervisión/)).toBeVisible()
     await page.setViewportSize({ width: 390, height: 844 })
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
@@ -207,6 +207,13 @@ test('superadmin saves all four business colors and they persist on the public p
     for (const [label, color] of Object.entries(colors)) await expect(page.getByLabel(label, { exact: true })).toHaveValue(color)
     await page.goto(`/b/${id}`)
     await expect(page.locator('.public-site')).toHaveCSS('--brand', colors['Color primario'])
+    await page.goto('/plataforma/negocios')
+    await page.getByRole('button', { name: 'Crear negocio', exact: true }).click()
+    await page.getByLabel('Color primario en hexadecimal').fill('#fedcba')
+    await expect(page.getByLabel('Selector Color primario')).toHaveValue('#fedcba')
+    await page.getByLabel('Color secundario en hexadecimal').fill('#abcdef')
+    await expect(page.getByLabel('Selector Color secundario')).toHaveValue('#abcdef')
+    await page.getByRole('dialog').getByRole('button', { name: 'Cancelar', exact: true }).click()
   } finally { await env.cleanup() }
 })
 

@@ -11,6 +11,7 @@ import {
   setDoc,
   getDoc,
   getDocs,
+  getCountFromServer,
   collection,
   query,
   where,
@@ -211,9 +212,17 @@ test('reservations are read by active scoped actors but all direct mutations and
   }
   await assertFails(getDoc(doc(dbFor('outsider'), 'reservations', 'protected-reservation')))
   await assertFails(getDoc(doc(dbFor('pending'), 'reservations', 'protected-reservation')))
+  const adminCount = await getCountFromServer(query(collection(dbFor('owner'), 'reservations'), where('businessId', '==', 'studio')))
+  assert.equal(adminCount.data().count, 1)
+  const professionalCount = await getCountFromServer(query(collection(dbFor('pro'), 'reservations'), where('businessId', '==', 'studio'), where('professionalUserId', '==', 'pro')))
+  assert.equal(professionalCount.data().count, 1)
+  const clientCount = await getCountFromServer(query(collection(dbFor('client'), 'reservations'), where('businessId', '==', 'studio'), where('clientUserId', '==', 'client')))
+  assert.equal(clientCount.data().count, 1)
+  await assertFails(getCountFromServer(query(collection(dbFor('client'), 'reservations'), where('businessId', '==', 'studio'))))
   const platform = dbFor('platform-reader')
   await assertFails(getDoc(doc(platform, 'reservations', 'protected-reservation')))
   await assertFails(getDocs(query(collection(platform, 'reservations'), where('businessId', '==', 'studio'))))
+  await assertFails(getCountFromServer(query(collection(platform, 'reservations'), where('businessId', '==', 'studio'))))
 })
 
 test('client catalog stays scoped and read-only even when the public website is disabled', async () => {

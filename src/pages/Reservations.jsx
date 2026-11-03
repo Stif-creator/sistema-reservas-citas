@@ -1,6 +1,6 @@
 import { useContext, useEffect, useMemo, useState } from 'react'
 import { collection, getDocs, query, where } from 'firebase/firestore'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/auth-context'
 import useBusinessReservations from '../hooks/useBusinessReservations'
 import useReservationById from '../hooks/useReservationById'
@@ -40,23 +40,31 @@ const normalize = value => String(value ?? '').normalize('NFD').replace(/[\u0300
 export default function Reservations({ detail = false, manual = false }) {
   const { membership } = useAuth()
   const { reservationId } = useParams()
+  const location = useLocation()
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
+  const savedFilters = location.state?.reservationFilters
   const pageSearch = useContext(ListSearchContext)
   const [appliedRange, setAppliedRange] = useState(null)
-  const [dateFrom, setDateFrom] = useState(''), [dateTo, setDateTo] = useState('')
-  const [status, setStatus] = useState(() => params.get('estado') || '')
-  const [serviceId, setServiceId] = useState(''), [professionalId, setProfessionalId] = useState('')
-  const [sort, setSort] = useState('recent'), [pageSize, setPageSize] = useState(25), [pageCursors, setPageCursors] = useState([null])
-  const [search, setSearch] = useState(''), [rangeError, setRangeError] = useState(''), [quickRange, setQuickRange] = useState('all')
+  const [useSavedRange, setUseSavedRange] = useState(() => Boolean(savedFilters?.dateFrom && savedFilters?.dateTo))
+  const [dateFrom, setDateFrom] = useState(() => savedFilters?.dateFrom || ''), [dateTo, setDateTo] = useState(() => savedFilters?.dateTo || '')
+  const [status, setStatus] = useState(() => savedFilters?.status ?? params.get('estado') ?? '')
+  const [serviceId, setServiceId] = useState(() => savedFilters?.serviceId || ''), [professionalId, setProfessionalId] = useState(() => savedFilters?.professionalId || '')
+  const [sort, setSort] = useState(() => savedFilters?.sort || 'recent'), [pageSize, setPageSize] = useState(() => savedFilters?.pageSize || 25), [pageCursors, setPageCursors] = useState([null])
+  const [search, setSearch] = useState(() => savedFilters?.search || ''), [rangeError, setRangeError] = useState(''), [quickRange, setQuickRange] = useState(() => savedFilters?.quickRange || 'all')
   const [editing, setEditing] = useState(false), [now, setNow] = useState(Date.now)
   const [filterOptions, setFilterOptions] = useState({ services: [], professionals: [] })
   const listMode = !detail && !manual
   const { business, loading: businessLoading, error: businessError } = useBusinessReservations(null, { includeItems: false })
   const { item, loading: detailLoading, error: detailError } = useReservationById(detail ? reservationId : null)
   const { values: totals, loading: totalsLoading, error: totalsError } = useReservationCounts({ enabled: listMode })
+  const zone = business?.settings?.timezone || 'America/La_Paz'
+  const savedDateFrom = savedFilters?.dateFrom || '', savedDateTo = savedFilters?.dateTo || ''
+  const savedQueryRange = useSavedRange && business?.id ? localRange(savedDateFrom, savedDateTo, zone) : null
+  const restoredRange = savedQueryRange ? { from: savedDateFrom, to: savedDateTo, query: savedQueryRange } : null
+  const activeRange = useSavedRange ? restoredRange : appliedRange
   const cursor = pageCursors.at(-1) || null
-  const pageData = useReservationPage({ enabled: listMode, range: appliedRange?.query, status, serviceId, professionalId, sort, closuresOnly: params.has('cierre'), cursor, now, pageSize })
+  const pageData = useReservationPage({ enabled: listMode, range: activeRange?.query, status, serviceId, professionalId, sort, closuresOnly: params.has('cierre'), cursor, now, pageSize })
 
   useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 30000); return () => clearInterval(timer) }, [])
   useEffect(() => {
@@ -76,10 +84,10 @@ export default function Reservations({ detail = false, manual = false }) {
     return () => { active = false }
   }, [listMode, business?.id, membership.role])
 
-  const zone = business?.settings?.timezone || 'America/La_Paz'
   const today = dayKey(now, zone)
   const resetPage = () => setPageCursors([null])
   const applyRange = (from, to, label = 'custom') => {
+    setUseSavedRange(false)
     setRangeError('')
     setDateFrom(from); setDateTo(to); setQuickRange(label)
     if (!from && !to) { setAppliedRange({ from: '', to: '', query: null }); resetPage(); return }
@@ -100,7 +108,7 @@ export default function Reservations({ detail = false, manual = false }) {
   const serviceName = filterOptions.services.find(option => option.id === serviceId)?.name
   const professionalName = filterOptions.professionals.find(option => option.id === professionalId)?.name
   const activeFilters = [
-    appliedRange?.from && appliedRange?.to ? `${appliedRange.from} – ${appliedRange.to}` : '', statusLabel,
+    activeRange?.from && activeRange?.to ? `${activeRange.from} – ${activeRange.to}` : '', statusLabel,
     serviceName, professionalName, params.has('cierre') ? 'Pendientes de cierre' : '', sort === 'oldest' ? 'Más antiguas primero' : '',
   ].filter(Boolean)
   const visibleRows = useMemo(() => {
@@ -126,7 +134,7 @@ export default function Reservations({ detail = false, manual = false }) {
     {detailLoading ? <p role="status">Cargando reserva…</p> : item ? (editing ? <><BookingFlow key={item.id} business={business} reservation={item} onSuccess={() => setEditing(false)} /><button className="booking-button secondary" onClick={() => setEditing(false)}>Volver al detalle</button></> : <>
       <div className="grid gap-6 lg:grid-cols-2"><BookingSummary service={{ name: item.serviceName || 'Servicio reservado' }} professional={{ displayName: item.professionalName || 'Profesional asignado' }} slot={{ start: dateMillis(item.startAt) }} quote={item} timeZone={zone} />
         <Card title="Cliente"><dl className="space-y-3 text-sm"><div><dt className="text-muted">Nombre</dt><dd>{item.clientName || 'Cliente'}</dd></div><div><dt className="text-muted">Correo</dt><dd className="break-all">{item.clientEmail || 'Sin correo'}</dd></div><div><dt className="text-muted">Teléfono</dt><dd>{item.clientPhone || 'Sin teléfono'}</dd></div><div><dt className="text-muted">Notas</dt><dd>{item.notes || 'Sin notas'}</dd></div><div><dt className="text-muted">Origen</dt><dd>{item.source === 'manual' ? 'Reserva manual' : 'Panel del cliente'}</dd></div></dl></Card></div>
-      <ReservationActions reservation={item} business={business} onReschedule={() => setEditing(true)} />
+      <ReservationActions reservation={item} business={business} onReschedule={() => setEditing(true)} onStatusChange={() => navigate('/reservas', { replace: true, state: { reservationFilters: location.state?.reservationFilters } })} />
     </>) : <Alert tone="error">{detailError || 'Reserva no disponible.'}</Alert>}
   </div>
 
@@ -140,6 +148,7 @@ export default function Reservations({ detail = false, manual = false }) {
   ]
   const resultStart = pageData.items.length ? (pageCursors.length - 1) * pageSize + 1 : 0
   const resultEnd = resultStart ? resultStart + pageData.items.length - 1 : 0
+  const reservationFilters = { dateFrom, dateTo, status, serviceId, professionalId, sort, pageSize, search, quickRange }
 
   return <div className="space-y-6 booking-scope reservation-page">
     <PageHeader title="Reservas" description={membership.role === 'professional' ? 'Gestiona el estado de tus citas asignadas.' : 'Consulta y gestiona las citas de tu negocio.'}
@@ -150,7 +159,7 @@ export default function Reservations({ detail = false, manual = false }) {
     <Card>
       {params.has('cierre') && <div className="reservation-closure-notice"><span>Vista de reservas pendientes de cierre.</span><button type="button" className="booking-button secondary" onClick={() => { const next = new URLSearchParams(params); next.delete('cierre'); setParams(next); resetPage() }}><ListChecks size={15} />Mostrar todas las reservas</button></div>}
       <section className="reservation-filters" aria-labelledby="reservation-filters-title">
-        <div className="reservation-filter-heading"><div><h2 id="reservation-filters-title">Filtros de búsqueda</h2><p>Combina fechas y criterios para localizar citas.</p></div><button type="button" className="booking-button secondary" onClick={() => { setDateFrom(''); setDateTo(''); setStatus(''); setServiceId(''); setProfessionalId(''); setSort('recent'); setQuickRange('all'); setRangeError(''); setAppliedRange(null); setParams({}); resetPage() }}><RotateCcw size={15} />Limpiar filtros</button></div>
+        <div className="reservation-filter-heading"><div><h2 id="reservation-filters-title">Filtros de búsqueda</h2><p>Combina fechas y criterios para localizar citas.</p></div><button type="button" className="booking-button secondary" onClick={() => { setUseSavedRange(false); setDateFrom(''); setDateTo(''); setStatus(''); setServiceId(''); setProfessionalId(''); setSort('recent'); setQuickRange('all'); setRangeError(''); setAppliedRange(null); setParams({}); resetPage() }}><RotateCcw size={15} />Limpiar filtros</button></div>
         <div className="reservation-quick-filters" role="group" aria-label="Rangos rápidos">{[['today', 'Hoy'], ['week', 'Últimos 7 días'], ['month', 'Este mes']].map(([id, label]) => <button type="button" key={id} aria-pressed={quickRange === id} onClick={() => quick(id)}>{label}</button>)}<button type="button" aria-pressed={quickRange === 'custom'} onClick={() => setQuickRange('custom')}>Personalizado</button></div>
         <div className="reservation-filter-grid reservation-primary-filters">
           <label className="booking-field">Fecha desde<input aria-label="Fecha desde" type="date" value={dateFrom} onChange={event => { setDateFrom(event.target.value); setQuickRange('custom') }} /></label>
@@ -171,9 +180,9 @@ export default function Reservations({ detail = false, manual = false }) {
       {pageData.loading ? <p role="status" className="reservation-loading">Cargando la página de reservas…</p> : pageData.items.length === 0 ? <p className="reservation-empty" role="status">No hay reservas para estos filtros.</p> : visibleRows.length === 0 ? <p className="reservation-empty" role="status">No hay coincidencias en esta página. La búsqueda local solo revisa los registros cargados.</p> : <>
         <p className="reservation-page-note">La búsqueda local revisa esta página; los filtros y el orden se aplican en Firestore.</p>
         <div className="reservation-table-wrap"><table className="reservation-table"><thead><tr><th>Fecha y hora</th><th>Servicio</th><th>Cliente</th><th>Profesional</th><th>Estado</th><th>Acción</th></tr></thead><tbody>
-          {visibleRows.map(record => <tr key={record.id}><td><strong>{formatAppointmentDate(record.startAt, zone)}</strong><span>{formatAppointmentDate(record.startAt, zone, true)}</span></td><td><strong>{record.serviceName || 'Servicio'}</strong>{Number.isFinite(record.price) && <span>{new Intl.NumberFormat('es-BO', { style: 'currency', currency: record.currencyCode || 'BOB' }).format(record.price)}</span>}</td><td><strong>{record.clientName || 'Cliente'}</strong><span>{record.clientEmail || record.clientPhone || 'Sin contacto'}</span></td><td>{record.professionalName || 'Profesional'}</td><td><span className={`reservation-status status-${record.displayStatus || record.status}`}><i aria-hidden="true" />{reservationStatuses[record.displayStatus || record.status] || 'Por confirmar'}</span></td><td><Link className="booking-button secondary reservation-detail-link" to={`/reservas/${encodeURIComponent(record.id)}`}>Ver detalle</Link></td></tr>)}
+          {visibleRows.map(record => <tr key={record.id}><td><strong>{formatAppointmentDate(record.startAt, zone)}</strong><span>{formatAppointmentDate(record.startAt, zone, true)}</span></td><td><strong>{record.serviceName || 'Servicio'}</strong>{Number.isFinite(record.price) && <span>{new Intl.NumberFormat('es-BO', { style: 'currency', currency: record.currencyCode || 'BOB' }).format(record.price)}</span>}</td><td><strong>{record.clientName || 'Cliente'}</strong><span>{record.clientEmail || record.clientPhone || 'Sin contacto'}</span></td><td>{record.professionalName || 'Profesional'}</td><td><span className={`reservation-status status-${record.displayStatus || record.status}`}><i aria-hidden="true" />{reservationStatuses[record.displayStatus || record.status] || 'Por confirmar'}</span></td><td><Link className="booking-button secondary reservation-detail-link" to={`/reservas/${encodeURIComponent(record.id)}`} state={{ reservationFilters }}>Ver detalle</Link></td></tr>)}
         </tbody></table></div>
-        <div className="reservation-mobile-list">{visibleRows.map(record => <article className="reservation-mobile-card" key={record.id}><div className="reservation-mobile-card-head"><div><strong>{formatAppointmentDate(record.startAt, zone)}</strong><span>{formatAppointmentDate(record.startAt, zone, true)}</span></div><span className={`reservation-status status-${record.displayStatus || record.status}`}><i aria-hidden="true" />{reservationStatuses[record.displayStatus || record.status] || 'Por confirmar'}</span></div><h3>{record.clientName || 'Cliente'}</h3><p>{record.serviceName || 'Servicio'}{record.professionalName ? ` · ${record.professionalName}` : ''}</p><Link className="booking-button secondary reservation-detail-link" to={`/reservas/${encodeURIComponent(record.id)}`}>Ver detalle</Link></article>)}</div>
+        <div className="reservation-mobile-list">{visibleRows.map(record => <article className="reservation-mobile-card" key={record.id}><div className="reservation-mobile-card-head"><div><strong>{formatAppointmentDate(record.startAt, zone)}</strong><span>{formatAppointmentDate(record.startAt, zone, true)}</span></div><span className={`reservation-status status-${record.displayStatus || record.status}`}><i aria-hidden="true" />{reservationStatuses[record.displayStatus || record.status] || 'Por confirmar'}</span></div><h3>{record.clientName || 'Cliente'}</h3><p>{record.serviceName || 'Servicio'}{record.professionalName ? ` · ${record.professionalName}` : ''}</p><Link className="booking-button secondary reservation-detail-link" to={`/reservas/${encodeURIComponent(record.id)}`} state={{ reservationFilters }}>Ver detalle</Link></article>)}</div>
       </>}
       <div className="reservation-server-pagination"><span>{resultStart ? `Página ${pageCursors.length} · ${resultStart}–${resultEnd} de ${pageData.totalFiltered ?? '—'}` : `Página ${pageCursors.length} · 0 de ${pageData.totalFiltered ?? '—'}`}</span><div><button type="button" className="booking-button secondary" disabled={pageCursors.length <= 1 || pageData.loading} onClick={() => setPageCursors(current => current.slice(0, -1))}><ChevronLeft size={15} />Anterior</button><button type="button" className="booking-button secondary" disabled={!pageData.hasNext || pageData.loading} onClick={() => pageData.nextCursor && setPageCursors(current => [...current, pageData.nextCursor])}>Siguiente<ChevronRight size={15} /></button></div></div>
     </Card>

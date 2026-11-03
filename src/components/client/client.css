@@ -249,6 +249,9 @@
 .client-site .client-service-card { display: flex; min-width: 0; flex-direction: column; border-color: color-mix(in srgb, var(--brand) 11%, #e5e9e3); border-radius: 16px; background: white; box-shadow: 0 5px 20px #1d2c2108; }
 .client-site .client-service-card:hover { border-color: color-mix(in srgb, var(--brand) 28%, #e5e9e3); box-shadow: 0 12px 28px #1d2c2112; }
 .client-service-image { height: auto; aspect-ratio: 2.15 / 1; min-height: 130px; max-height: 174px; background: linear-gradient(135deg, color-mix(in srgb, var(--brand-surface) 55%, white), color-mix(in srgb, var(--brand-secondary) 68%, white)); }
+.client-site .client-service-image { flex: 0 0 auto; min-width: 0; overflow: hidden; }
+.client-site .client-service-image > img { display: block; }
+.client-site .client-service-copy { width: 100%; min-width: 0; }
 .client-service-image > svg { width: 44px; height: 44px; padding: 11px; border: 1px solid color-mix(in srgb, var(--brand) 12%, white); border-radius: 14px; background: white; color: var(--brand); }
 .client-category-tag { border: 1px solid color-mix(in srgb, var(--brand) 15%, white); border-radius: 999px; background: color-mix(in srgb, var(--brand-surface) 18%, white); color: #33443a; font-size: 9px; }
 .client-service-copy { display: flex; flex: 1; flex-direction: column; padding: 15px; }

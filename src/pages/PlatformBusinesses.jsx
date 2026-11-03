@@ -12,6 +12,11 @@ import Alert from '../components/ui/Alert'
 import PlatformBusinessList from '../components/PlatformBusinessList'
 import { fieldControlClasses } from '../components/ui/fieldStyles'
 
+function ColorField({ label, value, onChange }) {
+  const valid = /^#[\da-f]{6}$/i.test(value)
+  return <label className="block">{label}<span className="flex items-center gap-3 mt-2"><input className="h-12 w-16 shrink-0 rounded-lg" type="color" value={valid ? value : '#ffffff'} onInput={event => onChange(event.target.value)} onChange={event => onChange(event.target.value)} aria-label={`Selector ${label}`} /><input type="text" value={value} maxLength={7} pattern="#[0-9a-fA-F]{6}" aria-label={`${label} en hexadecimal`} aria-invalid={!valid} className={fieldControlClasses(!valid)} onChange={event => onChange(event.target.value)} /></span></label>
+}
+
 export default function PlatformBusinesses() {
   const { isSuperadmin } = useAuth()
   const [error, setError] = useState(''), [busy, setBusy] = useState(false)
@@ -34,7 +39,8 @@ export default function PlatformBusinesses() {
   async function create(e) {
     e.preventDefault()
     const form = e.currentTarget
-    if (step < 2) { setStep(step + 1); return }
+    if (step === 0 && !['primaryColor', 'secondaryColor'].every(key => /^#[\da-f]{6}$/i.test(draft[key]))) { setError('Ingresa ambos colores en formato hexadecimal #RRGGBB.'); return }
+    if (step < 2) { setError(''); setStep(step + 1); return }
     const fields = draft
     if (await mutate({ action: 'platformCreate', businessId: requestId, ...fields, createAccount, ...(createAccount ? { password } : {}) })) { setCredential(createAccount ? { email: fields.email, password } : null); setPassword(generatePassword()); form.reset(); markFormSaved(form, true); setCreating(false); setStep(0); setDraft({name:'',email:'',firstName:'',lastName:'',primaryColor:'#6366f1',secondaryColor:'#eef2ff'}); setRequestId(crypto.randomUUID()); setMessage('Negocio creado y vinculado. Su página pública permanece desactivada hasta completar la configuración.') }
   }
@@ -45,7 +51,7 @@ export default function PlatformBusinesses() {
     <PlatformBusinessList refresh={refresh} busy={busy} mutate={mutate} onArchive={business => { setDeleting(business); setConfirmation('') }} />
     {creating && <EditorDialog title="Crear negocio" busy={busy} onClose={() => setCreating(false)}><form onSubmit={create} className="business-wizard space-y-6">
       <div className="wizard-steps">{['Negocio','Administrador','Revisar'].map((name,index) => <span key={name} className={step === index ? 'current' : ''} aria-current={step === index ? 'step' : undefined}><b>{index+1}</b>{name}</span>)}</div>
-      {step === 0 && <div className="space-y-5"><h3 className="text-lg font-semibold">Identidad del negocio</h3><p className="text-sm text-muted">Define su nombre y colores. El administrador podrá completar el resto.</p><label className="block">Nombre del negocio<input autoFocus className={fieldControlClasses(false)} required maxLength={120} value={draft.name} onChange={e => setDraft({...draft,name:e.target.value})} /></label><div className="grid grid-cols-2 gap-4">{[['primaryColor','Color primario'],['secondaryColor','Color secundario']].map(([key,label]) => <label key={key}>{label}<input className="block w-full h-12 mt-2 rounded-lg" type="color" value={draft[key]} onChange={e => setDraft({...draft,[key]:e.target.value})} /></label>)}</div></div>}
+      {step === 0 && <div className="space-y-5"><h3 className="text-lg font-semibold">Identidad del negocio</h3><p className="text-sm text-muted">Define su nombre y colores. El administrador podrá completar el resto.</p><label className="block">Nombre del negocio<input autoFocus className={fieldControlClasses(false)} required maxLength={120} value={draft.name} onChange={e => setDraft({...draft,name:e.target.value})} /></label><div className="grid grid-cols-1 gap-4 sm:grid-cols-2">{[['primaryColor','Color primario'],['secondaryColor','Color secundario']].map(([key,label]) => <ColorField key={key} label={label} value={draft[key]} onChange={value => setDraft(current => ({ ...current, [key]: value }))} />)}</div></div>}
       {step === 1 && <div className="space-y-5"><h3 className="text-lg font-semibold">Cuenta del administrador</h3><label className="block">Cuenta del administrador<select className={fieldControlClasses(false)} value={createAccount ? 'new' : 'existing'} onChange={e => setCreateAccount(e.target.value === 'new')}><option value="new">Crear cuenta nueva</option><option value="existing">Vincular cuenta existente</option></select></label>{(createAccount ? [['firstName','Nombre del administrador'],['lastName','Apellido del administrador'],['email','Correo del administrador']] : [['email','Correo del administrador']]).map(([key,label]) => <label className="block" key={key}>{label}<input className={fieldControlClasses(false)} required maxLength={key === 'email' ? 254 : 80} type={key === 'email' ? 'email' : 'text'} value={draft[key]} onChange={e => setDraft({...draft,[key]:e.target.value})} /></label>)}<div className="flex gap-3 rounded-xl bg-indigo-50 text-indigo-900 p-4 text-sm"><ShieldCheck className="shrink-0" size={20} /><p>{createAccount ? 'Generaremos una contraseña inicial. El administrador verá el aviso para cambiarla al ingresar.' : 'La cuenta debe estar registrada. Se conservan sus otros negocios y su contraseña.'}</p></div></div>}
       {step === 2 && <div className="rounded-xl border p-6 space-y-4"><h3 className="text-lg font-semibold">Revisa antes de crear</h3><dl className="grid sm:grid-cols-2 gap-4"><div><dt className="text-sm text-muted">Negocio</dt><dd className="font-semibold break-words">{draft.name}</dd></div><div><dt className="text-sm text-muted">Administrador</dt><dd className="break-words">{createAccount ? `${draft.firstName} ${draft.lastName}` : 'Cuenta existente'}<br />{draft.email}</dd></div></dl><p className="text-sm text-muted">La página pública empezará desactivada. Podrás configurar el negocio antes de publicarlo.</p></div>}
       {error && <Alert tone="error">{error}</Alert>}

@@ -6,7 +6,7 @@ import { dateMillis, formatAppointmentDate } from '../../lib/clientPresentation'
 import './booking.css'
 
 const labels = { confirmed: 'Confirmar', completed: 'Finalizar', cancelled: 'Cancelar cita', no_show: 'Marcar no asistida' }
-export default function ReservationActions({ reservation, business, onReschedule }) {
+export default function ReservationActions({ reservation, business, onReschedule, onStatusChange }) {
   const { membership } = useAuth()
   const [now, setNow] = useState(Date.now)
   const [desired, setDesired] = useState('')
@@ -29,7 +29,15 @@ export default function ReservationActions({ reservation, business, onReschedule
     event.preventDefault(); setBusy(true); setError(''); setSuccess('')
     if (!request.current) request.current = { action: 'status', businessId: business.id, reservationId: reservation.id,
       revision: reservation.revision || 0, status: desired, reason, requestId: crypto.randomUUID() }
-    try { await bookingRequest(request.current); markFormSaved(event.target, true); request.current = null; setDesired(''); setUncertain(false); setSuccess('Estado actualizado.') }
+    try {
+      await bookingRequest(request.current)
+      markFormSaved(event.target, true)
+      request.current = null
+      setDesired('')
+      setUncertain(false)
+      setSuccess('Estado actualizado.')
+      onStatusChange?.()
+    }
     catch (failure) {
       setError(failure.message)
       const ambiguous = ['functions/internal', 'functions/unavailable', 'functions/deadline-exceeded'].includes(failure.code)

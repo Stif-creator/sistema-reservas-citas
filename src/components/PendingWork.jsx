@@ -6,7 +6,7 @@ import { db } from '../firebase/config'
 import { useAuth } from '../context/auth-context'
 import useSprintData from '../hooks/useSprintData'
 
-export default function PendingWork({ items, reservationCounts }) {
+export default function PendingWork({ reservationCounts }) {
   const { membership } = useAuth()
   const { data: waiting, error: waitingError, refreshing: waitingLoading } = useSprintData('waitlist')
   const [blocks, setBlocks] = useState([]), [blocksReady, setBlocksReady] = useState(false), [error, setError] = useState('')
@@ -17,15 +17,18 @@ export default function PendingWork({ items, reservationCounts }) {
       setBlocks(snapshot.docs.map(document => document.data())); setBlocksReady(true); setError('')
     }, () => { setBlocksReady(true); setError('No se pudieron consultar las solicitudes de bloqueo.') })
   }, [admin, membership.businessId])
+  const pendingCount = Number.isFinite(reservationCounts?.pendingActive) ? reservationCounts.pendingActive : null
+  const closureCount = Number.isFinite(reservationCounts?.expired) && Number.isFinite(reservationCounts?.awaitingClosure)
+    ? reservationCounts.expired + reservationCounts.awaitingClosure : null
   const entries = [
-    { label: 'Por confirmar', count: reservationCounts?.pendingActive ?? items.filter(item => (item.displayStatus || item.status) === 'pending').length, ready: Boolean(reservationCounts), to: '/reservas?estado=pending', icon: CalendarCheck },
-    { label: 'Pendientes de cierre', count: reservationCounts ? reservationCounts.expired + reservationCounts.awaitingClosure : items.filter(item => ['expired', 'awaiting_closure'].includes(item.displayStatus)).length, ready: Boolean(reservationCounts), to: '/reservas?cierre=1', icon: Clock3 },
+    { label: 'Por confirmar', count: pendingCount, ready: Number.isFinite(pendingCount), to: '/reservas?estado=pending', icon: CalendarCheck },
+    { label: 'Pendientes de cierre', count: closureCount, ready: Number.isFinite(closureCount), to: '/reservas?cierre=1', icon: Clock3 },
     { label: 'Lista de espera', count: Array.isArray(waiting) ? waiting.length : 0, ready: !waitingLoading && !waitingError, to: '/lista-espera', icon: CalendarCheck },
     ...(admin ? [{ label: 'Solicitudes de bloqueo', count: blocks.filter(block => block.status === 'pending').length, ready: blocksReady && !error, to: '/bloqueos?pendientes=1', icon: CalendarX }] : []),
   ]
   const allClear = !error && !waitingError && entries.every(entry => entry.ready && entry.count === 0)
   return <section className={`pending-work${allClear ? ' all-clear' : ''}`} aria-label="Pendientes de atención"><div className="pending-work-heading"><div><h2>Qué necesita tu atención</h2><p>Revisa y resuelve las tareas pendientes desde aquí.</p></div>{allClear && <span className="pending-work-clear">Todo al día</span>}</div>
     {(error || waitingError) && <p role="alert">{error || `No se pudo cargar la lista de espera: ${waitingError}`}</p>}
-    <div className="pending-work-grid">{entries.map(({ label, count, ready, to, icon: Icon }) => <Link key={to} to={to} className={`pending-work-item${count ? ' has-pending' : ''}`}><Icon size={21} aria-hidden="true" /><span><strong>{ready ? count : '…'}</strong><span>{label}</span></span><span className="pending-work-arrow" aria-hidden="true">→</span></Link>)}</div>
+    <div className="pending-work-grid">{entries.map(({ label, count, ready, to, icon: Icon }) => <Link key={to} to={to} className={`pending-work-item${count ? ' has-pending' : ''}`}><Icon size={21} aria-hidden="true" /><span><strong>{ready ? count : reservationCounts ? '—' : '…'}</strong><span>{label}</span></span><span className="pending-work-arrow" aria-hidden="true">→</span></Link>)}</div>
   </section>
 }

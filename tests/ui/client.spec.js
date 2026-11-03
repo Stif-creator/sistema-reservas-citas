@@ -38,7 +38,8 @@ test('client layouts use real scoped data and live branding on desktop and mobil
         ['massage', 'Masaje relajante', 'care', true, true], ['haircut', 'Corte de cabello', 'hair', true, true],
         ['hidden', 'Servicio privado', 'care', true, false], ['inactive', 'Servicio inactivo', 'care', false, true],
       ]) await setDoc(doc(db, 'services', `${businessId}-${id}`), { businessId, name, categoryId: `${businessId}-${categoryId}`, price: 150,
-        durationMinutes: 60, description: 'Una pausa para reconectar contigo.', currencyCode: 'BOB', isActive, isPublic })
+        durationMinutes: 60, description: 'Una pausa para reconectar contigo.', currencyCode: 'BOB', isActive, isPublic,
+        ...(id === 'massage' ? { image: { url: 'https://res.cloudinary.com/demo/image/upload/sample.jpg' } } : {}) })
     })
     await page.setViewportSize({ width: 1440, height: 1000 })
     await page.goto(`/b/${businessId}`)
@@ -143,6 +144,14 @@ test('client layouts use real scoped data and live branding on desktop and mobil
         await expect(page.locator('footer')).toHaveCount(1)
         await expect(page.getByRole('main')).toHaveCount(1)
         await expect(page.getByRole('alert')).toHaveCount(0)
+        if (path === '/cliente/servicios') {
+          const card = page.locator('.client-service-card').filter({ hasText: 'Masaje relajante' }).first()
+          const image = await card.locator('.client-service-image').boundingBox()
+          const copy = await card.locator('.client-service-copy').boundingBox()
+          const cardBox = await card.boundingBox()
+          expect(image.y + image.height).toBeLessThanOrEqual(copy.y + 1)
+          expect(copy.y + copy.height).toBeLessThanOrEqual(cardBox.y + cardBox.height + 1)
+        }
         if (path === '/cliente/nosotros') {
           await expect(page.locator('.client-about-story-copy h2')).toHaveText('Nuestra historia')
           await expect(page.locator('.client-about-story-copy')).toContainText('Una historia cercana.')
