@@ -120,6 +120,13 @@ service cloud.firestore {
         && (!data.keys().hasAny(['createdAt']) || data.createdAt is timestamp)
         && (!data.keys().hasAny(['updatedAt']) || data.updatedAt is timestamp);
     }
+    function validCategoryUpdate(data) {
+      return data.id is string && data.businessId is string
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 80
+        && data.get('description', '') is string && data.get('description', '').size() <= 300
+        && (!data.keys().hasAny(['isActive']) || data.isActive is bool)
+        && data.updatedAt == request.time;
+    }
     function professionalMatches(businessId, uid, role, status) {
       let membership = getAfter(/databases/$(database)/documents/memberships/$(businessId + '_' + uid)).data;
       let pid = membership.get('professionalId', businessId + '_' + uid);
@@ -283,7 +290,7 @@ service cloud.firestore {
         && request.resource.data.createdAt == request.time && request.resource.data.updatedAt == request.time;
       allow update: if admin(resource.data.businessId) && sameIdentity()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'description', 'isActive', 'updatedAt'])
-        && validCategory(request.resource.data) && request.resource.data.updatedAt == request.time;
+        && validCategoryUpdate(request.resource.data);
     }
     match /services/{sid} {
       allow read: if (resource.data.get('isActive', false) == true && resource.data.get('isPublic', false) == true && publicBusiness(resource.data.businessId))

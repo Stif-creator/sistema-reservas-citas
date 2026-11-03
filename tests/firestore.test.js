@@ -194,6 +194,21 @@ test('category writes are tenant scoped and validate editable fields', async () 
   await assertFails(updateDoc(doc(db, 'categories', 'care'), { isActive: 'false', updatedAt: serverTimestamp() }))
   await assertFails(updateDoc(doc(db, 'categories', 'care'), { adminOnly: true, updatedAt: serverTimestamp() }))
   await assertSucceeds(updateDoc(doc(db, 'categories', 'care'), { name: 'Bienestar y salud', updatedAt: serverTimestamp() }))
+
+  await env.withSecurityRulesDisabled(async context => {
+    await setDoc(doc(context.firestore(), 'categories', 'category-legacy'), {
+      ...category('category-legacy'), importedFromLegacySystem: true,
+    })
+  })
+  await assertSucceeds(updateDoc(doc(db, 'categories', 'category-legacy'), {
+    name: 'Categoría actualizada', description: 'Descripción', isActive: false, updatedAt: serverTimestamp(),
+  }))
+  await assertFails(updateDoc(doc(db, 'categories', 'category-legacy'), {
+    businessId: 'private', updatedAt: serverTimestamp(),
+  }))
+  await assertFails(updateDoc(doc(db, 'categories', 'category-legacy'), {
+    importedFromLegacySystem: false, updatedAt: serverTimestamp(),
+  }))
 })
 
 test('reservations are read by active scoped actors but all direct mutations and locks are denied', async () => {
@@ -205,6 +220,18 @@ test('reservations are read by active scoped actors but all direct mutations and
   for (const uid of ['owner', 'client', 'pro']) {
     const db = dbFor(uid)
     await assertSucceeds(getDoc(doc(db, 'reservations', 'protected-reservation')))
+    if (uid === 'owner') {
+      const empty = await assertSucceeds(getCountFromServer(query(
+        collection(db, 'reservations'), where('businessId', '==', 'studio'), where('status', '==', 'completed'),
+      )))
+      assert.equal(empty.data().count, 0)
+    }
+    if (uid === 'pro') {
+      const assigned = await assertSucceeds(getCountFromServer(query(
+        collection(db, 'reservations'), where('businessId', '==', 'studio'), where('professionalUserId', '==', uid), where('status', '==', 'pending'),
+      )))
+      assert.equal(assigned.data().count, 1)
+    }
     await assertFails(updateDoc(doc(db, 'reservations', 'protected-reservation'), { status: 'confirmed' }))
     await assertFails(setDoc(doc(db, 'reservations', `forged-${uid}`), { businessId: 'studio', clientUserId: uid, professionalUserId: 'pro', status: 'confirmed' }))
     await assertFails(deleteDoc(doc(db, 'reservations', 'protected-reservation')))
