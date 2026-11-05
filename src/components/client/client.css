@@ -590,7 +590,7 @@
 
 .client-reservations-heading .client-overline { display: inline-flex; align-items: center; gap: 6px; }
 .client-reservations-heading > .public-button { flex: none; min-height: 42px; }
-.client-reservation-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0 0 18px; }
+.client-reservation-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 0 0 18px; }
 .client-reservation-stats > article { display: flex; min-width: 0; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--brand) 12%, #e6eaf0); border-radius: 13px; background: linear-gradient(120deg, color-mix(in srgb, var(--brand-secondary) 52%, white), white 80%); }
 .client-reservation-stat-icon { display: grid; width: 40px; height: 40px; flex: none; place-items: center; border-radius: 11px; background: color-mix(in srgb, var(--brand) 12%, white); color: var(--brand-ink); }
 .client-reservation-stat-icon.completed { background: #eaf7ef; color: #1b8058; }
@@ -636,6 +636,7 @@
   .client-site .client-reservation-row > .public-button { grid-column: 4; grid-row: 1 / span 2; }
 }
 @media (max-width: 760px) {
+  .client-reservation-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .client-reservation-stats { gap: 8px; }
   .client-reservation-stats > article { gap: 8px; padding: 10px; }
   .client-reservation-stat-icon { width: 34px; height: 34px; }

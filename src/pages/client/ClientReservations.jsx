@@ -3,7 +3,7 @@ import { countdown } from '../../lib/countdown'
 import DataList from '../../components/ui/DataList'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { CalendarDays, CheckCircle2, Clock3, Plus, Sparkles, UserRound, XCircle } from 'lucide-react'
+import { CalendarDays, CheckCircle2, Clock3, ListChecks, Plus, Sparkles, UserRound, XCircle } from 'lucide-react'
 import { useClientBusiness } from '../../context/client-context'
 import useClientReservations from '../../hooks/useClientReservations'
 import { dateMillis, formatAppointmentDate, formatPrice, reservationStatuses } from '../../lib/clientPresentation'
@@ -30,9 +30,11 @@ export default function ClientReservations() {
     && dateMillis(item.endAt ?? item.startAt) >= now).length
   const completedCount = items.filter(item => item.status === 'completed').length
   const cancelledCount = items.filter(item => item.status === 'cancelled').length
+  const totalCount = items.length
   return <>
     <div className="client-page-heading client-reservations-heading"><div><span className="client-overline"><CalendarDays size={13} />TUS VISITAS, EN UN SOLO LUGAR</span><h1>Mis reservas</h1><p>Consulta la información y el estado de tus citas.</p></div>{bookingEnabled && <Link className="public-button" to="/cliente/reservar"><Plus size={17} />Nueva reserva</Link>}</div>
     {!loading && !error && <section className="client-reservation-stats" aria-label="Resumen de reservas">
+      <article><span className="client-reservation-stat-icon"><ListChecks size={19} /></span><div><strong>{totalCount}</strong><h2>Total de reservas</h2><small>Todas tus reservas</small></div></article>
       <article><span className="client-reservation-stat-icon upcoming"><CalendarDays size={19} /></span><div><strong>{upcomingCount}</strong><h2>Próximas</h2><small>{upcomingCount ? 'Citas por atender' : 'No tienes citas próximas'}</small></div></article>
       <article><span className="client-reservation-stat-icon completed"><CheckCircle2 size={19} /></span><div><strong>{completedCount}</strong><h2>Finalizadas</h2><small>{completedCount ? 'Gracias por tu confianza' : 'Aún sin citas finalizadas'}</small></div></article>
       <article><span className="client-reservation-stat-icon cancelled"><XCircle size={19} /></span><div><strong>{cancelledCount}</strong><h2>Canceladas</h2><small>{cancelledCount ? 'Reservas canceladas' : 'Sin citas canceladas'}</small></div></article>
