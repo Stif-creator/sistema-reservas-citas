@@ -7,6 +7,7 @@ import { useFeedback } from '../context/feedback-context'
 import { db } from '../firebase/config'
 import { safeImageUrl } from '../lib/brand'
 import { uploadLocalImage } from '../lib/imageUpload'
+import { isNativeImagePicker, pickNativeImage } from '../lib/nativeImagePicker'
 import { confirmDiscard, markFormSaved } from '../lib/unsavedForms'
 import Alert from '../components/ui/Alert'
 import Button from '../components/ui/Button'
@@ -46,6 +47,7 @@ export default function AccountSecurity() {
   const [removePhoto, setRemovePhoto] = useState(false)
   const [business, setBusiness] = useState({ id: '', name: '' })
   const [busy, setBusy] = useState(false)
+  const [pickingPhoto, setPickingPhoto] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const fileRef = useRef(null)
@@ -69,15 +71,31 @@ export default function AccountSecurity() {
   const changed = firstName.trim() !== (userDoc?.firstName || '') || lastName.trim() !== (userDoc?.lastName || '')
     || phone.trim() !== (userDoc?.phone || '') || Boolean(selectedPhoto) || removePhoto
 
-  function choosePhoto(event) {
-    const file = event.target.files?.[0]
-    event.target.value = ''
+  function choosePhotoFile(file) {
     if (!file) return
     setMessage(''); setError('')
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) { setError('Elige una imagen JPG, PNG o WebP.'); return }
     if (!file.size || file.size > 2 * 1024 * 1024) { setError('La imagen debe pesar como máximo 2 MB.'); return }
     setSelectedPhoto({ file, preview: URL.createObjectURL(file) })
     setRemovePhoto(false)
+  }
+
+  function choosePhoto(event) {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    choosePhotoFile(file)
+  }
+
+  async function openPhotoPicker() {
+    if (!isNativeImagePicker()) {
+      fileRef.current?.click()
+      return
+    }
+    setPickingPhoto(true)
+    setMessage(''); setError('')
+    try { choosePhotoFile(await pickNativeImage()) }
+    catch (failure) { setError(failure.message || 'No se pudo abrir la galería.') }
+    finally { setPickingPhoto(false) }
   }
 
   async function saveProfile(event) {
@@ -140,7 +158,7 @@ export default function AccountSecurity() {
             <label>Foto de perfil</label>
             <div className="account-photo-editor"><div className="account-avatar" aria-label="Vista previa del avatar">{displayedPhoto ? <img src={displayedPhoto} alt="Vista previa de tu foto de perfil" /> : <span>{initials(firstName, lastName)}</span>}</div>
               <div className="account-photo-actions"><input ref={fileRef} className="account-file-input" type="file" accept="image/jpeg,image/png,image/webp" onChange={choosePhoto} aria-label="Seleccionar foto de perfil" />
-                <Button type="button" variant="secondary" disabled={busy} onClick={() => fileRef.current?.click()}><ImagePlus size={17} />{selectedPhoto ? 'Elegir otra foto' : 'Subir foto de perfil'}</Button>
+                <Button type="button" variant="secondary" disabled={busy || pickingPhoto} onClick={openPhotoPicker}><ImagePlus size={17} />{pickingPhoto ? 'Abriendo galería…' : selectedPhoto ? 'Elegir otra foto' : 'Subir foto de perfil'}</Button>
                 <small>JPG, PNG o WebP. Máximo 2 MB.</small>
                 {(displayedPhoto || photoUrl) && <Button type="button" variant="ghost" disabled={busy} onClick={() => { setSelectedPhoto(null); setRemovePhoto(true); setMessage(''); setError('') }}><X size={15} />Quitar foto</Button>}
                 {selectedPhoto && <Button type="button" variant="ghost" disabled={busy} onClick={() => setSelectedPhoto(null)}><Camera size={15} />Descartar foto</Button>}

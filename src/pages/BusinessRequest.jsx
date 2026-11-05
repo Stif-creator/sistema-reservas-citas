@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Building2, CalendarCheck, CheckCircle2, ClipboardList, ImagePlus, Info, Link2, MapPin, Send, UserRound } from 'lucide-react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { followBusinessRequest, submitBusinessRequest } from '../lib/bookingApi'
 import '../components/public/public.css'
+import { isNativeImagePicker, pickNativeImage } from '../lib/nativeImagePicker'
 import './business-request.css'
 
 const initial = { firstName: '', lastName: '', email: '', phone: '', name: '', category: '', city: '', description: '', website: '', primaryColor: '#2563eb', secondaryColor: '#7c3aed', accentColor: '#ec4899', surfaceColor: '#1f2937' }
@@ -10,6 +11,7 @@ const labels = { primaryColor: 'Primario', secondaryColor: 'Secundario', accentC
 const readImage = file => new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = reject; reader.readAsDataURL(file) })
 
 export default function BusinessRequest() {
+  const imageInputs = useRef({})
   const [form, setForm] = useState(initial), [images, setImages] = useState({ logo: null, cover: null })
   const [accepted, setAccepted] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState(''), [sent, setSent] = useState(false)
   const [tracking, setTracking] = useState(null), [additionalInfo, setAdditionalInfo] = useState(''), [trackingResult, setTrackingResult] = useState(null)
@@ -25,6 +27,14 @@ export default function BusinessRequest() {
     if (!file) return
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 2 * 1024 * 1024) { setError('Usa una imagen JPG, PNG o WebP de hasta 2 MB.'); return }
     try { const image = await readImage(file); setImages(previous => ({ ...previous, [kind]: image })); setError('') } catch { setError('No se pudo leer la imagen.') }
+  }
+  async function openImagePicker(kind) {
+    if (!isNativeImagePicker()) {
+      imageInputs.current[kind]?.click()
+      return
+    }
+    try { await pickImage(kind, await pickNativeImage()) }
+    catch (failure) { setError(failure.message || 'No se pudo abrir la galería.') }
   }
   async function submit(event) {
     event.preventDefault(); setError('')
@@ -44,7 +54,7 @@ export default function BusinessRequest() {
       <section className="request-section"><h2><UserRound />Datos del solicitante</h2><div className="request-grid"><label>Nombre *<input required maxLength={80} value={form.firstName} onChange={e => update('firstName', e.target.value)} autoComplete="given-name" /></label><label>Apellido *<input required maxLength={80} value={form.lastName} onChange={e => update('lastName', e.target.value)} autoComplete="family-name" /></label><label className="wide">Correo electrónico *<input required type="email" maxLength={254} value={form.email} onChange={e => update('email', e.target.value)} autoComplete="email" /></label><label className="wide">Teléfono *<input required type="tel" maxLength={30} placeholder="+59170000000" value={form.phone} onChange={e => update('phone', e.target.value)} autoComplete="tel" /></label></div></section>
       <section className="request-section"><h2><Building2 />Detalles del negocio</h2><div className="request-grid"><label className="wide">Nombre del negocio *<input required maxLength={120} value={form.name} onChange={e => update('name', e.target.value)} /></label><label>Categoría / rubro *<select required value={form.category} onChange={e => update('category', e.target.value)}><option value="">Selecciona una categoría</option>{['Belleza y bienestar', 'Salud', 'Consultorio dental', 'Abogados', 'Barbería', 'Educación', 'Servicios profesionales', 'Otro'].map(item => <option key={item}>{item}</option>)}</select></label><label><MapPin size={14} /> Ciudad *<input required maxLength={100} value={form.city} onChange={e => update('city', e.target.value)} /></label><label className="wide">Descripción *<textarea required minLength={10} maxLength={500} rows={4} value={form.description} onChange={e => update('description', e.target.value)} placeholder="Describe los servicios que ofreces y qué hace especial a tu negocio." /><small>{form.description.length}/500</small></label><label className="wide"><Link2 size={14} /> Sitio web o redes sociales<input type="text" maxLength={240} value={form.website} onChange={e => update('website', e.target.value)} placeholder="https://tusitio.com o @turedsocial" /></label></div></section>
       <section className="request-section"><h2><ImagePlus />Identidad visual propuesta</h2><p>El superadministrador podrá revisar estos colores antes de aplicar la identidad visual.</p><div className="request-colors">{Object.entries(labels).map(([key, label]) => <label key={key}>{label}<span><input type="color" value={form[key]} onChange={e => update(key, e.target.value)} />{form[key].toUpperCase()}</span></label>)}</div><div className="request-preview"><span style={{ background: form.primaryColor }} /><span style={{ background: form.secondaryColor }} /><span style={{ background: form.accentColor }} /><span style={{ background: form.surfaceColor }} />Vista previa de colores</div></section>
-      <section className="request-section"><h2><ImagePlus />Imágenes</h2><div className="request-grid">{[['logo', 'Logo'], ['cover', 'Portada']].map(([kind, label]) => <label className="request-upload" key={kind}>{label}{images[kind] && <img style={{ width: 110, height: 62, objectFit: 'contain', borderRadius: 6 }} src={images[kind]} alt={`Vista previa de ${label.toLowerCase()}`} />}<input type="file" accept="image/png,image/jpeg,image/webp" onChange={e => pickImage(kind, e.target.files?.[0])} /><small>{images[kind] ? 'Imagen lista para enviar' : 'JPG, PNG o WebP · máximo 2 MB'}</small></label>)}</div></section>
+      <section className="request-section"><h2><ImagePlus />Imágenes</h2><div className="request-grid">{[['logo', 'Logo'], ['cover', 'Portada']].map(([kind, label]) => <label className="request-upload" key={kind}>{label}{images[kind] && <img style={{ width: 110, height: 62, objectFit: 'contain', borderRadius: 6 }} src={images[kind]} alt={`Vista previa de ${label.toLowerCase()}`} />}{isNativeImagePicker() ? <button type="button" onClick={() => openImagePicker(kind)}>Seleccionar {label.toLowerCase()}</button> : <input ref={element => { imageInputs.current[kind] = element }} type="file" accept="image/png,image/jpeg,image/webp" onChange={e => pickImage(kind, e.target.files?.[0])} />}<small>{images[kind] ? 'Imagen lista para enviar' : 'JPG, PNG o WebP · máximo 2 MB'}</small></label>)}</div></section>
       <label className="request-terms"><input type="checkbox" checked={accepted} onChange={e => setAccepted(e.target.checked)} /> Confirmo que la información proporcionada es correcta y acepto que CitasPro la utilice para revisar esta solicitud.</label>
       <p className="request-notice"><Info size={17} />Enviar esta solicitud no crea ni publica automáticamente un negocio. Nuestro equipo revisará la información antes de aprobarla.</p>
       {error && <p role="alert" className="request-error">{error}</p>}<button className="request-submit" disabled={busy}>{busy ? 'Enviando…' : 'Enviar solicitud'} <Send size={18} /></button>

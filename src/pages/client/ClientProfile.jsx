@@ -7,6 +7,7 @@ import { db } from '../../firebase/config'
 import { useAuth } from '../../context/auth-context'
 import { safeImageUrl } from '../../lib/brand'
 import { uploadLocalImage } from '../../lib/imageUpload'
+import { isNativeImagePicker, pickNativeImage } from '../../lib/nativeImagePicker'
 import './client-profile.css'
 
 function initials(firstName = '', lastName = '') {
@@ -43,6 +44,7 @@ function ClientProfileContent({ userDoc, resetPassword, currentUser, membership 
   const [photoSelection, setPhotoSelection] = useState(null)
   const [photoOverride, setPhotoOverride] = useState(null)
   const [photoBusy, setPhotoBusy] = useState(false)
+  const [photoPicking, setPhotoPicking] = useState(false)
   const [photoMessage, setPhotoMessage] = useState('')
   const [photoError, setPhotoError] = useState('')
   const [passwordBusy, setPasswordBusy] = useState(false)
@@ -103,9 +105,7 @@ function ClientProfileContent({ userDoc, resetPassword, currentUser, membership 
     }
   }
 
-  function selectPhoto(event) {
-    const file = event.target.files?.[0]
-    event.target.value = ''
+  function selectPhotoFile(file) {
     if (!file) return
     setPhotoMessage('')
     setPhotoError('')
@@ -118,6 +118,25 @@ function ClientProfileContent({ userDoc, resetPassword, currentUser, membership 
       return
     }
     setPhotoSelection({ file, preview: URL.createObjectURL(file) })
+  }
+
+  function selectPhoto(event) {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    selectPhotoFile(file)
+  }
+
+  async function openPhotoPicker() {
+    if (!isNativeImagePicker()) {
+      fileInput.current?.click()
+      return
+    }
+    setPhotoPicking(true)
+    setPhotoError('')
+    setPhotoMessage('')
+    try { selectPhotoFile(await pickNativeImage()) }
+    catch (error) { setPhotoError(error.message || 'No se pudo abrir la galería.') }
+    finally { setPhotoPicking(false) }
   }
 
   async function savePhoto() {
@@ -189,8 +208,8 @@ function ClientProfileContent({ userDoc, resetPassword, currentUser, membership 
 
     <section className="client-panel client-profile-summary" aria-label="Resumen del perfil">
       <div className="client-profile-avatar" aria-hidden="true">
-        {visiblePhoto ? <img src={visiblePhoto} alt="" /> : initials(userDoc.firstName, userDoc.lastName)}
-        <span><Camera size={15} /></span>
+        <span className="client-profile-avatar-crop">{visiblePhoto ? <img src={visiblePhoto} alt="" /> : initials(userDoc.firstName, userDoc.lastName)}</span>
+        <span className="client-profile-avatar-camera"><Camera size={15} /></span>
       </div>
       <div className="client-profile-summary-copy">
         <h2>{fullName || 'Tu perfil'}</h2>
@@ -202,8 +221,8 @@ function ClientProfileContent({ userDoc, resetPassword, currentUser, membership 
       </div>
       <div className="client-profile-photo-controls">
         <input ref={fileInput} className="client-profile-file-input" type="file" accept="image/jpeg,image/png,image/webp" onChange={selectPhoto} aria-label="Seleccionar una fotografía" />
-        <button type="button" className="public-button secondary" disabled={photoBusy} onClick={() => fileInput.current?.click()}>
-          <ImagePlus size={16} />Cambiar foto
+        <button type="button" className="public-button secondary" disabled={photoBusy || photoPicking} onClick={openPhotoPicker}>
+          <ImagePlus size={16} />{photoPicking ? 'Abriendo galería…' : 'Cambiar foto'}
         </button>
         <small>JPG, PNG o WebP · máximo 2 MB</small>
         {photoSelection && <div className="client-profile-photo-actions">
