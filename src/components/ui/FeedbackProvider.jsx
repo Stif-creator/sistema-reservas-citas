@@ -12,9 +12,10 @@ export function FeedbackProvider({ children }) {
   const dialogElement = useRef(null)
 
   useEffect(() => {
-    const element = dialogElement.current
-    if (dialog && element && !element.open) element.showModal()
-    return () => { if (element?.open) element.close() }
+    if (!dialog) return
+    const previousFocus = document.activeElement
+    dialogElement.current?.focus()
+    return () => previousFocus?.isConnected && previousFocus.focus?.()
   }, [dialog])
 
   const confirm = useCallback(options => new Promise(resolve => {
@@ -48,11 +49,13 @@ export function FeedbackProvider({ children }) {
         <button type="button" onClick={() => dismissToast(toast.id)} aria-label="Cerrar notificación"><X size={18} /></button>
       </section>
     })}</div>
-    {dialog && <dialog ref={dialogElement} className="feedback-dialog" role="alertdialog" aria-labelledby="feedback-dialog-title" aria-describedby="feedback-dialog-description" onCancel={event => { event.preventDefault(); finishDialog(false) }}>
+    {dialog && <div className="feedback-dialog-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) finishDialog(false) }}>
+      <section ref={dialogElement} tabIndex={-1} className="feedback-dialog" role="alertdialog" aria-modal="true" aria-labelledby="feedback-dialog-title" aria-describedby="feedback-dialog-description" onKeyDown={event => { if (event.key === 'Escape') finishDialog(false) }}>
         <div className="feedback-dialog-icon"><AlertTriangle size={24} aria-hidden="true" /></div>
         <h2 id="feedback-dialog-title">{dialog.title}</h2><p id="feedback-dialog-description">{dialog.description}</p>
         <div className="feedback-dialog-actions"><button type="button" className="feedback-cancel" onClick={() => finishDialog(false)}>Cancelar</button><button type="button" className="feedback-confirm" autoFocus onClick={() => finishDialog(true)}>{dialog.confirmLabel}</button></div>
-    </dialog>}
+      </section>
+    </div>}
   </FeedbackContext.Provider>
 }
 
