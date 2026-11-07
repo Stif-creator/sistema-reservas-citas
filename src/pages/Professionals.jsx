@@ -320,7 +320,6 @@ function Professionals() {
     try {
       await updateDoc(doc(db, 'professionals', editingId), {
         jobTitle: jobTitle.trim(),
-        bio: bio.trim(),
         phone: phone.trim(),
         photo: { url: photoUrl.trim() || null, publicId: photoUrl.trim() === (editingProfessional?.photo?.url ?? '') ? (editingProfessional?.photo?.publicId ?? null) : null },
         updatedAt: serverTimestamp(),
@@ -494,12 +493,13 @@ function Professionals() {
                     />
                   </Field>
 
-                  <Field label="Biografía" htmlFor="bio">
+                  <Field label="Biografía del profesional" htmlFor="bio" hint="Solo el profesional puede editar esta información.">
                     <textarea
                       id="bio"
                       rows={3}
                       value={bio}
-                      onChange={(e) => setBio(e.target.value)}
+                      readOnly
+                      aria-readonly="true"
                       className={fieldControlClasses(false)}
                     />
                   </Field>

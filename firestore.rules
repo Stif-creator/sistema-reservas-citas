@@ -105,6 +105,13 @@ service cloud.firestore {
       return request.resource.data.businessId == resource.data.businessId
         && request.resource.data.get('id', null) == resource.data.get('id', null);
     }
+    function validProfessionalPhoto(photo) {
+      return photo is map && photo.keys().hasOnly(['url', 'publicId'])
+        && (photo.get('url', null) == null || (photo.get('url', null) is string
+          && photo.get('url', null).size() <= 2048
+          && photo.get('url', null).matches('^https://res\\.cloudinary\\.com/[A-Za-z0-9_-]+/image/upload/.+')))
+        && (photo.get('publicId', null) == null || (photo.get('publicId', null) is string && photo.get('publicId', null).size() <= 255));
+    }
     function validCategory(data) {
       return data.keys().hasOnly(['id', 'businessId', 'name', 'description', 'displayOrder', 'isActive', 'image', 'createdAt', 'updatedAt'])
         && data.keys().hasAll(['id', 'businessId', 'name'])
@@ -258,11 +265,17 @@ service cloud.firestore {
         && request.resource.data.createdAt == request.time;
       allow update: if admin(resource.data.businessId) && sameIdentity()
         && request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['jobTitle', 'bio', 'phone', 'photo', 'isActive', 'serviceIds', 'weeklyHours', 'scheduleValidFrom', 'scheduleValidUntil', 'updatedAt'])
+          .hasOnly(['jobTitle', 'phone', 'photo', 'isActive', 'serviceIds', 'weeklyHours', 'scheduleValidFrom', 'scheduleValidUntil', 'updatedAt'])
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['isActive'])
           || request.resource.data.isActive == (
             getAfter(/databases/$(database)/documents/memberships/$(resource.data.businessId + '_' + resource.data.userId)).data.role == 'professional'
             && getAfter(/databases/$(database)/documents/memberships/$(resource.data.businessId + '_' + resource.data.userId)).data.status == 'active'));
+      allow update: if self(resource.data.userId) && professional(resource.data.businessId) && sameIdentity()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['bio', 'photo', 'updatedAt'])
+        && request.resource.data.bio is string && request.resource.data.bio.size() > 0 && request.resource.data.bio.size() <= 1000
+        && request.resource.data.updatedAt == request.time
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['photo'])
+          || validProfessionalPhoto(request.resource.data.photo));
       allow delete: if self(resource.data.userId) && recent(resource.data) && resource.data.isActive == false && provisioning();
     }
     match /clients/{cid} {

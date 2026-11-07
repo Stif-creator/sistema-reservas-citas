@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth'
-import { doc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore'
+import { doc, getDoc, serverTimestamp, writeBatch } from 'firebase/firestore'
 import { Camera, Check, Eye, EyeOff, ImagePlus, KeyRound, Mail, Phone, Save, Shield, ShieldCheck, UserRound, X } from 'lucide-react'
 import { useAuth } from '../context/auth-context'
 import { useFeedback } from '../context/feedback-context'
@@ -8,7 +8,8 @@ import { db } from '../firebase/config'
 import { safeImageUrl } from '../lib/brand'
 import { uploadLocalImage } from '../lib/imageUpload'
 import { isNativeImagePicker, pickNativeImage } from '../lib/nativeImagePicker'
-import { confirmDiscard, markFormSaved } from '../lib/unsavedForms'
+import { confirmDiscard, markFormSaved, markFormSectionSaved } from '../lib/unsavedForms'
+import useProfessionalProfile from '../hooks/useProfessionalProfile'
 import Alert from '../components/ui/Alert'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
@@ -43,6 +44,8 @@ export default function AccountSecurity() {
   const [lastName, setLastName] = useState(userDoc?.lastName || '')
   const [phone, setPhone] = useState(userDoc?.phone || '')
   const [photoUrl, setPhotoUrl] = useState(userDoc?.photoUrl || null)
+  const [professionalBio, setProfessionalBio] = useState('')
+  const [professionalBioDirty, setProfessionalBioDirty] = useState(false)
   const [selectedPhoto, setSelectedPhoto] = useState(null)
   const [removePhoto, setRemovePhoto] = useState(false)
   const [business, setBusiness] = useState({ id: '', name: '' })
@@ -51,6 +54,22 @@ export default function AccountSecurity() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const fileRef = useRef(null)
+  const profileFormRef = useRef(null)
+  const professionalRole = isProfessional(membership)
+  const { profile: professionalProfile, loading: professionalProfileLoading, error: professionalProfileError } = useProfessionalProfile(membership?.businessId, currentUser?.uid, professionalRole)
+
+  useEffect(() => {
+    if (professionalProfile && (!professionalBioDirty || professionalBio.trim() === (professionalProfile.bio || '').trim())) {
+      setProfessionalBio(professionalProfile.bio || '')
+      setProfessionalBioDirty(false)
+    }
+  }, [professionalProfile, professionalBioDirty, professionalBio])
+
+  useEffect(() => {
+    if (!professionalRole || !professionalProfile || professionalBioDirty || professionalBio !== (professionalProfile.bio || '')) return
+    const frame = requestAnimationFrame(() => markFormSectionSaved(profileFormRef.current, selectedPhoto || removePhoto ? ['professionalBio'] : ['professionalBio', 'photoPreview']))
+    return () => cancelAnimationFrame(frame)
+  }, [professionalRole, professionalProfile, professionalBio, professionalBioDirty, selectedPhoto, removePhoto])
 
   useEffect(() => {
     let active = true
@@ -65,11 +84,13 @@ export default function AccountSecurity() {
 
   const businessName = !isSuperadmin && business.id === membership?.businessId ? business.name : ''
   const name = `${firstName.trim()} ${lastName.trim()}`.trim() || 'Tu cuenta'
-  const displayedPhoto = selectedPhoto?.preview || (removePhoto ? null : safeImageUrl(photoUrl))
+  const savedPhotoUrl = professionalRole ? professionalProfile?.photo?.url || '' : photoUrl
+  const displayedPhoto = selectedPhoto?.preview || (removePhoto ? null : safeImageUrl(savedPhotoUrl))
   const role = roleLabel(isSuperadmin, membership?.role)
   const email = currentUser?.email || userDoc?.email || ''
   const changed = firstName.trim() !== (userDoc?.firstName || '') || lastName.trim() !== (userDoc?.lastName || '')
     || phone.trim() !== (userDoc?.phone || '') || Boolean(selectedPhoto) || removePhoto
+    || (professionalRole && (!professionalBio.trim() || professionalBio.trim() !== (professionalProfile?.bio || '').trim()))
 
   function choosePhotoFile(file) {
     if (!file) return
@@ -108,19 +129,28 @@ export default function AccountSecurity() {
     if (!cleanFirstName || !cleanLastName) return setError('Ingresa tu nombre y apellido.')
     if (cleanFirstName.length > 100 || cleanLastName.length > 100) return setError('El nombre y el apellido deben tener como máximo 100 caracteres cada uno.')
     if (!validPhone(cleanPhone)) return setError('Ingresa un teléfono válido con entre 8 y 15 dígitos, o déjalo vacío.')
+    if (professionalRole && professionalBio.trim().length === 0) return setError('Completa tu biografía profesional.')
+    if (professionalRole && (professionalProfileLoading || !professionalProfile?.id)) return setError(professionalProfileError || 'No se pudo cargar tu perfil profesional. Recarga la página e inténtalo de nuevo.')
     const form = event.currentTarget
     setBusy(true)
     try {
-      let nextPhoto = removePhoto ? null : userDoc?.photoUrl || null
-      if (selectedPhoto) nextPhoto = await uploadLocalImage(selectedPhoto.file, isSuperadmin ? null : membership?.businessId, 'profile')
-      await updateDoc(doc(db, 'users', currentUser.uid), {
+      let nextPhoto = removePhoto ? null : savedPhotoUrl || null
+      if (selectedPhoto) nextPhoto = await uploadLocalImage(selectedPhoto.file, isSuperadmin ? null : membership?.businessId, professionalRole ? 'professional' : 'profile')
+      const batch = writeBatch(db)
+      batch.update(doc(db, 'users', currentUser.uid), {
         firstName: cleanFirstName, lastName: cleanLastName, phone: cleanPhone,
-        ...(selectedPhoto || removePhoto ? { photoUrl: nextPhoto } : {}), updatedAt: serverTimestamp(),
+        ...(!professionalRole && (selectedPhoto || removePhoto) ? { photoUrl: nextPhoto } : {}), updatedAt: serverTimestamp(),
       })
+      if (professionalRole) {
+        const profileUpdate = { bio: professionalBio.trim(), updatedAt: serverTimestamp() }
+        if (selectedPhoto || removePhoto) profileUpdate.photo = { url: nextPhoto, publicId: nextPhoto === professionalProfile.photo?.url ? professionalProfile.photo?.publicId || null : null }
+        batch.update(doc(db, 'professionals', professionalProfile.id), profileUpdate)
+      }
+      await batch.commit()
       setFirstName(cleanFirstName); setLastName(cleanLastName); setPhone(cleanPhone); setPhotoUrl(nextPhoto)
       setSelectedPhoto(null); setRemovePhoto(false)
       markFormSaved(form, true)
-      setMessage('Tus datos personales se guardaron correctamente.')
+      setMessage(professionalRole ? 'Tu perfil profesional se actualizó correctamente.' : 'Tus datos personales se guardaron correctamente.')
     } catch (saveError) {
       setError(saveError.code === 'permission-denied'
         ? 'No tienes permiso para actualizar estos datos.'
@@ -131,6 +161,7 @@ export default function AccountSecurity() {
   async function discardChanges(form) {
     if (busy || !await confirmDiscard(form, confirm)) return
     setFirstName(userDoc?.firstName || ''); setLastName(userDoc?.lastName || ''); setPhone(userDoc?.phone || '')
+    if (professionalRole) { setProfessionalBio(professionalProfile?.bio || ''); setProfessionalBioDirty(false) }
     setSelectedPhoto(null); setRemovePhoto(false); setMessage(''); setError('')
     if (fileRef.current) fileRef.current.value = ''
   }
@@ -149,26 +180,27 @@ export default function AccountSecurity() {
     </div>
     {tab === 'personal' ? <section className="account-content-grid" id="account-personal" role="tabpanel" aria-labelledby="account-personal-tab">
       <Card className="account-profile-card" title={<span className="account-card-title"><UserRound size={20} />Datos personales</span>} description="Actualiza la información de tu perfil.">
-        <form onSubmit={saveProfile} data-draft className="account-profile-form">
+        <form ref={profileFormRef} onSubmit={saveProfile} data-draft className="account-profile-form">
           <label className="account-profile-field">Nombre *<input name="firstName" autoComplete="given-name" maxLength={100} required className={fieldControlClasses(false)} value={firstName} disabled={busy} onChange={event => { setFirstName(event.target.value); setMessage(''); setError('') }} /></label>
           <label className="account-profile-field">Apellido *<input name="lastName" autoComplete="family-name" maxLength={100} required className={fieldControlClasses(false)} value={lastName} disabled={busy} onChange={event => { setLastName(event.target.value); setMessage(''); setError('') }} /></label>
           <label className="account-profile-field">Teléfono<input name="phone" type="tel" autoComplete="tel" inputMode="tel" maxLength={30} className={fieldControlClasses(false)} value={phone} disabled={busy} onChange={event => { setPhone(event.target.value); setMessage(''); setError('') }} /></label>
           <label className="account-profile-field">Correo electrónico<input name="email" type="email" value={email} readOnly className={fieldControlClasses(false)} /><small>Se utiliza para iniciar sesión. El cambio requiere un flujo separado.</small></label>
+          {professionalRole && <label className="account-profile-field account-professional-bio">Biografía profesional *<textarea name="professionalBio" required maxLength={1000} rows={5} className={fieldControlClasses(false)} value={professionalBio} disabled={busy || professionalProfileLoading || !professionalProfile?.id} onChange={event => { setProfessionalBio(event.target.value); setProfessionalBioDirty(true); setMessage(''); setError('') }} /><small>Obligatoria. Se muestra a los clientes y el administrador puede consultarla.</small></label>}
           <div className="account-photo-block">
             <label>Foto de perfil</label>
             <div className="account-photo-editor"><div className="account-avatar" aria-label="Vista previa del avatar">{displayedPhoto ? <img src={displayedPhoto} alt="Vista previa de tu foto de perfil" /> : <span>{initials(firstName, lastName)}</span>}</div>
               <div className="account-photo-actions"><input ref={fileRef} className="account-file-input" type="file" accept="image/jpeg,image/png,image/webp" onChange={choosePhoto} aria-label="Seleccionar foto de perfil" />
                 <Button type="button" variant="secondary" disabled={busy || pickingPhoto} onClick={openPhotoPicker}><ImagePlus size={17} />{pickingPhoto ? 'Abriendo galería…' : selectedPhoto ? 'Elegir otra foto' : 'Subir foto de perfil'}</Button>
                 <small>JPG, PNG o WebP. Máximo 2 MB.</small>
-                {(displayedPhoto || photoUrl) && <Button type="button" variant="ghost" disabled={busy} onClick={() => { setSelectedPhoto(null); setRemovePhoto(true); setMessage(''); setError('') }}><X size={15} />Quitar foto</Button>}
+                {(displayedPhoto || savedPhotoUrl) && <Button type="button" variant="ghost" disabled={busy} onClick={() => { setSelectedPhoto(null); setRemovePhoto(true); setMessage(''); setError('') }}><X size={15} />Quitar foto</Button>}
                 {selectedPhoto && <Button type="button" variant="ghost" disabled={busy} onClick={() => setSelectedPhoto(null)}><Camera size={15} />Descartar foto</Button>}
               </div>
             </div>
             <input type="hidden" name="photoPreview" value={displayedPhoto || ''} readOnly />
           </div>
-          {isProfessional(membership) && <p className="account-photo-note">Esta foto pertenece a tu cuenta. La foto comercial que aparece en el perfil público del profesional se gestiona por separado.</p>}
+          {professionalRole && <p className="account-photo-note">Tu foto y biografía pertenecen al mismo perfil profesional que consulta el administrador y ven los clientes.</p>}
           {error && <Alert tone="error">{error}</Alert>}{message && <Alert tone="success">{message}</Alert>}
-          <div className="account-form-actions"><Button type="button" variant="secondary" disabled={busy || !changed} onClick={event => discardChanges(event.currentTarget.form)}>Cancelar</Button><Button type="submit" disabled={busy || !changed}><Save size={16} />{busy ? 'Guardando…' : 'Guardar cambios'}</Button></div>
+          <div className="account-form-actions"><Button type="button" variant="secondary" disabled={busy || !changed} onClick={event => discardChanges(event.currentTarget.form)}>Cancelar</Button><Button type="submit" disabled={busy || !changed || (professionalRole && professionalProfileLoading)}><Save size={16} />{busy ? 'Guardando…' : 'Guardar cambios'}</Button></div>
         </form>
       </Card>
       <Card className="account-summary-card"><div className="account-summary-avatar">{displayedPhoto ? <img src={displayedPhoto} alt="" /> : <span>{initials(firstName, lastName)}</span>}</div><h2>{name}</h2><span className="account-role-badge">{role}</span><p className="account-summary-email"><Mail size={16} />{email || 'Correo no disponible'}</p>{phone && <p className="account-summary-email"><Phone size={16} />{phone}</p>}

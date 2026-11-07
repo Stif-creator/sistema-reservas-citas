@@ -54,8 +54,15 @@ export async function uploadImage(db, uid, input, { env = process.env, request =
   const [member, business] = kind === 'profile' ? [null, null] : await Promise.all([db.doc(`memberships/${businessId}_${uid}`).get(), db.doc(`businesses/${businessId}`).get()])
   if (superadmin && kind !== 'profile' && !['logo', 'cover'].includes(kind)) fail('permission-denied', 'La plataforma solo puede subir el logo y la portada del negocio.')
   if (kind !== 'profile' && (!business.data() || (!superadmin && business.data()?.status !== 'active'))) fail('permission-denied', 'El negocio no está disponible.')
+  let ownsProfessionalProfile = false
+  if (kind === 'professional' && member?.data()?.role === 'professional' && member.data()?.status === 'active') {
+    const professionalId = member.data()?.professionalId || `${businessId}_${uid}`
+    const professional = await db.doc(`professionals/${professionalId}`).get()
+    const professionalData = professional.data()
+    ownsProfessionalProfile = Boolean(professionalData && professionalData.userId === uid && professionalData.businessId === businessId)
+  }
   if (kind !== 'profile' && !superadmin && (user.data()?.status !== 'active' || member.data()?.status !== 'active' || business.data()?.status !== 'active' ||
-    (kind !== 'profile' && member.data()?.role !== 'admin'))) fail('permission-denied', 'No tienes permiso para subir esta imagen.')
+    (member.data()?.role !== 'admin' && !ownsProfessionalProfile))) fail('permission-denied', 'No tienes permiso para subir esta imagen.')
   const { bytes, mime } = decodeImage(input.image)
   const cloud = env.CLOUDINARY_CLOUD_NAME?.trim(), key = env.CLOUDINARY_API_KEY?.trim(), secret = env.CLOUDINARY_API_SECRET?.trim()
   if (!cloud || !/^[a-zA-Z0-9_-]+$/.test(cloud) || !key || !secret) fail('failed-precondition', 'La subida de imágenes aún no está configurada. Contacta al administrador.')

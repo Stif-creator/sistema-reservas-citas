@@ -11,6 +11,7 @@ import { ListSearchContext } from '../context/list-search-context'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { useAuth } from '../context/auth-context'
+import useProfessionalProfile from '../hooks/useProfessionalProfile'
 import {
   Bell,
   Calendar,
@@ -85,7 +86,8 @@ function accountAvatar(userDoc, fallback) {
 }
 
 function AdminLayout() {
-  const { membership, userDoc, logout, isSuperadmin } = useAuth()
+  const { membership, userDoc, logout, isSuperadmin, currentUser } = useAuth()
+  const { profile: professionalProfile } = useProfessionalProfile(membership?.businessId, currentUser?.uid, membership?.role === 'professional')
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const [listSearch, setListSearch] = useState({ path: '', value: '' })
@@ -98,6 +100,7 @@ function AdminLayout() {
   const { confirm } = useFeedback()
 
   const userName = userDoc ? `${userDoc.firstName} ${userDoc.lastName}` : ''
+  const avatarUser = membership?.role === 'professional' ? { ...userDoc, photoUrl: professionalProfile?.photo?.url || '' } : userDoc
   const visibleBusinessLinks = BUSINESS_LINKS.filter((link) =>
     link.roles.includes(membership?.role)
   )
@@ -209,7 +212,7 @@ function AdminLayout() {
       <div className="border-t border-border p-4">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-sm font-semibold text-primary">
-            {accountAvatar(userDoc, userName)}
+            {accountAvatar(avatarUser, userName)}
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-ink">{userName || 'Cargando...'}</p>
@@ -286,7 +289,7 @@ function AdminLayout() {
                 className="flex items-center gap-2 rounded-lg py-1.5 pl-1.5 pr-2 text-sm hover:bg-slate-100"
               >
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-primary">
-                  {accountAvatar(userDoc, userName)}
+                  {accountAvatar(avatarUser, userName)}
                 </div>
                 <span className="hidden max-w-[10rem] truncate font-medium text-ink sm:inline">
                   {userName || 'Cargando...'}
