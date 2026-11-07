@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <group
+        android:scaleX="0.65"
+        android:scaleY="0.65"
+        android:translateX="22.4"
+        android:translateY="22.4">
+        <!-- Calendar Base -->
+        <path
+            android:pathData="M 24 24 L 84 24 A 12 12 0 0 1 96 36 L 96 84 A 12 12 0 0 1 84 96 L 24 96 A 12 12 0 0 1 12 84 L 12 36 A 12 12 0 0 1 24 24 Z"
+            android:fillColor="#FFFFFF" />
+
+        <!-- Header -->
+        <path
+            android:pathData="M 24 24 L 84 24 A 12 12 0 0 1 96 36 L 96 44 L 12 44 L 12 36 A 12 12 0 0 1 24 24 Z"
+            android:fillColor="#6366F1" />
+
+        <!-- Left Ring -->
+        <path
+            android:pathData="M 32 16 A 4 4 0 0 1 36 16 L 36 32 A 4 4 0 0 1 32 32 Z"
+            android:fillColor="#E0E7FF" />
+
+        <!-- Right Ring -->
+        <path
+            android:pathData="M 72 16 A 4 4 0 0 1 76 16 L 76 32 A 4 4 0 0 1 72 32 Z"
+            android:fillColor="#E0E7FF" />
+
+        <!-- Checkmark -->
+        <path
+            android:pathData="M 32 64 L 48 80 L 76 50"
+            android:strokeColor="#4F46E5"
+            android:strokeWidth="10"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+
+        <!-- Status Dot -->
+        <path
+            android:pathData="M 80 58 A 5 5 0 1 1 80 57.9 Z"
+            android:fillColor="#16A34A" />
+    </group>
+</vector>

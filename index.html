@@ -4,15 +4,95 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#1672ed" />
+    <meta name="theme-color" content="#4F46E5" />
     <meta
       name="description"
       content="Descubre negocios y servicios en CitasPro. Tu tiempo, nuestra prioridad."
     />
     <title>CitasPro · Tu tiempo, nuestra prioridad</title>
+    <style>
+      #app-splash-screen {
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background-color: #F8FAFC;
+        transition: opacity 0.4s ease-out, visibility 0.4s ease-out;
+      }
+      #app-splash-screen.splash-hidden {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+      }
+      .splash-logo-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        animation: splashZoomIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+      .splash-icon {
+        width: 96px;
+        height: 96px;
+        filter: drop-shadow(0 10px 15px rgba(79, 70, 229, 0.3));
+        border-radius: 24px;
+      }
+      .splash-title {
+        margin-top: 16px;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-size: 24px;
+        font-weight: 700;
+        color: #111827;
+        letter-spacing: -0.02em;
+      }
+      .splash-subtitle {
+        margin-top: 4px;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-size: 13px;
+        color: #64748B;
+      }
+      @keyframes splashZoomIn {
+        0% {
+          opacity: 0;
+          transform: scale(0.85);
+        }
+        100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+    </style>
   </head>
   <body>
+    <div id="app-splash-screen">
+      <div class="splash-logo-container">
+        <svg class="splash-icon" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="128" height="128" rx="28" fill="#4F46E5"/>
+          <rect x="22" y="30" width="84" height="74" rx="10" fill="white"/>
+          <path d="M22 40C22 34.4772 26.4772 30 32 30H96C101.523 30 106 34.4772 106 40V48H22V40Z" fill="#6366F1"/>
+          <rect x="40" y="20" width="6" height="14" rx="3" fill="#E0E7FF"/>
+          <rect x="82" y="20" width="6" height="14" rx="3" fill="#E0E7FF"/>
+          <path d="M40 70L56 86L88 54" stroke="#4F46E5" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="92" cy="62" r="6" fill="#16A34A"/>
+        </svg>
+        <div class="splash-title">CitasPro</div>
+        <div class="splash-subtitle">Tu tiempo, nuestra prioridad</div>
+      </div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <script>
+      window.addEventListener('DOMContentLoaded', () => {
+        const splash = document.getElementById('app-splash-screen');
+        if (splash) {
+          setTimeout(() => {
+            splash.classList.add('splash-hidden');
+            setTimeout(() => splash.remove(), 400);
+          }, 1100);
+        }
+      });
+    </script>
   </body>
 </html>

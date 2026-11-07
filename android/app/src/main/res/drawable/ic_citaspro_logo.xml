@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="128dp"
+    android:height="128dp"
+    android:viewportWidth="128"
+    android:viewportHeight="128">
+
+    <!-- Outer rounded badge background -->
+    <path
+        android:pathData="M 28 8 L 100 8 A 20 20 0 0 1 120 28 L 120 100 A 20 20 0 0 1 100 120 L 28 120 A 20 20 0 0 1 8 100 L 8 28 A 20 20 0 0 1 28 8 Z"
+        android:fillColor="#4F46E5" />
+
+    <!-- Subtle inner glowing card shape -->
+    <path
+        android:pathData="M 32 30 L 96 30 A 10 10 0 0 1 106 40 L 106 94 A 10 10 0 0 1 96 104 L 32 104 A 10 10 0 0 1 22 94 L 22 40 A 10 10 0 0 1 32 30 Z"
+        android:fillColor="#FFFFFF" />
+
+    <!-- Calendar top header bar -->
+    <path
+        android:pathData="M 32 30 L 96 30 A 10 10 0 0 1 106 40 L 106 48 L 22 48 L 22 40 A 10 10 0 0 1 32 30 Z"
+        android:fillColor="#6366F1" />
+
+    <!-- Left ring binding hook -->
+    <path
+        android:pathData="M 40 22 L 46 22 L 46 36 L 40 36 Z"
+        android:fillColor="#3730A3" />
+    <path
+        android:pathData="M 41 20 A 3 3 0 0 1 45 20 L 45 34 A 3 3 0 0 1 41 34 Z"
+        android:fillColor="#E0E7FF" />
+
+    <!-- Right ring binding hook -->
+    <path
+        android:pathData="M 82 22 L 88 22 L 88 36 L 82 36 Z"
+        android:fillColor="#3730A3" />
+    <path
+        android:pathData="M 83 20 A 3 3 0 0 1 87 20 L 87 34 A 3 3 0 0 1 83 34 Z"
+        android:fillColor="#E0E7FF" />
+
+    <!-- Stylized checkmark for appointment completed/confirmed -->
+    <path
+        android:pathData="M 40 70 L 56 86 L 88 54"
+        android:strokeColor="#4F46E5"
+        android:strokeWidth="10"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+
+    <!-- Small active status dot -->
+    <path
+        android:pathData="M 92 62 A 6 6 0 1 1 92 61.9 Z"
+        android:fillColor="#16A34A" />
+</vector>
