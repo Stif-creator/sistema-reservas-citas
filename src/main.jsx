@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import './index.css'
+import './components/superadmin-avatar-fix.css'
 import App from './App.jsx'
 import { FeedbackProvider } from './components/ui/FeedbackProvider'
 import RouteErrorFallback from './components/RouteErrorFallback'
@@ -23,7 +24,7 @@ window.addEventListener('vite:preloadError', event => {
   }
 })
 
-const router = createBrowserRouter([{ path: '*', element: <AuthProvider><FeedbackProvider><UnsavedForms><App /></UnsavedForms></FeedbackProvider></AuthProvider>, errorElement: <RouteErrorFallback /> }])
+const router = createBrowserRouter([{ path: '*', element: <FeedbackProvider><AuthProvider><UnsavedForms><App /></UnsavedForms></AuthProvider></FeedbackProvider>, errorElement: <RouteErrorFallback /> }])
 createRoot(document.getElementById('root')).render(
   <StrictMode><RouterProvider router={router} /></StrictMode>,
 )

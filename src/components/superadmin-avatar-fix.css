@@ -1,0 +1,42 @@
+.superadmin-shell span.superadmin-avatar {
+  position: relative !important;
+  display: grid !important;
+  box-sizing: border-box !important;
+  width: 38px !important;
+  height: 38px !important;
+  min-width: 38px !important;
+  min-height: 38px !important;
+  max-width: 38px !important;
+  max-height: 38px !important;
+  flex: 0 0 38px !important;
+  aspect-ratio: 1 / 1;
+  align-self: center;
+  overflow: hidden;
+  padding: 0 !important;
+  border-radius: 50%;
+}
+
+.superadmin-shell span.superadmin-avatar > img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  box-sizing: border-box;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 100% !important;
+  min-height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  object-fit: cover;
+  object-position: center;
+}
+
+.superadmin-native-app .superadmin-user span.superadmin-avatar {
+  width: 35px !important;
+  height: 35px !important;
+  min-width: 35px !important;
+  min-height: 35px !important;
+  max-width: 35px !important;
+  max-height: 35px !important;
+  flex-basis: 35px !important;
+}
