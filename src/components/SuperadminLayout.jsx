@@ -2,8 +2,6 @@ import { useState } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/auth-context'
 import { safeImageUrl } from '../lib/brand'
-import { useFeedback } from '../context/feedback-context'
-import { confirmDiscard } from '../lib/unsavedForms'
 import NotificationLink from './NotificationLink'
 import { ListSearchContext } from '../context/list-search-context'
 import { Activity, Bell, Building2, ChartNoAxesCombined, Headset, LayoutDashboard, LogOut, Menu, Search, ShieldCheck, Users, X, CalendarCheck, ClipboardList } from 'lucide-react'
@@ -31,14 +29,12 @@ const avatar = user => safeImageUrl(user?.photoUrl) ? <img src={safeImageUrl(use
 
 export default function SuperadminLayout() {
   const { userDoc, logout } = useAuth()
-  const { confirm } = useFeedback()
   const navigate = useNavigate()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [search, setSearch] = useState('')
   const name = [userDoc?.firstName, userDoc?.lastName].filter(Boolean).join(' ') || 'Superadministrador'
   async function signOut() {
-    if (!await confirmDiscard(document, confirm)) return
-    await logout()
+    if (!await logout()) return
     navigate('/login')
   }
   const sidebar = <>

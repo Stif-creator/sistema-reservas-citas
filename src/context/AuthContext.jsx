@@ -23,7 +23,7 @@ import { auth, db } from '../firebase/config'
 import { AuthContext } from './auth-context'
 import { unregisterNativePushToken } from '../lib/nativePush'
 import { useFeedback } from './feedback-context'
-import { confirmSignOut, consumeSignOutConfirmation } from '../lib/unsavedForms'
+import { confirmSignOut } from '../lib/unsavedForms'
 
 export function AuthProvider({ children }) {
   const { confirm } = useFeedback()
@@ -288,7 +288,7 @@ export function AuthProvider({ children }) {
   }
 
   async function logout() {
-    if (!consumeSignOutConfirmation() && !await confirmSignOut(document, confirm)) return false
+    if (!await confirmSignOut(document, confirm)) return false
     if (currentUser?.uid) await unregisterNativePushToken(currentUser.uid)
     await signOut(auth)
     return true

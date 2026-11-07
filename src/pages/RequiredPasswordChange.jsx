@@ -63,7 +63,7 @@ export default function RequiredPasswordChange() {
 
   async function signOut() {
     setBusy(true)
-    try { await logout(); navigate('/login', { replace: true }) }
+    try { if (!await logout()) return; navigate('/login', { replace: true }) }
     catch { setError('No se pudo cerrar sesión. Inténtalo de nuevo.') }
     finally { setBusy(false) }
   }

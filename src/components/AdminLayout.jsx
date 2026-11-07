@@ -1,5 +1,3 @@
-import { confirmDiscard } from '../lib/unsavedForms'
-import { useFeedback } from '../context/feedback-context'
 import BusinessAccess from './BusinessAccess'
 import { safeImageUrl } from '../lib/brand'
 import SuperadminBusinesses from './SuperadminBusinesses'
@@ -97,7 +95,6 @@ function AdminLayout() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const userMenuRef = useRef(null)
-  const { confirm } = useFeedback()
 
   const userName = userDoc ? `${userDoc.firstName} ${userDoc.lastName}` : ''
   const avatarUser = membership?.role === 'professional' ? { ...userDoc, photoUrl: professionalProfile?.photo?.url || '' } : userDoc
@@ -134,9 +131,8 @@ function AdminLayout() {
   }, [])
 
   async function handleLogout() {
-    if (!await confirmDiscard(document, confirm)) return
     try {
-      await logout()
+      if (!await logout()) return
       navigate('/login')
     } catch {
       setLayoutError('No se pudo cerrar la sesión. Inténtalo de nuevo.')

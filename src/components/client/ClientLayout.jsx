@@ -59,7 +59,7 @@ function ClientWorkspace({ businessId }) {
   }, [businessId])
 
   async function endSession() {
-    try { await logout(); navigate('/login', { replace: true }) }
+    try { if (!await logout()) return; navigate('/login', { replace: true }) }
     catch { setSessionError('No pudimos cerrar tu sesión. Inténtalo de nuevo.') }
   }
   const value = { ...community, business, services: catalog.services, categories: catalog.categories,
