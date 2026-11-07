@@ -2,6 +2,7 @@
 <resources>
     <string name="app_name">CitasPro</string>
     <string name="title_activity_main">CitasPro</string>
+    <string name="default_notification_channel_id">citaspro_appointments</string>
     <string name="package_name">com.citaspro.app</string>
     <string name="custom_url_scheme">com.citaspro.app</string>
 </resources>

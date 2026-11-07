@@ -1,7 +1,8 @@
 import AppRoutes from './routes/AppRoutes'
+import NativePushNotifications from './components/NativePushNotifications'
 
 function App() {
-  return <AppRoutes />
+  return <><NativePushNotifications /><AppRoutes /></>
 }
 
 export default App

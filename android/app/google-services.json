@@ -1,0 +1,28 @@
+{
+  "project_info": {
+    "project_number": "904764183997",
+    "project_id": "sistema-reservas-jf745-2026",
+    "storage_bucket": "sistema-reservas-jf745-2026.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:904764183997:android:6362b79a3e061bc3fb2ed4",
+        "android_client_info": {
+          "package_name": "com.citaspro.app"
+        }
+      },
+      "api_key": [
+        {
+          "current_key": "AIzaSyCFZMd3Uuw1JtSC_Ulx2EaMef44XFeBWwc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

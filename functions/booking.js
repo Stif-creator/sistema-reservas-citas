@@ -9,6 +9,7 @@ import { executeEngagement, engagementActions, discountedService, bookingNotices
 import { executePlatformAnalytics } from './analytics.js'
 import { executePlatformActivity } from './activity.js'
 import { readQueryPages } from './shared/firestorePages.js'
+import { registerPushToken, sendAppointmentPush, unregisterPushToken } from './pushNotifications.js'
 
 const fail = (code, message) => { throw new BookingError(code, message) }
 const record = snapshot => snapshot.exists ? { ...snapshot.data(), id: snapshot.id } : null
@@ -154,6 +155,8 @@ function quote(service, currencyCode = 'BOB') {
 export async function executeBooking(db, uid, input) {
   if (!input || typeof input !== 'object') fail('invalid-argument', 'Solicitud inválida.')
   const { businessId, action } = input
+  if (action === 'pushTokenRegister') return registerPushToken(db, uid, input)
+  if (action === 'pushTokenUnregister') return unregisterPushToken(db, uid, input)
   if (action === 'platformAnalytics') return executePlatformAnalytics(db, uid, input)
   if (action === 'platformActivity') return executePlatformActivity(db, uid, input)
   if (['platformCreate', 'platformStatus'].includes(action)) return executePlatform(db, uid, input)
@@ -214,13 +217,13 @@ export async function executeBooking(db, uid, input) {
   const operationId = `${uid}_${input.requestId}`
   const operationRef = db.doc(`bookingRequests/${operationId}`)
   const fingerprint = createHash('sha256').update(JSON.stringify(input)).digest('hex')
-  return db.runTransaction(async transaction => {
+  const outcome = await db.runTransaction(async transaction => {
     const actor = await context(db, transaction, uid, businessId)
     if (input.source === 'public' && actor.business.settings?.publicPageEnabled !== true) fail('permission-denied', 'La reserva pública está desactivada.')
     const previous = record(await transaction.get(operationRef))
     if (previous) {
       if (previous.fingerprint !== fingerprint) fail('already-exists', 'Esta solicitud ya se utilizó. Actualiza la página.')
-      return previous.result
+      return { result: previous.result, push: null }
     }
     // All booking mutations in a business serialize on this document. Queries
     // alone cannot substitute an explicit conflict when an empty slot is booked.
@@ -288,9 +291,11 @@ export async function executeBooking(db, uid, input) {
     if (original) transaction.update(ref, { ...update, revision, updatedAt: stamp, updatedByUserId: uid })
     else transaction.create(ref, { ...update, ...client, id: ref.id, businessId, revision, code: ref.id,
       source: actor.member.role === 'admin' ? 'manual' : input.source === 'public' ? 'public' : 'client', createdByUserId: uid, createdAt: stamp, updatedAt: stamp })
-    bookingNotices(db, transaction, { ...original, ...update, ...client, id: ref.id, businessId }, revision, action, reminder?.hours ?? 24, stamp, actor.business.ownerUserId)
+    const notice = bookingNotices(db, transaction, { ...original, ...update, ...client, id: ref.id, businessId }, revision, action, reminder?.hours ?? 24, stamp, actor.business.ownerUserId)
     transaction.set(lock, { revision: FieldValue.increment(1), updatedAt: stamp }, { merge: true })
     transaction.create(operationRef, { businessId, userId: uid, fingerprint, result, createdAt: stamp })
-    return result
+    return { result, push: { ...notice, businessId, reservationId: ref.id } }
   }, { maxAttempts: 8 })
+  if (outcome.push) await sendAppointmentPush(db, outcome.push)
+  return outcome.result
 }

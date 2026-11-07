@@ -527,10 +527,14 @@ export function reminderFor(r, hours, stamp) {
 
 export function bookingNotices(db, tx, reservation, revision, action, hours, stamp, ownerId) {
   const labels = { pending: 'pendiente', confirmed: 'confirmada', cancelled: 'cancelada', completed: 'finalizada', no_show: 'no asistida' }
-  for (const recipientUserId of new Set([reservation.clientUserId, reservation.professionalUserId, ownerId].filter(Boolean))) {
-    tx.set(db.doc(`notifications/${reservation.id}_${revision}_${recipientUserId}`), { businessId: reservation.businessId, recipientUserId, reservationId: reservation.id, type: 'change', title: action === 'reschedule' ? 'Cita reprogramada' : `Cita ${labels[reservation.status]}`, message: `${reservation.serviceName} · ${reservation.professionalName}`, serviceName: reservation.serviceName || '', professionalName: reservation.professionalName || '', appointmentStartAt: reservation.startAt, status: reservation.status, read: false, visibleAt: stamp, createdAt: stamp })
+  const recipients = [...new Set([reservation.clientUserId, reservation.professionalUserId, ownerId].filter(Boolean))]
+  const title = action === 'reschedule' ? 'Cita reprogramada' : `Cita ${labels[reservation.status]}`
+  const message = `${reservation.serviceName} · ${reservation.professionalName}`
+  for (const recipientUserId of recipients) {
+    tx.set(db.doc(`notifications/${reservation.id}_${revision}_${recipientUserId}`), { businessId: reservation.businessId, recipientUserId, reservationId: reservation.id, type: 'change', title, message, serviceName: reservation.serviceName || '', professionalName: reservation.professionalName || '', appointmentStartAt: reservation.startAt, status: reservation.status, read: false, visibleAt: stamp, createdAt: stamp })
   }
   scheduleReminders(db, tx, reservation, hours, stamp)
+  return { recipients, title, message }
 }
 
 export function scheduleReminders(db, tx, reservation, hours, stamp) {

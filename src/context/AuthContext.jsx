@@ -21,6 +21,7 @@ import {
 } from 'firebase/firestore'
 import { auth, db } from '../firebase/config'
 import { AuthContext } from './auth-context'
+import { unregisterNativePushToken } from '../lib/nativePush'
 
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null)
@@ -284,6 +285,7 @@ export function AuthProvider({ children }) {
   }
 
   async function logout() {
+    if (currentUser?.uid) await unregisterNativePushToken(currentUser.uid)
     await signOut(auth)
   }
 
