@@ -642,7 +642,7 @@ test('superadmin cannot use tenant booking operations while scoped roles and pla
 test('platform creates linked businesses, protects lifecycle and preserves historical reservations', async () => {
   const f = await fixture(), platform = `platform-${randomUUID()}`, bid = `tenant-${randomUUID()}`
   await db.doc(`users/${platform}`).set({ status: 'active', globalRole: 'superadmin' })
-  const create = { action: 'platformCreate', businessId: bid, name: 'Test tenant', email: 'admin@example.test', primaryColor: '#123456', secondaryColor: '#abcdef' }
+  const create = { action: 'platformCreate', businessId: bid, name: 'Test tenant', category: 'Salud', email: 'admin@example.test', primaryColor: '#123456', secondaryColor: '#abcdef' }
   // Fixture emails are intentionally shared between fixtures; use a unique administrator.
   const email = `${f.users.admin}@example.test`
   await db.doc(`users/${f.users.admin}`).update({ email, businessIds: [f.businessId] })
@@ -663,6 +663,7 @@ test('platform creates linked businesses, protects lifecycle and preserves histo
   assert.equal((await db.doc(`memberships/${bid}_${f.users.admin}`).get()).data().role, 'admin')
   assert.deepEqual((await db.doc(`users/${f.users.admin}`).get()).data().businessIds, [f.businessId, bid])
   assert.equal((await db.doc(`businesses/${bid}`).get()).data().settings.publicPageEnabled, false)
+  assert.equal((await db.doc(`businesses/${bid}`).get()).data().category, 'Salud')
   const status = value => ({ action: 'platformStatus', businessId: bid, status: value, confirmName: 'Test tenant' })
   await rejects(executeBooking(db, platform, status('deleted')), 'failed-precondition')
   await executeBooking(db, platform, status('inactive'))

@@ -5,6 +5,7 @@ import { BookingError } from './bookingError.js'
 
 const fail = (code, message) => { throw new BookingError(code, message) }
 const validId = value => typeof value === 'string' && /^[a-zA-Z0-9_-]{1,120}$/.test(value)
+const businessCategories = ['Belleza y bienestar', 'Salud', 'Consultorio dental', 'Abogados', 'Barbería', 'Educación', 'Servicios profesionales', 'Otro']
 
 export async function executePlatform(db, uid, input) {
   if (!uid) fail('unauthenticated', 'Inicia sesión.')
@@ -16,7 +17,7 @@ export async function executePlatform(db, uid, input) {
     if (actor?.status !== 'active' || actor.globalRole !== 'superadmin') fail('permission-denied', 'Solo el superadministrador puede crear administradores.')
     const email = String(input.email || '').trim().toLowerCase()
     const firstName = String(input.firstName || '').trim(), lastName = String(input.lastName || '').trim()
-    if (!firstName || !lastName || firstName.length > 80 || lastName.length > 80 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || typeof input.password !== 'string' || input.password.length < 12 || input.password.length > 128 || !input.name?.trim() || input.name.length > 120 || !/^#[0-9a-f]{6}$/i.test(input.primaryColor) || !/^#[0-9a-f]{6}$/i.test(input.secondaryColor)) fail('invalid-argument', 'Completa los datos del administrador y del negocio; la clave inicial requiere al menos 12 caracteres.')
+    if (!firstName || !lastName || firstName.length > 80 || lastName.length > 80 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || typeof input.password !== 'string' || input.password.length < 12 || input.password.length > 128 || !input.name?.trim() || input.name.length > 120 || !businessCategories.includes(input.category) || !/^#[0-9a-f]{6}$/i.test(input.primaryColor) || !/^#[0-9a-f]{6}$/i.test(input.secondaryColor)) fail('invalid-argument', 'Completa la categoría, los datos del administrador y del negocio; la clave inicial requiere al menos 12 caracteres.')
     const accountId = `tenant-${createHash('sha256').update(`${uid}:${input.businessId}`).digest('hex')}`
     try {
       await getAuth().createUser({ uid: accountId, email, password: input.password, displayName: `${firstName} ${lastName}` })
@@ -39,16 +40,16 @@ export async function executePlatform(db, uid, input) {
     if (input.action === 'platformCreate') {
       const name = typeof input.name === 'string' ? input.name.trim() : ''
       const email = typeof input.email === 'string' ? input.email.trim().toLowerCase() : ''
-      if (!name || name.length > 120 || !email || !/^#[0-9a-f]{6}$/i.test(input.primaryColor) || !/^#[0-9a-f]{6}$/i.test(input.secondaryColor)) fail('invalid-argument', 'Completa nombre, correo y colores válidos.')
+      if (!name || name.length > 120 || !email || !businessCategories.includes(input.category) || !/^#[0-9a-f]{6}$/i.test(input.primaryColor) || !/^#[0-9a-f]{6}$/i.test(input.secondaryColor)) fail('invalid-argument', 'Completa nombre, categoría, correo y colores válidos.')
       if (existing.exists) {
-        if (existing.data().createdByUserId === uid && existing.data().administratorEmail === email && existing.data().name === name && existing.data().appearance.primaryColor === input.primaryColor && existing.data().appearance.secondaryColor === input.secondaryColor) return { ok: true, businessId: ref.id }
+        if (existing.data().createdByUserId === uid && existing.data().administratorEmail === email && existing.data().name === name && existing.data().category === input.category && existing.data().appearance.primaryColor === input.primaryColor && existing.data().appearance.secondaryColor === input.secondaryColor) return { ok: true, businessId: ref.id }
         fail('already-exists', 'Este identificador ya está en uso.')
       }
       const candidates = newOwner ? null : await tx.get(db.collection('users').where('email', '==', email).limit(2))
       if (!newOwner && candidates.size !== 1) fail('failed-precondition', 'El administrador debe tener una cuenta registrada con ese correo.')
       const owner = newOwner || candidates.docs[0], profile = newOwner ? newOwner.profile : owner.data()
       if (profile.status !== 'active' || profile.onboardingComplete === false || (profile.businessIds || []).length >= 20) fail('failed-precondition', 'La cuenta debe estar activa y tener menos de 20 negocios.')
-      tx.create(ref, { id: ref.id, name, ownerUserId: owner.id, administratorEmail: email, administratorName: `${profile.firstName || ''} ${profile.lastName || ''}`.trim(), createdByUserId: uid,
+      tx.create(ref, { id: ref.id, name, category: input.category, ownerUserId: owner.id, administratorEmail: email, administratorName: `${profile.firstName || ''} ${profile.lastName || ''}`.trim(), createdByUserId: uid,
         appearance: { primaryColor: input.primaryColor, secondaryColor: input.secondaryColor }, status: 'active',
         settings: { publicPageEnabled: false, timezone: 'America/La_Paz', currencyCode: 'BOB', bookingIntervalMinutes: 15, minAdvanceMinutes: 60, maxAdvanceDays: 90, cancellationLimitHours: 24, autoConfirmBookings: false },
         createdAt: stamp, updatedAt: stamp })

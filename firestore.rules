@@ -202,9 +202,11 @@ service cloud.firestore {
       // Platform configuration is separate from operational membership and status changes.
       allow update: if superadmin() && auditedConfiguration()
         && request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['name', 'description', 'about', 'logo', 'cover', 'appearance', 'contact', 'location', 'weeklyHours', 'settings', 'updatedAt', 'lastConfigAuditId'])
+          .hasOnly(['name', 'category', 'description', 'about', 'logo', 'cover', 'appearance', 'contact', 'location', 'weeklyHours', 'settings', 'updatedAt', 'lastConfigAuditId'])
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['name'])
           || (request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 120))
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['category'])
+          || (request.resource.data.category is string && request.resource.data.category.size() > 0 && request.resource.data.category.size() <= 100))
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['appearance'])
           || validAppearance(request.resource.data.appearance))
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['location'])

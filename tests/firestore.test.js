@@ -671,6 +671,7 @@ test('business admin can save authorized configuration but cannot change protect
     { settings: { publicPageEnabled: false, timezone: 'Pacific/Auckland' } },
     { appearance: { primaryColor: '#123456', secondaryColor: '#abcdef' } },
     { name: 'Nombre no autorizado' },
+    { category: 'Salud' },
   ]
   for (const patch of deniedPatches) await assertFails(auditedBusinessUpdate(db, 'studio', 'owner', patch))
   await assertFails(auditedBusinessUpdate(db, 'studio', 'owner', { description: 'Combinado', 'settings.timezone': 'UTC' }))
@@ -691,14 +692,15 @@ test('platform configuration requires a new atomic audit and cannot change owner
     if (!omitLog) batch.set(doc(db, 'auditLogs', id), { businessId: auditBusiness, actorUserId: actor, action: 'businessUpdate', beforeName: before.name || '', afterName: patch.name ?? before.name ?? '', beforeAppearance: before.appearance || {}, afterAppearance: patch.appearance ?? before.appearance ?? {}, createdAt: serverTimestamp() })
     return batch.commit()
   }
-  await assertSucceeds(change({ name: 'Configurado', description: 'Descripción', 'settings.publicPageEnabled': true, appearance: { primaryColor: '#123456', secondaryColor: '#abcdef', accentColor: '#334455', surfaceColor: '#f8fafc' }, about: { title: 'Nosotros' }, contact: { phone: '+59176543210' }, logo: { url: 'https://example.test/logo.png' }, cover: { url: '' }, location: { latitude: -16.5, longitude: -68.15 }, weeklyHours: { '1': [{ start: '09:00', end: '12:00' }] } }))
+  await assertSucceeds(change({ name: 'Configurado', category: 'Salud', description: 'Descripción', 'settings.publicPageEnabled': true, appearance: { primaryColor: '#123456', secondaryColor: '#abcdef', accentColor: '#334455', surfaceColor: '#f8fafc' }, about: { title: 'Nosotros' }, contact: { phone: '+59176543210' }, logo: { url: 'https://example.test/logo.png' }, cover: { url: '' }, location: { latitude: -16.5, longitude: -68.15 }, weeklyHours: { '1': [{ start: '09:00', end: '12:00' }] } }))
   assert.equal((await getDoc(ref)).data().settings.bookingIntervalMinutes, 15)
+  assert.equal((await getDoc(ref)).data().category, 'Salud')
   await assertFails(updateDoc(doc(dbFor('owner'), 'businesses', 'config-business'), { 'settings.publicPageEnabled': false, updatedAt: serverTimestamp() }))
   assert.equal((await getDoc(ref)).data().name, 'Configurado')
   await assertFails(change({ name: 'Sin evento' }, { omitLog: true }))
   await assertFails(change({ name: 'Identidad falsa' }, { actor: 'owner' }))
   await assertFails(change({ name: 'Otro negocio' }, { auditBusiness: 'studio' }))
-  for (const patch of [{ ownerUserId: 'config-platform' }, { status: 'active' }, { administratorEmail: 'hijacked@example.test' }, { 'settings.bookingIntervalMinutes': 1 }, { 'settings.publicPageEnabled': 'yes' }, { settings: { publicPageEnabled: false, timezone: 'UTC', bookingIntervalMinutes: 1 } }, { settings: { publicPageEnabled: true, bookingIntervalMinutes: '15' } }, { settings: { publicPageEnabled: true, platformOverride: true } }, { name: '' }, { appearance: { primaryColor: 'red' } }, { location: { latitude: 100, longitude: 0 } }]) await assertFails(change(patch))
+  for (const patch of [{ ownerUserId: 'config-platform' }, { status: 'active' }, { administratorEmail: 'hijacked@example.test' }, { 'settings.bookingIntervalMinutes': 1 }, { 'settings.publicPageEnabled': 'yes' }, { settings: { publicPageEnabled: false, timezone: 'UTC', bookingIntervalMinutes: 1 } }, { settings: { publicPageEnabled: true, bookingIntervalMinutes: '15' } }, { settings: { publicPageEnabled: true, platformOverride: true } }, { name: '' }, { category: 123 }, { category: 'x'.repeat(101) }, { appearance: { primaryColor: 'red' } }, { location: { latitude: 100, longitude: 0 } }]) await assertFails(change(patch))
   const saved = (await getDoc(ref)).data()
   await assertFails(updateDoc(ref, { description: 'Reuse audit', lastConfigAuditId: saved.lastConfigAuditId, updatedAt: serverTimestamp() }))
   for (const uid of ['owner', 'pro', 'client']) await assertFails(updateDoc(doc(dbFor(uid), 'businesses', 'config-business'), { name: 'Cross tenant', updatedAt: serverTimestamp() }))

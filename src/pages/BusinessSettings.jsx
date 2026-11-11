@@ -24,6 +24,7 @@ import { useFeedback } from '../context/feedback-context'
 
 const PHONE_REGEX = /^\+?\d{8,}$/
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const BUSINESS_CATEGORIES = ['Belleza y bienestar', 'Salud', 'Consultorio dental', 'Abogados', 'Barbería', 'Educación', 'Servicios profesionales', 'Otro']
 
 function HexColorControl({ id, label, value, onChange, disabled }) {
   const [draft, setDraft] = useState(value)
@@ -50,6 +51,7 @@ function BusinessSettingsForm({ businessId, platform }) {
   const [tab, setTab] = useState('general')
   const [timeZone, setTimeZone] = useState('')
   const [name, setName] = useState('')
+  const [category, setCategory] = useState('')
   const [description, setDescription] = useState('')
   const [about, setAbout] = useState(defaultAbout)
   const [logoUrl, setLogoUrl] = useState('')
@@ -97,6 +99,7 @@ function BusinessSettingsForm({ businessId, platform }) {
           setTimeZone(data.settings?.timezone || 'America/La_Paz')
           setPublicPageEnabled(data.settings?.publicPageEnabled === true)
           setName(data.name ?? '')
+          setCategory(data.category || data.activityType || '')
           setDescription(data.description ?? '')
           setAbout(Object.fromEntries(Object.entries(defaultAbout).map(([key, fallback]) => [key, data.about?.[key] ?? fallback])))
           setLogoUrl(data.logo?.url ?? '')
@@ -139,6 +142,10 @@ function BusinessSettingsForm({ businessId, platform }) {
       errors.name = 'Ingresa un nombre de entre 1 y 120 caracteres.'
     }
 
+    if (platform && isSuperadmin && (!category.trim() || category.trim().length > 100)) {
+      errors.category = 'Selecciona una categoría para el negocio.'
+    }
+
     if (contactEmail.trim() && !EMAIL_REGEX.test(contactEmail.trim())) {
       errors.contactEmail = 'Ingresa un email válido.'
     }
@@ -173,7 +180,7 @@ function BusinessSettingsForm({ businessId, platform }) {
     }
     setFieldErrors(errors)
     if (Object.keys(errors).length > 0) {
-      setTab(errors.name ? 'general' : 'contact')
+      setTab(errors.name || errors.category ? 'general' : 'contact')
       return
     }
 
@@ -184,6 +191,7 @@ function BusinessSettingsForm({ businessId, platform }) {
       // exactamente lo que queda guardado en cada campo.
       await updateBusinessWithAudit(businessId, {
         ...(isSuperadmin ? { name: name.trim() } : {}),
+        ...(platform && isSuperadmin ? { category: category.trim() } : {}),
         description,
         ...(isSuperadmin ? { 'settings.publicPageEnabled': publicPageEnabled } : {}),
         about: Object.fromEntries(aboutFields.map(([key, , max]) => [key, about[key].trim().slice(0, max)])),
@@ -307,6 +315,13 @@ function BusinessSettingsForm({ businessId, platform }) {
                 className={fieldControlClasses(Boolean(fieldErrors.name))}
               />
             </Field>
+
+            {platform && isSuperadmin && <Field label="Categoría del negocio" htmlFor="business-category" error={fieldErrors.category}>
+              <select id="business-category" required value={category} onChange={event => { setCategory(event.target.value); clearFieldError('category') }} className={fieldControlClasses(Boolean(fieldErrors.category))}>
+                <option value="">Selecciona una categoría</option>
+                {[...new Set([...BUSINESS_CATEGORIES, ...(category && !BUSINESS_CATEGORIES.includes(category) ? [category] : [])])].map(item => <option key={item} value={item}>{item}</option>)}
+              </select>
+            </Field>}
 
             <Field label="Descripción" htmlFor="description">
               <textarea
