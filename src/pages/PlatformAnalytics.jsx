@@ -56,7 +56,7 @@ export default function PlatformAnalytics() {
   const stats = state.stats
   const businessOptions = businessId && stats?.business?.id === businessId && !businesses.some(item => item.id === businessId) ? [stats.business, ...businesses] : businesses
   const clearFilters = () => { setBusinessId(''); setSearch(''); setRange(90) }
-  return <div><PageHeader title="Estadísticas y reportes" description="Analiza la actividad de toda la plataforma o de un negocio específico de MUST." />
+  return <div><PageHeader title="Estadísticas y reportes" description="Analiza la actividad de toda la plataforma o de un negocio específico de MAST." />
     <div className="platform-analytics-filters">
       <label className="platform-scope-control"><span>Alcance</span><span className="platform-analytics-select"><Building2 size={17} /><select aria-label="Alcance de estadísticas" value={businessId} onChange={event => setBusinessId(event.target.value)}><option value="">Toda la plataforma</option>{businessOptions.map(item => <option key={item.id} value={item.id}>{item.name || item.id}</option>)}</select></span></label>
       <label className="platform-scope-search"><span>Buscar negocio</span><span className="platform-analytics-select"><Search size={17} /><input aria-label="Buscar negocio por nombre" value={search} onChange={event => setSearch(event.target.value)} placeholder="Escribe el nombre del negocio" />{searching && <small>Buscando…</small>}</span></label>

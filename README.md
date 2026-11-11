@@ -1,4 +1,4 @@
-# MUST
+# MAST
 
 Aplicación React + Vite con Firebase Authentication, Firestore y Firebase Hosting. El servidor de reservas funciona en Node.js (Render gratuito), con Cloud Functions como alternativa futura. Las imágenes se suben desde archivos locales mediante Cloudinary; no se necesita Firebase Storage. Incluye páginas públicas por negocio, registro de clientes y profesionales, servicios, horarios, bloqueos, reservas y agenda.
 

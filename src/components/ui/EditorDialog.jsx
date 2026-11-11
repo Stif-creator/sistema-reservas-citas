@@ -17,7 +17,7 @@ export default function EditorDialog({ title, description = '', headerAction, on
   }, [])
   const close = async () => { if (busy || closing.current) return; closing.current = true; try { if (await confirmDiscard(ref.current, confirm)) onClose() } finally { closing.current = false } }
   return <dialog ref={ref} className="editor-dialog" aria-label={title} onCancel={e => { e.preventDefault(); close() }}>
-    <header className="editor-dialog-header"><div><span className="text-xs font-semibold uppercase tracking-widest text-primary">MUST</span><h2 className="text-xl font-semibold mt-1">{title}</h2>{description && <p className="mt-1 text-sm text-muted">{description}</p>}</div><div className="flex items-center gap-2">{headerAction}<button type="button" disabled={busy} onClick={close} aria-label="Cerrar" className="rounded-lg p-2 hover:bg-slate-100"><X size={22} /></button></div></header>
+    <header className="editor-dialog-header"><div><span className="text-xs font-semibold uppercase tracking-widest text-primary">MAST</span><h2 className="text-xl font-semibold mt-1">{title}</h2>{description && <p className="mt-1 text-sm text-muted">{description}</p>}</div><div className="flex items-center gap-2">{headerAction}<button type="button" disabled={busy} onClick={close} aria-label="Cerrar" className="rounded-lg p-2 hover:bg-slate-100"><X size={22} /></button></div></header>
     <div className="editor-dialog-content">{children}</div>
   </dialog>
 }

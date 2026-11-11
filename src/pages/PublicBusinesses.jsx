@@ -27,7 +27,7 @@ export default function PublicBusinesses() {
   const [page, setPage] = useState(1)
   const cursor = useRef(null)
   const busy = useRef(false)
-  usePageMetadata('Negocios disponibles | MUST', 'Explora negocios publicados en MUST y encuentra los servicios disponibles cerca de ti.')
+  usePageMetadata('Negocios disponibles | MAST', 'Explora negocios publicados en MAST y encuentra los servicios disponibles cerca de ti.')
 
   const loadMore = useCallback(async () => {
     if (busy.current) return
@@ -69,7 +69,7 @@ export default function PublicBusinesses() {
   const clearFilters = () => { setSearch(''); setCategory(''); setCity(''); setSort('az'); setPage(1) }
 
   return <main id="contenido" className="platform-page platform-directory" tabIndex={-1}>
-    <section className="platform-container platform-directory-head"><span className="platform-eyebrow">CATÁLOGO PÚBLICO</span><h1>Encuentra tu próximo servicio</h1><p>Explora los negocios disponibles en MUST y encuentra lo que necesitas.</p></section>
+    <section className="platform-container platform-directory-head"><span className="platform-eyebrow">CATÁLOGO PÚBLICO</span><h1>Encuentra tu próximo servicio</h1><p>Explora los negocios disponibles en MAST y encuentra lo que necesitas.</p></section>
     <section className="platform-container platform-directory-content" aria-label="Catálogo de negocios">
       <div className="platform-filter-card">
         <label className="platform-filter-search"><span className="sr-only">Buscar por negocio o ubicación</span><Search size={18} /><input type="search" value={search} onChange={event => { setSearch(event.target.value); setPage(1) }} placeholder="Buscar negocio o ubicación…" /></label>

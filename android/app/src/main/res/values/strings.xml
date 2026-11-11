@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">MUST</string>
-    <string name="title_activity_main">MUST</string>
+    <string name="app_name">MAST</string>
+    <string name="title_activity_main">MAST</string>
     <string name="default_notification_channel_id">citaspro_appointments</string>
     <string name="package_name">com.citaspro.app</string>
     <string name="custom_url_scheme">com.citaspro.app</string>

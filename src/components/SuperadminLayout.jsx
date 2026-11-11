@@ -38,9 +38,9 @@ export default function SuperadminLayout() {
     navigate('/login')
   }
   const sidebar = <>
-    <Link className="superadmin-brand" to="/dashboard" onClick={() => setMobileOpen(false)}><span className="superadmin-brand-mark"><CalendarCheck size={22} /></span><span><strong>MUST</strong><small>Superadministración</small></span><X className="superadmin-close" size={19} aria-hidden="true" /></Link>
+    <Link className="superadmin-brand" to="/dashboard" onClick={() => setMobileOpen(false)}><span className="superadmin-brand-mark"><CalendarCheck size={22} /></span><span><strong>MAST</strong><small>Superadministración</small></span><X className="superadmin-close" size={19} aria-hidden="true" /></Link>
     <nav className="superadmin-nav" aria-label="Navegación del superadministrador">{groups.map(group => <section key={group.label}><h2>{group.label}</h2>{group.links.map(([to, label, Icon]) => <NavLink key={to} end={to === '/dashboard' || to === '/avisos' || to === '/seguridad'} to={to} onClick={() => setMobileOpen(false)} className={({ isActive }) => `superadmin-nav-link${isActive ? ' active' : ''}`}><Icon size={18} /><span>{label}</span></NavLink>)}</section>)}</nav>
-    <div className="superadmin-profile"><span className="superadmin-avatar">{avatar(userDoc)}</span><span className="superadmin-profile-copy"><strong>{name}</strong><small>MUST</small></span><button type="button" aria-label="Cerrar sesión" title="Cerrar sesión" onClick={signOut}><LogOut size={18} /></button></div>
+    <div className="superadmin-profile"><span className="superadmin-avatar">{avatar(userDoc)}</span><span className="superadmin-profile-copy"><strong>{name}</strong><small>MAST</small></span><button type="button" aria-label="Cerrar sesión" title="Cerrar sesión" onClick={signOut}><LogOut size={18} /></button></div>
   </>
   return <div className="superadmin-shell">
     <aside className={`superadmin-sidebar${mobileOpen ? ' open' : ''}`}>{sidebar}</aside>

@@ -16,7 +16,7 @@ export async function confirmSignOut(root = document, requestConfirmation = asyn
     title: '¿Cerrar sesión?',
     description: affected.length
       ? 'Se cerrará tu sesión y se perderán los cambios que todavía no hayas guardado.'
-      : '¿Quieres cerrar tu sesión en MUST?',
+      : '¿Quieres cerrar tu sesión en MAST?',
     confirmLabel: 'Cerrar sesión',
   })
   if (!confirmed) return false

@@ -66,7 +66,7 @@ test('business identity persists across home, login and registration on desktop 
     await expect(page.locator('#promociones')).toBeAttached()
     await expect(page.locator('#opiniones')).toBeAttached()
     if (viewport.width < 1050) await page.getByRole('button', { name: 'Abrir menú' }).click()
-    await expect(page.getByRole('link', { name: 'Volver a MUST' })).toHaveAttribute('href', '/negocios')
+    await expect(page.getByRole('link', { name: 'Volver a MAST' })).toHaveAttribute('href', '/negocios')
     await expect(page.locator('.business-service-card').getByRole('link', { name: /Reservar/ })).toHaveAttribute('href', '/b/violeta/reservar?servicio=massage')
     await page.getByRole('searchbox', { name: 'Buscar servicios' }).fill('no existe')
     await expect(page.getByText('No hay servicios que coincidan con tu búsqueda.')).toBeVisible()

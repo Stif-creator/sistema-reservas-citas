@@ -195,7 +195,7 @@ function PromotionsView({ businessId }) {
     </section>
 
     {data && <form className="promotions-reminder-panel" onSubmit={saveReminder}>
-      <div className="promotions-reminder-copy"><span className="promotions-reminder-icon"><Clock3 size={21} /></span><div><h2>Recordatorios internos</h2><p>Se programan avisos 24 y 1 hora antes. Puedes sumar otra anticipación; los avisos aparecen en MUST.</p><small>Al guardar, también se actualizan las reservas futuras existentes.</small></div></div>
+      <div className="promotions-reminder-copy"><span className="promotions-reminder-icon"><Clock3 size={21} /></span><div><h2>Recordatorios internos</h2><p>Se programan avisos 24 y 1 hora antes. Puedes sumar otra anticipación; los avisos aparecen en MAST.</p><small>Al guardar, también se actualizan las reservas futuras existentes.</small></div></div>
       <div className="promotions-reminder-controls"><label>Horas de anticipación adicional<input name="hours" type="number" min="1" max="168" required defaultValue={data.reminderHours} /></label><button type="submit" className="booking-button promotions-primary" disabled={busy || reminderBusy}>{reminderBusy ? 'Guardando…' : 'Guardar anticipación'}</button></div>
     </form>}
 
