@@ -27,7 +27,14 @@ export default function LocationPickerMap({ latitude, longitude, onChange }) {
 
   useEffect(() => {
     if (!host.current || map.current) return undefined
-    const instance = L.map(host.current, { center: [0, 0], zoom: 2, scrollWheelZoom: false })
+    const instance = L.map(host.current, {
+      center: [0, 0],
+      zoom: 2,
+      scrollWheelZoom: true,
+      wheelDebounceTime: 40,
+      wheelPxPerZoomLevel: 60,
+    })
+    instance.scrollWheelZoom.enable()
     L.tileLayer(import.meta.env.VITE_OSM_TILE_URL || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>',
