@@ -68,7 +68,7 @@ function ClientAbout({ business, base, professionals }) {
     <section className="client-about-hero">
       <div className="public-container client-about-hero-inner">
         <div className="client-about-hero-copy">
-          <span className="client-about-kicker">NOSOTROS · {business?.name || 'CitasPro'}</span>
+          <span className="client-about-kicker">NOSOTROS · {business?.name || 'MUST'}</span>
           <h1>{title}</h1>
           {description && <p>{description}</p>}
           <div className="client-about-actions">

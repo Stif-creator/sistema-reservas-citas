@@ -13,7 +13,7 @@ export default function PlatformHome() {
   const [businesses, setBusinesses] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  usePageMetadata('Inicio | CitasPro', 'Explora negocios, descubre sus servicios y organiza tus próximas citas con CitasPro.')
+  usePageMetadata('Inicio | MUST', 'Explora negocios, descubre sus servicios y organiza tus próximas citas con MUST.')
 
   useEffect(() => {
     let active = true
@@ -33,7 +33,7 @@ export default function PlatformHome() {
     <section className="platform-hero">
       <div className="platform-container platform-hero-grid">
         <div className="platform-hero-copy">
-          <span className="platform-eyebrow"><span />BIENVENIDO A CITASPRO</span>
+          <span className="platform-eyebrow"><span />BIENVENIDO A MUST</span>
           <h1>Encuentra y reserva servicios <span>cerca de ti.</span></h1>
           <p>Explora negocios, descubre sus servicios y organiza tus próximas citas de forma sencilla.</p>
           <form className="platform-search" role="search" onSubmit={submitSearch}>
@@ -56,7 +56,7 @@ export default function PlatformHome() {
       </div>
     </section>
 
-    <section className="platform-benefits" aria-label="Beneficios de CitasPro"><div className="platform-container platform-benefit-grid">
+    <section className="platform-benefits" aria-label="Beneficios de MUST"><div className="platform-container platform-benefit-grid">
       {[[Compass, 'Explora negocios', 'Encuentra opciones para lo que necesitas.'], [CalendarDays, 'Consulta servicios', 'Revisa la información disponible antes de reservar.'], [Clock3, 'Encuentra horarios', 'Consulta la disponibilidad de cada negocio.'], [ShieldCheck, 'Gestiona tus citas', 'Revisa tus reservas desde tu cuenta.']].map(([Icon, title, copy]) => <article className="platform-benefit" key={title}><span><Icon size={23} /></span><div><h2>{title}</h2><p>{copy}</p></div></article>)}
     </div></section>
 

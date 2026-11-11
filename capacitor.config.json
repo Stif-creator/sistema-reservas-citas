@@ -1,6 +1,6 @@
 {
   "appId": "com.citaspro.app",
-  "appName": "CitasPro",
+  "appName": "MUST",
   "webDir": "dist",
   "plugins": {
     "PushNotifications": {

@@ -205,7 +205,7 @@ export default function AccountSecurity() {
       </Card>
       <Card className="account-summary-card"><div className="account-summary-avatar">{displayedPhoto ? <img src={displayedPhoto} alt="" /> : <span>{initials(firstName, lastName)}</span>}</div><h2>{name}</h2><span className="account-role-badge">{role}</span><p className="account-summary-email"><Mail size={16} />{email || 'Correo no disponible'}</p>{phone && <p className="account-summary-email"><Phone size={16} />{phone}</p>}
         {!isSuperadmin && businessName && <p className="account-summary-business">{businessName}</p>}<span className={`account-status${userDoc?.status === 'active' ? ' active' : ''}`}>{statusLabel(userDoc?.status)}</span>
-        <div className="account-summary-tip"><ShieldCheck size={20} /><div><strong>Actualización del perfil</strong><p>Los cambios se guardan en tu cuenta personal de CitasPro.</p></div></div>
+        <div className="account-summary-tip"><ShieldCheck size={20} /><div><strong>Actualización del perfil</strong><p>Los cambios se guardan en tu cuenta personal de MUST.</p></div></div>
       </Card>
     </section> : <section id="account-security" role="tabpanel" aria-labelledby="account-security-tab"><PasswordSecurity /></section>}
   </div>

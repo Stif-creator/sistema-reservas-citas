@@ -37,7 +37,7 @@ export default function PlatformDashboard() {
   }, [period])
   const max = Math.max(1, ...state.chart.map(item => item.value))
   return <div>
-    <PageHeader title="Resumen de la plataforma" description="Supervisa los negocios y la actividad general de CitasPro." />
+    <PageHeader title="Resumen de la plataforma" description="Supervisa los negocios y la actividad general de MUST." />
     <div className="platform-dashboard-toolbar"><span className="platform-dashboard-caption"><Activity size={15} />Datos agregados de la plataforma</span><label className="platform-period-label">Período<select aria-label="Período del resumen" className="platform-period" value={period} onChange={event => { setState(previous => ({ ...previous, loading: true, error: '' })); setPeriod(Number(event.target.value)) }}>{Object.entries(periods).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label></div>
     {state.error && <p role="alert" className="platform-alert">{state.error}</p>}
     {state.loading && <p className="platform-loading" role="status">Cargando indicadores globales…</p>}

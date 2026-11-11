@@ -28,11 +28,11 @@ export default function SiteFooter({ business, homeTo = '/', contactTo = '/conta
   if (platformMode) return <footer className="public-container site-footer platform-site-footer">
     <div className="platform-footer-main">
       <div className="platform-footer-brand"><BusinessBrand business={null} to="/" /><p>Una plataforma para descubrir servicios y organizar citas con más claridad.</p></div>
-      <nav aria-label="Explorar CitasPro"><strong>Explorar</strong><Link to="/">Inicio</Link><Link to="/negocios">Negocios</Link><Link to="/nosotros">Nosotros</Link><Link to="/contacto">Contacto</Link></nav>
+      <nav aria-label="Explorar MUST"><strong>Explorar</strong><Link to="/">Inicio</Link><Link to="/negocios">Negocios</Link><Link to="/nosotros">Nosotros</Link><Link to="/contacto">Contacto</Link></nav>
       <nav aria-label="Información"><strong>Información</strong><Link to="/#como-funciona">Cómo funciona</Link><Link to="/nosotros">Nuestra plataforma</Link></nav>
       <div className="platform-footer-contact"><strong>Contacto</strong><p>Las consultas sobre reservas se atienden directamente con cada negocio.</p><Link to="/contacto">Opciones de contacto <span aria-hidden="true">→</span></Link></div>
     </div>
-    <div className="platform-footer-bottom"><span>© {new Date().getFullYear()} CitasPro. Todos los derechos reservados.</span><span>Tu tiempo, nuestra prioridad.</span></div>
+    <div className="platform-footer-bottom"><span>© {new Date().getFullYear()} MUST. Todos los derechos reservados.</span><span>Tu tiempo, nuestra prioridad.</span></div>
   </footer>
   if (business) {
     const phone = typeof business.contact?.phone === 'string' && /^[+\d][\d\s()-]{6,24}$/.test(business.contact.phone.trim()) ? business.contact.phone.trim() : ''
@@ -44,7 +44,7 @@ export default function SiteFooter({ business, homeTo = '/', contactTo = '/conta
         <div className="business-footer-brand"><BusinessBrand business={business} to={homeTo} />{business.description && <p>{business.description}</p>}</div>
         <nav aria-label="Secciones del negocio"><strong>Explora</strong><Link to={`${homeTo}#servicios`}>Servicios</Link><Link to={`${homeTo}#profesionales`}>Profesionales</Link><Link to={`${homeTo}#promociones`}>Promociones</Link><Link to={`${homeTo}#opiniones`}>Opiniones</Link><Link to={`${homeTo}/nosotros`}>Nosotros</Link><Link to={contactTo}>Contacto</Link></nav>
         <div className="business-footer-contact"><strong>Información de contacto</strong>{phone && <a href={`tel:${phoneHref}`}><Phone size={14} />{phone}</a>}{email && <a href={`mailto:${email}`}><Mail size={14} />{email}</a>}{place && <span><MapPin size={14} />{place}</span>}{!phone && !email && !place && <p>Consulta los datos disponibles en la página del negocio.</p>}</div>
-        <Link className="business-footer-platform" to="/negocios">Conoce CitasPro <span aria-hidden="true">→</span></Link>
+        <Link className="business-footer-platform" to="/negocios">Conoce MUST <span aria-hidden="true">→</span></Link>
       </div>
       <div className="business-footer-bottom"><span>© {new Date().getFullYear()} {business.name}</span><Link to={contactTo}>Contactar al negocio</Link></div>
     </footer>

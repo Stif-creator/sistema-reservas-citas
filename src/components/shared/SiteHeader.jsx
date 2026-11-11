@@ -20,7 +20,7 @@ export default function SiteHeader({ business, homeTo, links, children, clientMo
         {open ? <X size={22} /> : <Menu size={22} />}
       </button>
       <div id="site-navigation" className={`site-navigation ${open ? 'is-open' : ''}`}>
-        {businessMode && <Link className="business-back-platform" to="/negocios"><ArrowLeft size={16} />Volver a CitasPro</Link>}
+        {businessMode && <Link className="business-back-platform" to="/negocios"><ArrowLeft size={16} />Volver a MUST</Link>}
         <nav aria-label="Navegación principal" onClick={() => setOpenAt(null)}>
           {links.map((link) => link.to.includes('#')
             ? <Link key={link.to} to={link.to}>{link.label}</Link>

@@ -30,7 +30,7 @@ export default function NativePushNotifications() {
         if (!active || permission.receive !== 'granted') return
 
         await PushNotifications.createChannel({
-          id: 'citaspro_appointments', name: 'CitasPro', description: 'Avisos sobre tus citas',
+          id: 'citaspro_appointments', name: 'MUST', description: 'Avisos sobre tus citas',
           importance: 5, visibility: 1, vibration: true,
         })
         if (!active) return

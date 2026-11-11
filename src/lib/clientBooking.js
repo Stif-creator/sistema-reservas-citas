@@ -59,7 +59,7 @@ export function calendarFile(reservation, business, now = Date.now()) {
     }
     return out
   }
-  return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//CitasPro//Reservas//ES', 'CALSCALE:GREGORIAN', 'BEGIN:VEVENT',
+  return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//MUST//Reservas//ES', 'CALSCALE:GREGORIAN', 'BEGIN:VEVENT',
     `UID:${escape(reservation.id)}@citaspro`, `DTSTAMP:${stamp(now)}`, `DTSTART:${stamp(start)}`, `DTEND:${stamp(end)}`,
     `SUMMARY:${escape(reservation.serviceName || 'Cita')} - ${escape(business.name)}`,
     `DESCRIPTION:${escape(`Profesional: ${reservation.professionalName || 'Consulta tu reserva'}. Consulta los cambios en tu cuenta; este archivo no se actualiza automáticamente.`)}`,
